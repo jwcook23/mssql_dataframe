@@ -4,8 +4,54 @@ import pandas as pd
 
 import sqlalchemy.dialects.mssql
 
+from . import exceptions
 
-class SQLServer():
+
+class create():
+
+    def __init__(self):
+        pass
+
+
+    def table(self, table_name, dataframe, if_exists: str='error'):
+        """
+        Create database table using a dataframe.
+
+        Parameters
+            table_name      str                     name of table
+            dataframe       DataFrame               dataframe to determine datatypes of columns
+            if_exists       str, default='error'    if table already exists: 'error', 'ignore', 'drop'
+
+        Returns
+            None
+        """
+
+        # TODO: primary key and autoincrementing behavior
+        # # sql.Column('RowID', db.Integer, primary_key=True, autoincrement=False)
+
+        # Convert dataframe types to standard Python types
+        columns = dataframe.columns
+
+        dtypes = {}
+        for c in columns:
+            try:
+                dtypes[c] = type(dataframe.loc[0,c].item())     # numpy type
+            except:
+                dtypes[c] = type(dataframe.loc[0,c])            # core Python type
+
+        # test = sqlalchemy.dialects.mssql.TINYINT()
+        # test.compare_values(1,2,1)
+
+        # self.py2sql[dtypes['Address']]
+        # <class 'str'>: ['CHAR', 'NCHAR', 'NTEXT', 'NVARCHAR', 'TEXT', 'VARCHAR', 'XML']
+
+    
+    def dataframe(self):
+        pass
+        # sqlalchemy.dialects.mssql.INTEGER.result_processor
+
+
+class SQLServer(create):
     """
     Connect to SQL Server.
 
@@ -47,45 +93,6 @@ class SQLServer():
     
     def __repr__(self):
         return f"""SQLServer({self.database_name!r},{self.server_name!r},{self.driver},{self.fast_executemany},{self.autocommit})"""
-
-
-    def create_table(self, table_name, dataframe, if_exists: str='error'):
-        """
-        Create database table using a dataframe.
-
-        Parameters
-            table_name      str                     name of table
-            dataframe       DataFrame               dataframe to determine datatypes of columns
-            if_exists       str, default='error'    if table already exists: 'error', 'ignore', 'drop'
-
-        Returns
-            None
-        """
-
-        # TODO: primary key and autoincrementing behavior
-        # # sql.Column('RowID', db.Integer, primary_key=True, autoincrement=False)
-
-        # Convert dataframe types to standard Python types
-        columns = dataframe.columns
-
-        dtypes = {}
-        for c in columns:
-            try:
-                dtypes[c] = type(dataframe.loc[0,c].item())     # numpy type
-            except:
-                dtypes[c] = type(dataframe.loc[0,c])            # core Python type
-
-        # test = sqlalchemy.dialects.mssql.TINYINT()
-        # test.compare_values(1,2,1)
-
-        # self.py2sql[dtypes['Address']]
-        # <class 'str'>: ['CHAR', 'NCHAR', 'NTEXT', 'NVARCHAR', 'TEXT', 'VARCHAR', 'XML']
-
-    
-    def create_dataframe(self):
-        pass
-        # sqlalchemy.dialects.mssql.INTEGER.result_processor
-
 
     @staticmethod
     def _type_mapping():
@@ -133,12 +140,7 @@ class SQLServer():
         """
         driver = [x for x in pyodbc.drivers() if x.endswith(' for SQL Server')]
         if len(driver)==0:
-            raise ODBCDriverNotFound('Unable to automatically determine ODBC driver.')
+            raise exceptions.ODBCDriverNotFound('Unable to automatically determine ODBC driver.')
         driver = driver[0]
 
         return driver
-
-
-class ODBCDriverNotFound(Exception):
-    '''Exception for not automatically determining ODBC driver.'''
-    pass

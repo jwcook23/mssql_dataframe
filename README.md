@@ -1,5 +1,9 @@
 # mssql_dataframe
-Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. Intensive data relationship tasks are performed server side to improve overall performance. A basic example is updating records using an SQL temporary table and JOIN statement, instead of implementing the calculation in memory in Python. 
+Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. Intensive data relationship tasks are performed server side to improve overall performance. A basic example is updating records using an SQL temporary table and JOIN statement, instead of implementing the calculation in memory in Python.
+
+Versioning numbering MAJOR.MINOR where
+- MAJOR: breaking changes
+- MINOR: new features or bug fixes
 
 ## Main Features
 
