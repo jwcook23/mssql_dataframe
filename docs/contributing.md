@@ -1,3 +1,12 @@
+# Logic
+Test driven development by creating small tests, followed by writing the code to make the tests pass.
+
+# SQL Server Developer
+
+SQL Server Developer edition can be downloaded for free local development.
+
+https://www.microsoft.com/en-us/sql-server/sql-server-downloads
+ 
 # Directory
 All follwing operations should take place at the mssql_dataframe root directory. 
 

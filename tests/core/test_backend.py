@@ -1,7 +1,30 @@
-# import mssql_dataframe
+import pytest
+import pandas as pd
 
-def test_answer():
-    assert 5 == 5
+from mssql_dataframe.core.backend import SQLServer
+
+
+@pytest.fixture(scope="module")
+def dataframes():
+    dataframes = {}
+    dataframes['base'] = pd.DataFrame([
+        ['name1',1,1,1,1,1,'11/01/2001','01:00:00','11/01/2001 01:00:00'],
+        ['name2',2,2,2,2,2,'2001-11-01','00:01:00','2001-11-01 00:01:00'],
+        ['name3',3,3,3,3,3,'11-01-2001','00:00:01','11-01-2001 00:00:01'],
+        ['name4',4,400,2147483648,'4.1','4.11111111111111111111','11/01/2001','01:00:00','11/01/2001 01:00:00']
+        ],columns=['_default','_tinyint','_int','_bigint','_numeric','_float','_date','_time','_datetime'])
+    return dataframes
+
+
+@pytest.fixture(scope="module")
+def connection():
+    db = SQLServer(database_name='master', server_name='localhost')
+    yield db
+    db.engine.close()
+
+
+def test_create_table(connection, dataframes):
+    connection.create_table('#base', dataframes['base'])
 
 # import pandas as pd
 # import sqlalchemy as sql

@@ -13,31 +13,83 @@ class create():
         pass
 
 
-    def table(self, table_name, dataframe, if_exists: str='error'):
-        """
-        Create database table using a dataframe.
+    def create_table(self, table_name: str, dataframe: pd.DataFrame, row_count: int = 1000):
+        """ Create database table then insert values using a dataframe.
+
+        If the index is named, it is used to create the primary key. Otherwise an autoincrementing
+        BIGINT primary key is created named "_Index". Automatically attempt to infer the best SQL data type. 
 
         Parameters
+        ----------
+
             table_name      str                     name of table
             dataframe       DataFrame               dataframe to determine datatypes of columns
-            if_exists       str, default='error'    if table already exists: 'error', 'ignore', 'drop'
+            row_count       int, default = 1000     number of rows for determining data types
 
         Returns
+        -------
+
             None
+
         """
 
-        # TODO: primary key and autoincrementing behavior
+        connection = self.engine.connect()
+
+        # table index
+        # index = dataframe.index.name
+        # if index is None:
+        #     index = "_Index BIGINT NOT NULL IDENTITY(1,1) PRIMARY KEY"
+        # else:
+        #     index = index+" NVARCHAR(MAX) NOT NULL PRIMARY KEY"
+
+        # other table columns
+        columns = dataframe.columns
+        columns = ', '.join([c+' NVARCHAR(MAX)' for c in columns])
+
+        # create global temp table 
+        # # global use for scope in multiple transactions with sp_executesql
+        # TODO: error if table already exists
+        table = '##_dtypes_'+table_name
+
+        # create global temp table
+        index_name= 'ID'
+        index_type = 'INT'
+        column_name = ['TESTA','TESTB']
+        statement = (
+            "DECLARE @sql AS NVARCHAR(MAX);"
+            "DECLARE @_table sysname = ?;"
+            "DECLARE @_index_name sysname = ?;"
+            "DECLARE @_index_type sysname = ?;"
+            "DECLARE @_columnA_name sysname= ?;"
+            "DECLARE @_columnB_name sysname= ?;"
+            """SET @sql = N'
+                CREATE TABLE '+QUOTENAME(@_table)+ '('+
+                    QUOTENAME(@_index_name)+' '+QUOTENAME(@_index_type)+','+
+                    QUOTENAME(@_columnA_name)+' NVARCHAR(MAX)'+','+
+                    QUOTENAME(@_columnB_name)+' NVARCHAR(MAX)'+
+                ');'
+            """
+            """EXEC sp_executesql @sql,
+                N'@_table sysname, @_index_name sysname, @_index_type sysname, @_columnA_name sysname, @_columnB_name sysname', 
+                @_table=@_table, @_index_name=@_index_name, @_index_type=@_index_type, @_columnA_name=@_columnA_name, @_columnB_name=@_columnB_name;"""
+            )
+        connection.execute(statement, table, index_name, index_type, *column_name)
+
+        connection.execute('DROP TABLE '+table)
+
+        dataframe.to_sql(temp_table, con=connection)
+
         # # sql.Column('RowID', db.Integer, primary_key=True, autoincrement=False)
 
         # Convert dataframe types to standard Python types
-        columns = dataframe.columns
+        # columns = dataframe.columns
 
-        dtypes = {}
-        for c in columns:
-            try:
-                dtypes[c] = type(dataframe.loc[0,c].item())     # numpy type
-            except:
-                dtypes[c] = type(dataframe.loc[0,c])            # core Python type
+        # dtypes = {}
+        # for c in columns:
+        #     try:
+        #         dtypes[c] = type(dataframe.loc[0,c].item())     # numpy type
+        #     except:
+        #         dtypes[c] = type(dataframe.loc[0,c])            # core Python type
 
         # test = sqlalchemy.dialects.mssql.TINYINT()
         # test.compare_values(1,2,1)
@@ -46,7 +98,7 @@ class create():
         # <class 'str'>: ['CHAR', 'NCHAR', 'NTEXT', 'NVARCHAR', 'TEXT', 'VARCHAR', 'XML']
 
     
-    def dataframe(self):
+    def create_dataframe(self):
         pass
         # sqlalchemy.dialects.mssql.INTEGER.result_processor
 
