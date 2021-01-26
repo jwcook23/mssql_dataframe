@@ -7,7 +7,7 @@ from mssql_dataframe.core.backend import SQLServer
 @pytest.fixture(scope="module")
 def dataframes():
     dataframes = {}
-    dataframes['base'] = pd.DataFrame([
+    dataframes['_simple_table'] = pd.DataFrame([
         ['name1',1,1,1,1,1,'11/01/2001','01:00:00','11/01/2001 01:00:00'],
         ['name2',2,2,2,2,2,'2001-11-01','00:01:00','2001-11-01 00:01:00'],
         ['name3',3,3,3,3,3,'11-01-2001','00:00:01','11-01-2001 00:00:01'],
@@ -22,9 +22,8 @@ def connection():
     yield db
     db.engine.close()
 
-
 def test_create_table(connection, dataframes):
-    connection.create_table('#base', dataframes['base'])
+    connection.create_table('_simple_table', dataframes['_simple_table'])
 
 # import pandas as pd
 # import sqlalchemy as sql

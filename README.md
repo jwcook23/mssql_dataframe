@@ -1,10 +1,19 @@
 # mssql_dataframe
-Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. Intensive tasks are performed server side if possible to improve overall performance by avoiding having to query records into local memory. Querying
-records into memory is also performed efficiently by casting SQL data types to the correct DataFrame type. Security
-is taken into account as best as possible as dynamic SQL tables, columns, and variable types as encountered.
+Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In short, once you
+have data in a DataFrame, you can interact seamlessly with Microsoft SQL.
+
+Key elements include: 
+- performing tasks in SQL to avoid loading records into memory
+- efficient casting between SQL and Python data types
+- providing methods for SQL data engineering tasks
+- follow best practices for security 
 
 
 ## Main Features
+
+### Create SQL Table
+
+Create a table in SQL in a manner to prevent SQL injection given variable table and column names. SQL data types, including variable size are automatically inferred.
 
 ### Update Records
 

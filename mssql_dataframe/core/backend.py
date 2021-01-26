@@ -4,6 +4,7 @@ import pandas as pd
 
 import sqlalchemy.dialects.mssql
 
+from . import execute_statement
 from . import exceptions
 
 
@@ -14,70 +15,69 @@ class create():
 
 
     def create_table(self, table_name: str, dataframe: pd.DataFrame, row_count: int = 1000):
-        """ Create database table then insert values using a dataframe.
-
-        If the index is named, it is used to create the primary key. Otherwise an autoincrementing
-        BIGINT primary key is created named "_Index". Automatically attempt to infer the best SQL data type. 
+        """ Create database table then insert values using a dataframe. If the index is named, 
+        it is used to create the primary key. Otherwise an autoincrementing BIGINT primary key
+        is created named "_index". Automatically attempt to infer the best SQL data type. 
 
         Parameters
         ----------
 
-            table_name      str                     name of table
-            dataframe       DataFrame               dataframe to determine datatypes of columns
-            row_count       int, default = 1000     number of rows for determining data types
+        table_name (str) : name of table
+
+        dataframe (DataFrame) : dataframe to determine datatypes of columns
+
+        row_count (int, default = 1000) : number of rows for determining data types
 
         Returns
         -------
 
-            None
+        None
 
         """
 
         connection = self.engine.connect()
 
         # table index
+        # TODO: create index column and allow other specificions in 
         # index = dataframe.index.name
         # if index is None:
-        #     index = "_Index BIGINT NOT NULL IDENTITY(1,1) PRIMARY KEY"
+        #     index = "_index BIGINT NOT NULL IDENTITY(1,1) PRIMARY KEY"
         # else:
         #     index = index+" NVARCHAR(MAX) NOT NULL PRIMARY KEY"
 
         # other table columns
-        columns = dataframe.columns
-        columns = ', '.join([c+' NVARCHAR(MAX)' for c in columns])
+        columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
 
-        # create global temp table 
-        # # global use for scope in multiple transactions with sp_executesql
+        # create global temp table to allow multiple transactions
         # TODO: error if table already exists
         table = '##_dtypes_'+table_name
 
-        # create global temp table
-        index_name= 'ID'
-        index_type = 'INT'
-        column_name = ['TESTA','TESTB']
-        statement = (
-            "DECLARE @sql AS NVARCHAR(MAX);"
-            "DECLARE @_table sysname = ?;"
-            "DECLARE @_index_name sysname = ?;"
-            "DECLARE @_index_type sysname = ?;"
-            "DECLARE @_columnA_name sysname= ?;"
-            "DECLARE @_columnB_name sysname= ?;"
-            """SET @sql = N'
-                CREATE TABLE '+QUOTENAME(@_table)+ '('+
-                    QUOTENAME(@_index_name)+' '+QUOTENAME(@_index_type)+','+
-                    QUOTENAME(@_columnA_name)+' NVARCHAR(MAX)'+','+
-                    QUOTENAME(@_columnB_name)+' NVARCHAR(MAX)'+
-                ');'
-            """
-            """EXEC sp_executesql @sql,
-                N'@_table sysname, @_index_name sysname, @_index_type sysname, @_columnA_name sysname, @_columnB_name sysname', 
-                @_table=@_table, @_index_name=@_index_name, @_index_type=@_index_type, @_columnA_name=@_columnA_name, @_columnB_name=@_columnB_name;"""
-            )
-        connection.execute(statement, table, index_name, index_type, *column_name)
+        statement, vars = execute_statement.create_table(name=table, columns=columns)
+
+        connection.execute(statement, *vars)
 
         connection.execute('DROP TABLE '+table)
 
-        dataframe.to_sql(temp_table, con=connection)
+        # create global temp table
+        # columns = ['TESTA','VARCHAR','100','TESTB','INT']
+        # statement = (
+        #     "DECLARE @sql AS NVARCHAR(MAX);"
+        #     "DECLARE @_table sysname = ?;"
+        #     "DECLARE @_colA_name sysname = ?;"
+        #     "DECLARE @_colA_type sysname = ?;"
+        #     "DECLARE @_colA_size sysname = ?;"
+        #     "DECLARE @_colB_name sysname = ?;"
+        #     "DECLARE @_colB_type sysname = ?;"
+        #     """SET @sql = N'
+        #         CREATE TABLE '+QUOTENAME(@_table)+ '('+
+        #             QUOTENAME(@_colA_name)+' '+QUOTENAME(@_colA_type)+'('+@_colA_size+'),'+
+        #             QUOTENAME(@_colB_name)+' '+QUOTENAME(@_colB_type)+
+        #         ');'
+        #     """
+        #     """EXEC sp_executesql @sql,
+        #         N'@_table sysname, @_colA_name sysname, @_colA_type sysname, @_colA_size VARCHAR(MAX), @_colB_name sysname, @_colB_type sysname', 
+        #         @_table=@_table, @_colA_name=@_colA_name, @_colA_type=@_colA_type, @_colA_size=@_colA_size,@_colB_name=@_colB_name, @_colB_type=@_colB_type;"""
+        #     )
 
         # # sql.Column('RowID', db.Integer, primary_key=True, autoincrement=False)
 
