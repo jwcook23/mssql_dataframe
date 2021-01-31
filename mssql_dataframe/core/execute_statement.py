@@ -4,6 +4,7 @@
 import re
 
 import pandas as pd
+import numpy as np
 
 
 def create_table(name: str, columns: dict, primary_key: str = "" , notnull: list = []):
@@ -32,13 +33,13 @@ def create_table(name: str, columns: dict, primary_key: str = "" , notnull: list
     Examples
     -------
 
-    columns = {'TESTA': 'VARCHAR(100)', 'TESTB': 'INT'}
+    columns = {'ColumnA': 'VARCHAR(100)', 'ColumnB': 'INT'}
 
-    pk = 'TESTB'
+    pk = 'ColumnB'
 
     statement, args = create_table(table='SQLTableName', columns=columns)
 
-    connection.execute(statement, *args)
+    cursor.execute(statement, *args)
 
     """
 
@@ -46,10 +47,11 @@ def create_table(name: str, columns: dict, primary_key: str = "" , notnull: list
     dtypes = columns.values()
 
     # extract SQL variable size
-    size = [re.findall(r"(\(\d+\))", x) for x in dtypes]
+    pattern = r"(\(\d.+\))"
+    size = [re.findall(pattern, x) for x in dtypes]
     size = [x[0] if len(x)>0 else "" for x in size]
 
-    dtypes = [re.sub(r"(\(\d+\))",'',var) for var in dtypes]
+    dtypes = [re.sub(pattern,'',var) for var in dtypes]
 
     size_vars = [idx if len(x)>0 else None for idx,x in enumerate(size)]
     size_vars = [names[x] if x is not None else "" for x in size_vars]
@@ -141,15 +143,25 @@ def insert_data(name: str, dataframe: pd.DataFrame):
     Examples
     --------
 
+    data = pd.DataFrame({'ColumnA': [1, 2, 3]})
+
+    statement, values = execute_statement.insert_data('TableName', data)
+
+    cursor.executemany(statement, values)
 
     """    
 
+    # interpret any kind of missing values as NULL in SQL
+    dataframe = dataframe.fillna(np.nan).replace([np.nan], [None])
+
+    # extract values to insert into a list of lists
+    values = dataframe.values.tolist()
+
+    # form parameterized statement
     columns = ", ".join(dataframe.columns)
 
-    values = '('+', '.join(['?']*len(columns))+')'
+    params = '('+', '.join(['?']*len(dataframe.columns))+')'
     
-    statement = "INSERT INTO "+name+" ("+columns+") VALUES "+values
-
-    values = [tuple(x) for x in dataframe.values]
+    statement = "INSERT INTO "+name+" ("+columns+") VALUES "+params
 
     return statement, values

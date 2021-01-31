@@ -36,7 +36,6 @@ Provides an execution tracking mechanism for analytics. This is useful for track
 
 [pyodbc](https://docs.microsoft.com/en-us/sql/connect/python/pyodbc/python-sql-driver-pyodbc?view=sql-server-ver15): The perferred ODBC SQL connector.
 
-[sqlalchemy](https://www.sqlalchemy.org/): SQL toolkit for optimizing the workflow between Python and SQL.
 
 ## Quick Start
 

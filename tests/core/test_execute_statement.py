@@ -1,3 +1,5 @@
+from datetime import datetime, date
+
 import pytest
 import pandas as pd
 
@@ -7,55 +9,92 @@ from mssql_dataframe.core import execute_statement
 
 @pytest.fixture(scope="module")
 def connection():
-    db = SQLServer(database_name='master', server_name='localhost')
+    db = SQLServer(database_name='master', server_name='localhost', autocommit=False)
     yield db
-    db.engine.close()
+    db.connection.close()
 
 
-def test_create_table_simple(connection):
+@pytest.fixture(scope="module")
+def data():
 
-    name = '#create_test_simple'
-    columns = {'TESTA': 'INT'}
+    class values():
+        dataframe = pd.DataFrame({
+            '_varchar': [None,'b','c','d','e'],
+            '_tinyint': [None,2,3,4,5],
+            '_int': [1,2,3,4,5],
+            '_bigint': [1,2,3,4,9999999999],
+            '_numeric': [1.11,2,3,4,None],
+            '_float': [1.111111,2,3,4,5],
+            '_date': [date.today()]*5,
+            '_time': [datetime.now().time()]*5,
+            '_datetime': [datetime.now()]*4+[pd.NaT]  
+        })
+        dataframe['_tinyint'] = dataframe['_tinyint'].astype('Int64')
 
-    statement, args = execute_statement.create_table(name, columns)
+        columns  = {
+            '_varchar': 'VARCHAR(255)',
+            '_tinyint': 'TINYINT',
+            '_int': 'INT',
+            '_bigint': 'BIGINT',
+            '_numeric': 'NUMERIC(20,4)',
+            '_float': 'FLOAT',
+            '_date': 'DATE',
+            '_time': 'TIME',
+            '_datetime': 'DATETIME'         
+        }
 
-    connection.engine.execute(statement, *args)
+        pk = '_int'
 
+        notnull = ['_bigint','_float']
 
-def test_create_table_pk(connection):
-
-    name = "#create_table_pk"
-    columns = {'TESTA': 'BIGINT'}
-    primary_key = 'TESTA'
-
-    statement, args = execute_statement.create_table(name, columns, primary_key)
-
-    connection.engine.execute(statement, *args)
-
-
-def test_create_table_complex(connection):
-
-    name = '#create_table_complex'
-    columns = {'TESTA': 'NVARCHAR(100)', 'TESTB': 'INT'}
-    primary_key = 'TESTA'
-    notnull = ['TESTB']
-
-    statement, args = execute_statement.create_table(name, columns, primary_key, notnull)
-
-    connection.engine.execute(statement, *args)
+    return values
 
 
-def test_insert_data_simple(connection):
+def test_create_table_column(connection, data):
 
-    name = '##insert_data_simple'
-    columns = {'TESTA': 'INT'}
+    table = '#test_create_table_column'
+    columns = {data.pk: data.columns[data.pk]}
 
-    statement, args = execute_statement.create_table(name, columns)
+    statement, args = execute_statement.create_table(table, columns)
 
-    connection.engine.execute(statement, *args)
+    connection.cursor.execute(statement, *args)
 
-    data = pd.DataFrame({'TESTA': [1,2,3,4,5]})
 
-    statement, values = execute_statement.insert_data(name, data)
+def test_create_table_pk(connection, data):
 
-    connection.engine.executemany(statement, values)
+    table = "#test_create_table_pk"
+    columns = {data.pk: data.columns[data.pk]}
+
+    primary_key = data.pk
+
+    statement, args = execute_statement.create_table(table, columns, primary_key)
+
+    connection.cursor.execute(statement, *args)
+
+
+def test_create_table_dataframe(connection, data):
+
+    table = '#test_create_table_dataframe'
+    columns = data.columns
+
+    primary_key = data.pk
+    notnull = data.notnull
+
+    statement, args = execute_statement.create_table(table, columns, primary_key, notnull)
+
+    connection.cursor.execute(statement, *args)
+
+
+def test_insert_data_value(connection, data):
+
+    table = '##test_insert_data_value'
+    columns = {data.pk: data.columns[data.pk]}
+    df = data.dataframe[[data.pk]].head(1)
+
+    statement, args = execute_statement.create_table(table, columns)
+
+    connection.cursor.execute(statement, *args)
+    
+    statement, values = execute_statement.insert_data(table, df)
+
+    connection.cursor.executemany(statement, values)

@@ -1,8 +1,5 @@
 import pyodbc
-import sqlalchemy as db
 import pandas as pd
-
-import sqlalchemy.dialects.mssql
 
 from . import execute_statement
 from . import exceptions
@@ -105,42 +102,47 @@ class create():
 
 class SQLServer(create):
     """
-    Connect to SQL Server.
+    Connect to SQL Server using ODBC connection.
 
     Parameters
+    ----------
 
-        database_name       str                         name of database
-        server_name         str, default='localhost'    server to connect with
-        driver              str, default=None           if not given, find first driver "for SQL Server"
-        fast_executemany    bool, default=True          envoke pyodbc fast_execute mode
-        autocommit          bool, default=True          automatically commit transactions
+    database_name (str, default='master') : name of database to connect to
+
+    server_name (str, default='localhost') : server to connect to
+
+    driver (str, default=None) : if not given, find first driver "for SQL Server"
+
+    fast_executemany (bool, default=True) : envoke pyodbc fast_execute mode
+
+    autocommit (bool, default=True) : automatically commit transactions
 
     Returns
+    -------
 
-        self.engine         sqlalchemy engine
+        connection (pyodbc.Connection)
+
+        cursor (pyodbc.Cursor)
+
     """
 
 
-    def __init__(self, database_name: str, server_name: str = 'localhost',
+    def __init__(self, database_name: str = 'master', server_name: str = 'localhost',
         driver: str = None, fast_executemany: bool = True, autocommit: bool = True):
 
-        self.database_name = database_name
-        self.server_name = server_name
-        self.driver = driver
-        self.fast_executemany = fast_executemany
-        self.autocommit = autocommit
-
-        if self.driver is None:
-            self.driver = self._get_driver()
+        if driver is None:
+            driver = self._get_driver()
 
         # TODO: connect using username and password
-        url = 'mssql+pyodbc://@'+server_name+'/'+database_name+'?&driver='+self.driver+'&autocommit='+str(self.autocommit)
+        self.connection = pyodbc.connect(
+            driver=driver, server=server_name, database=database_name,
+            autocommit=autocommit, trusted_connection='yes'
+        )
 
-        self.engine = db.create_engine(url, fast_executemany=self.fast_executemany)
+        self.cursor = self.connection.cursor()
+        self.cursor.fast_executemany = fast_executemany
 
-        self.metadata = db.MetaData(bind=True)
-
-        self.sql2py, self.py2sql = self._type_mapping()
+        # self.sql2py, self.py2sql = self._type_mapping()
 
     
     def __repr__(self):
