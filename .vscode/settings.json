@@ -4,6 +4,9 @@
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestEnabled": true,
     "python.terminal.activateEnvironment": true,
+    // // add coverage, for tests/ folder only (skips breakpoints!)
+    // "python.testing.pytestArgs": ["--cov","tests/"]
+    // // VSCode needs venv activated to run pytest (failed attempts!)
     // "python.testing.pytestPath": "${workspaceFolder}\\env\\Lib\\site-packages\\pytest"
     // "python.terminal.executeInFileDir": true,
     // "python.analysis.extraPaths": ["${workspaceFolder}\\env\\Lib\\site-packages"]

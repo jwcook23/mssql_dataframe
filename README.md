@@ -50,3 +50,17 @@ Version numbering MAJOR.MINOR where
 - MINOR: new features or bug fixes
 
 ## Contributing
+
+Add appropriate pytest functions to mssql_dataframe/tests.
+
+Run tests for mssql_dataframe only.
+
+```cmd
+pytest --cov tests/
+```
+
+If you encounter issus when running tests, try to collect tests only.
+
+```cmd
+pytest --collect-only
+```
