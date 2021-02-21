@@ -2,8 +2,17 @@ from datetime import datetime, date
 
 import pandas as pd
 
+class simple():
 
-class sample():
+    def __init__(self):
+
+        self.dataframe = pd.DataFrame({
+            'x': ['A'],
+            'y': ['B']
+        })
+
+
+class complex():
     
     def __init__(self):
         

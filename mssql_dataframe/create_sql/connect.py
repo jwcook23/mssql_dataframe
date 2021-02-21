@@ -1,8 +1,6 @@
 import pyodbc
 import pandas as pd
 
-from . import exceptions
-
 
 class SQLServer():
     """
@@ -100,7 +98,7 @@ class SQLServer():
         """
         driver = [x for x in pyodbc.drivers() if x.endswith(' for SQL Server')]
         if len(driver)==0:
-            raise exceptions.ODBCDriverNotFound('Unable to automatically determine ODBC driver.')
+            raise ODBCDriverNotFound('Unable to automatically determine ODBC driver.')
         driver = driver[0]
 
         return driver
@@ -125,3 +123,8 @@ class AzureSQLDatabase():
         self.cursor = None
 
         raise NotImplementedError('AzureSQLDatabase not yet implemented')
+
+
+class ODBCDriverNotFound(Exception):
+    '''Exception for not automatically determining ODBC driver.'''
+    pass

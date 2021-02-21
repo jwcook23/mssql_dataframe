@@ -1,15 +1,17 @@
 # mssql_dataframe
-Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In short, once you
-have data in a DataFrame, you can interact seamlessly with Microsoft SQL.
+Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In essence, this module 
+may be useful for model updating, data normalization, data engineering, and web scraping.
 
 Key elements include: 
-- performing tasks in SQL to avoid loading records into memory
-- efficient casting between SQL and Python data types
-- providing methods for SQL data engineering tasks
-- follow best practices for security 
+- write and read seamlessly between SQL tables and DataFrames
+- advanced methods for updating and merge DataFrames into SQL tables
+- dynamic SQL object creation including tables and columns with SQL data type determination
+-TODO: calculations server-side to limit I/O and avoid having to load records into memory
 
 
 ## Main Features
+
+TODO: provide concrete basic examples of core functionality
 
 ### Create SQL Table
 
@@ -30,6 +32,40 @@ Perform server side calculation and return aggregated results.
 ### Analytic Execution
 
 Provides an execution tracking mechanism for analytics. This is useful for tracking the success/failure of analytics and allows a cache of data between analytic executions.
+
+### SQL Injection Prevention
+
+Dynamic SQL, the QUOTENAME function, and the SYSNAME datatype are used to prevent SQL injection.
+This example demostrates what occurs under-the-hood for creating a table with a single column "x". A simliar
+approach is used throughout this module for variable table and column names.
+
+```python
+statement = """
+DECLARE @SQLStatement AS NVARCHAR(MAX);
+DECLARE @TableName SYSNAME = ?;
+DECLARE @ColumnName_x SYSNAME = ?;
+DECLARE @ColumnType_x SYSNAME = ?;
+DECLARE @ColumnSize_x SYSNAME = ?;
+
+SET @SQLStatement = N'CREATE TABLE '+QUOTENAME(@TableName)+' ('+
+QUOTENAME(@ColumnName_x)+' '+QUOTENAME(@ColumnType_x)+' '+@ColumnSize_x+
+');'
+
+EXEC sp_executesql @SQLStatement,
+N'@TableName SYSNAME, @ColumnName_x SYSNAME, @ColumnType_x SYSNAME, @ColumnSize_x VARCHAR(MAX)',
+@TableName=@TableName, @ColumnName_x=@ColumnName_x, @ColumnType_x=@ColumnType_x, @ColumnSize_x=@ColumnSize_x;
+"""
+
+args = ['NameOfTable','NameOfColumn','VARCHAR(100)']
+
+cursor.execute(statement, *args)
+```
+
+In practice, this complicated statement is built simply using the create_table function of this module.
+
+```python
+create_table(table='TableName', columns={'ColumnName': 'VARCHAR(100)'})
+```
 
 ## Dependancies
 [pandas](https://pandas.pydata.org/): The basis of DataFrames and related calculations.
