@@ -1,3 +1,5 @@
-pandas==1.2.0
-pyodbc==4.0.30
-SQLAlchemy==1.3.22
+setuptools
+pytest
+pytest-cov
+pyodbc
+pandas
