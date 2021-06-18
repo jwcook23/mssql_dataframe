@@ -112,13 +112,13 @@ def verify_schema(connection, table_name, data, is_identity: str = None):
     # return True
 
 
-def test__variable_spect(connection):
+def test__column_spec(connection):
 
     columns = ['VARCHAR', 'VARCHAR(MAX)', 'VARCHAR(200)', 'INT', 'DECIMAL(5,2)']
-    size, dtypes = connection.__variable_spec(columns)
+    size, dtypes = connection._table__column_spec(columns)
 
-    assert size==[]
-    assert dtypes==[]
+    assert size==[None, '(MAX)', '(200)', None, '(5,2)']
+    assert dtypes==['VARCHAR', 'VARCHAR', 'VARCHAR', 'INT', 'DECIMAL']
 
 
 def test_get_schema_nonexistant(connection):
@@ -334,6 +334,32 @@ def test_modify_column_add(connection):
     columns = {"A": "VARCHAR"}
     connection.create_table(table_name, columns)
 
-    connection.modify_column(table_name, modify='add', column_name='B', data_type='VARCHAR(20)', not_null=True)
+    connection.modify_column(table_name, modify='add', column_name='B', data_type='VARCHAR(20)')
     schema = connection.get_schema(table_name)
-    assert 'B' not in schema.index
+    assert 'B' in schema.index
+    assert schema.at['B','data_type']=='varchar'
+    assert schema.at['B','max_length']==20
+
+    connection.modify_column(table_name, modify='add', column_name='C', data_type='BIGINT')
+    schema = connection.get_schema(table_name)
+    assert 'C' in schema.index
+    assert schema.at['C','data_type']=='bigint' 
+
+
+def test_modify_column_alter(connection):
+
+    table_name = '##ModifyColumnAlter'
+    columns = {"A": "VARCHAR(10)", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
+    connection.create_table(table_name, columns)
+
+    connection.modify_column(table_name, modify='alter', column_name='B', data_type='INT')
+    schema = connection.get_schema(table_name)
+    assert 'B' in schema.index
+    assert schema.at['B','data_type']=='int'
+    assert schema.at['B', 'is_nullable']==True
+
+    connection.modify_column(table_name, modify='alter', column_name='C', data_type='INT', not_null=True)
+    schema = connection.get_schema(table_name)
+    assert 'C' in schema.index
+    assert schema.at['C','data_type']=='int'
+    assert schema.at['C', 'is_nullable']==False

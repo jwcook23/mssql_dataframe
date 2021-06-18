@@ -122,15 +122,17 @@ class table():
         # dtypes = columns.values()
 
         # extract SQL variable size
-        size, dtypes = self.__variable_spec(columns.values())
+        size, dtypes = self.__column_spec(columns.values())
         # pattern = r"(\(\d.+\)|\(MAX\))"
         # size = [re.findall(pattern, x) for x in dtypes]
         # size = [x[0] if len(x)>0 else "" for x in size]
 
         # dtypes = [re.sub(pattern,'',var) for var in dtypes]
 
-        size_vars = [idx if len(x)>0 else None for idx,x in enumerate(size)]
-        size_vars = [names[x] if x is not None else "" for x in size_vars]
+        # size_vars = [idx if len(x)>0 else None for idx,x in enumerate(size)]
+        # size_vars = [names[x] if x is not None else "" for x in size_vars]
+
+        size_vars = [names[idx] if x is not None else "" for idx,x in enumerate(size)]
 
         # develop syntax for SQL variable declaration
         vars = list(zip(
@@ -198,7 +200,8 @@ class table():
             [x for x in size]
         ))
 
-        args = [item for sublist in args for item in sublist if len(item)>0]
+        # args = [item for sublist in args for item in sublist if len(item)>0]
+        args = [item for sublist in args for item in sublist if item is not None]
 
         args = [table_name] + args
 
@@ -333,31 +336,9 @@ class table():
         
         TODO: add example
 
-        sp_executesql statement
-        -----------------------
-
-        DECLARE @SQLStatement AS NVARCHAR(MAX);
-        DECLARE @TableName SYSNAME = ?;
-        DECLARE @ColumnName_A SYSNAME = ?;
-        DECLARE @ColumnType_A SYSNAME = ?;
-        DECLARE @ColumnSize_A SYSNAME = ?;
-        SET @SQLStatement = N'ALTER TABLE '+QUOTENAME(@TableName)
-        ALTER COLUMN QUOTENAME(@ColumnName_A)+' '+QUOTENAME(@ColumnType_A)+' '+@ColumnSize_A+
-        ';'
-        EXEC sp_executesql 
-        @SQLStatement,
-        N'@TableName SYSNAME, @ColumnName_A SYSNAME, @ColumnType_A SYSNAME, @ColumnSize_A VARCHAR(MAX)',
-        @TableName=@TableName, @ColumnName_A=@ColumnName_A, @ColumnType_A=@ColumnType_A, @ColumnSize_A=@ColumnSize_A;
-
-
-        sp_executesql parameters
-        ------------------------
-
-        ['##SingleColumn', 'A', 'VARCHAR', '(100)']
-
         """
         
-        statement = '''
+        statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
             DECLARE @TableName SYSNAME = ?;
             DECLARE @ColumnName SYSNAME = ?;
@@ -366,46 +347,71 @@ class table():
 
             SET @SQLStatement = 
                 N'ALTER TABLE '+QUOTENAME(@TableName)+
-                {modify_statement}+';'
+                {modify_statement} +QUOTENAME(@ColumnName){column_type}{column_size}{column_nullability}+';'
 
             EXEC sp_executesql 
                 @SQLStatement,
-                N'@TableName SYSNAME, @ColumnName SYSNAME {type_parameter} {size_parameter}',
-                @TableName=@TableName, @ColumnName=@ColumnName {type_value} {size_value};
-        '''
+                N'@TableName SYSNAME, @ColumnName SYSNAME{type_parameter}{size_parameter}',
+                @TableName=@TableName, @ColumnName=@ColumnName{type_value}{size_value};
+        """
 
         args = [table_name, column_name]
         if modify=='drop':
+            modify_statement = "'DROP COLUMN'"
             type_declare = ""
             size_declare = ""
-            modify_statement = "' DROP COLUMN '+QUOTENAME(@ColumnName)"
+            column_type = ""
+            column_size = ""
+            column_nullability = ""
             type_parameter = ""
             size_parameter = ""
             type_value = ""
             size_value = ""
-        elif modify=='add':
+        elif modify=='add' or modify=='alter':
+            if modify=='add':
+                modify_statement = "'ADD'"
+            elif modify=='alter':
+                modify_statement = "'ALTER COLUMN'"
             type_declare = "DECLARE @ColumnType SYSNAME = ?;"
-            size_declare = "DECLARE @ColumnSize SYSNAME = ?;"
-            modify_statement = "' ADD '+QUOTENAME(@ColumnName)+' '+QUOTENAME(@ColumnType)+' '+@ColumnSize"
-            type_parameter = ",@ColumnType SYSNAME"
-            size_parameter = ",@ColumnSize VARCHAR(MAX)"
-            type_value = ",@ColumnType=@ColumnType"
-            size_value = ",@ColumnSize=@ColumnSize"
-            args += ["VARCHAR","(20)"]
-        
+            column_type = "+' '+QUOTENAME(@ColumnType)"
+            type_parameter = ", @ColumnType SYSNAME"
+            type_value = ", @ColumnType=@ColumnType"
+            size, dtypes = self._table__column_spec(data_type)
+            if size is None:
+                size_declare = ""
+                column_size = ""
+                size_parameter = ""
+                size_value = ""
+            else:
+                size_declare = "DECLARE @ColumnSize SYSNAME = ?;"
+                column_size = "+' '+@ColumnSize"
+                size_parameter = ", @ColumnSize VARCHAR(MAX)"
+                size_value = ", @ColumnSize=@ColumnSize"
+            if not_null:
+                column_nullability = "+' NOT NULL'"
+            else:
+                column_nullability = ""
+            
+            args += [dtypes, size]
 
         statement = statement.format(
             type_declare=type_declare, size_declare=size_declare,
-            modify_statement=modify_statement,
+            modify_statement=modify_statement, 
+            column_type=column_type, column_size=column_size, column_nullability=column_nullability,
             type_parameter=type_parameter, size_parameter=size_parameter,
             type_value=type_value, size_value=size_value
         )
 
-
+        args = [x for x in args if x is not None]
         self.cursor.execute(statement, *args)
 
 
-    def __variable_spec(columns: list):
+    def modify_primary_key(self):
+        '''TODO: define and test'''
+        pass
+
+    
+    def __column_spec(self, columns: list):
         ''' Extract SQL data type, size, and precision from list of strings.
 
         Parameters
@@ -429,7 +435,7 @@ class table():
 
         pattern = r"(\(\d.+\)|\(MAX\))"
         size = [re.findall(pattern, x) for x in columns]
-        size = [x[0] if len(x)>0 else "" for x in size]
+        size = [x[0] if len(x)>0 else None for x in size]
         dtypes = [re.sub(pattern,'',var) for var in columns]
 
         if flatten:
@@ -437,6 +443,7 @@ class table():
             dtypes = dtypes[0]
 
         return size, dtypes
+
 
     def __infer_datatypes(self, table_name: str, columns: list):
         """ Dynamically determine SQL variable types by issuing a statement against an SQL table.
