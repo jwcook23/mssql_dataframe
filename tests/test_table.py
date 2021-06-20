@@ -363,3 +363,18 @@ def test_modify_column_alter(connection):
     assert 'C' in schema.index
     assert schema.at['C','data_type']=='int'
     assert schema.at['C', 'is_nullable']==False
+
+
+def test_modify_primary_key(connection):
+
+    table_name = '##ModifyPrimaryKey'
+    columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
+    connection.create_table(table_name, columns, not_null=["A"])
+
+    connection.modify_primary_key(table_name, modify='add', column_names=['A'], primary_key_name = '_pk_A')
+    schema = connection.get_schema(table_name)
+    assert schema.at['A','is_primary_key']==True
+
+    connection.modify_primary_key(table_name, modify='drop', column_names=['A'],  primary_key_name = '_pk_A')
+    schema = connection.get_schema(table_name)
+    assert schema.at['A','is_primary_key']==False

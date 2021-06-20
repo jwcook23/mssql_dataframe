@@ -406,9 +406,63 @@ class table():
         self.cursor.execute(statement, *args)
 
 
-    def modify_primary_key(self):
-        '''TODO: define and test'''
-        pass
+    def modify_primary_key(self, table_name: str, modify: Literal['add','drop'], column_names: list, primary_key_name: str):
+        '''Add or drop the primary key from a table.
+
+        Parameters
+        ----------
+
+        table_name (str) : name of the table to add/drop the primary key
+        key_name (str) : name of the primary key to add/drop
+        column_names (list|str) : name of the column(s) to add/drop as the primary key
+        modify (str) : specification to either add or drop the primary key
+        primary_key_name (str) : name of the primary key
+
+        Returns
+        -------
+
+        None
+        '''
+
+        statement = """
+            DECLARE @SQLStatement AS NVARCHAR(MAX);
+            DECLARE @TableName SYSNAME = ?;
+            DECLARE @PrimaryKeyName SYSNAME = ?;
+            {column_declare}
+
+            SET @SQLStatement = 
+                N'ALTER TABLE '+QUOTENAME(@TableName)+
+                -- {modify_statement} +';'
+                {modify_statement} + QUOTENAME(@PrimaryKeyName) {column_name} +';'
+            EXEC sp_executesql 
+                @SQLStatement,
+                N'@TableName SYSNAME, @PrimaryKeyName SYSNAME {column_parameter}',
+                @TableName=@TableName, @PrimaryKeyName=@PrimaryKeyName {column_value};
+        """
+        args = [table_name, primary_key_name]
+        if modify=='add':
+            # modify_statement="'ADD CONSTRAINT '+QUOTENAME(@PrimaryKeyName)+' PRIMARY KEY ('+QUOTENAME('A')+')'"
+            modify_statement = "'ADD CONSTRAINT '"
+            column_declare = "DECLARE @PrimaryKeyColumn SYSNAME = ?;"
+            column_name = "+'PRIMARY KEY ('+QUOTENAME(@PrimaryKeyColumn)+')'"
+            column_parameter = ", @PrimaryKeyColumn SYSNAME"
+            column_value = ", @PrimaryKeyColumn=@PrimaryKeyColumn"
+            args += ["A"]
+        elif modify=='drop':
+            modify_statement="'DROP CONSTRAINT '+QUOTENAME(@PrimaryKeyName)"
+            modify_statement = "'DROP CONSTRAINT '"
+            column_declare = ""
+            column_name = ""
+            column_parameter = ""
+
+            column_value = ""
+        statement = statement.format(modify_statement=modify_statement, 
+        column_declare=column_declare, column_name=column_name, 
+        column_parameter=column_parameter, column_value=column_value)
+
+        
+        self.cursor.execute(statement, *args)
+
 
     
     def __column_spec(self, columns: list):
