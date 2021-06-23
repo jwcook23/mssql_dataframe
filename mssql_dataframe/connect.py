@@ -1,5 +1,6 @@
 import pyodbc
 
+from mssql_dataframe import errors
 
 class SQLServer():
     """
@@ -65,7 +66,7 @@ class SQLServer():
         else: 
             driver = [x for x in installed if x==driver_search]
         if len(driver)!=1:
-            raise ODBCDriverNotFound('Unable to find ODBC driver.')
+            raise errors.ODBCDriverNotFound('Unable to find ODBC driver.')
         driver = driver[0]
 
         return driver
@@ -89,7 +90,3 @@ class AzureSQLDatabase():
 
         raise NotImplementedError('AzureSQLDatabase not yet implemented')
 
-
-class ODBCDriverNotFound(Exception):
-    '''Exception for not automatically determining ODBC driver.'''
-    pass
