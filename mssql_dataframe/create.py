@@ -3,9 +3,10 @@ from typing import Literal
 import pandas as pd
 import numpy as np
 
-from mssql_dataframe.helpers import column_spec
+from mssql_dataframe import helpers
+from mssql_dataframe import write
 
-def create_table(connection, table_name: str, columns: dict, not_null: list = [],
+def table(connection, table_name: str, columns: dict, not_null: list = [],
 primary_key_column: str = None, sql_primary_key: bool = False):
     """Create SQL table by explicitly specifying SQL create table parameters.
 
@@ -53,13 +54,11 @@ primary_key_column: str = None, sql_primary_key: bool = False):
 
     """
 
-    cursor = connection.cursor()
-
     names = list(columns.keys())
     # dtypes = columns.values()
 
     # extract SQL variable size
-    size, dtypes = column_spec(columns.values())
+    size, dtypes = helpers.column_spec(columns.values())
 
     size_vars = [names[idx] if x is not None else "" for idx,x in enumerate(size)]
 
@@ -135,10 +134,10 @@ primary_key_column: str = None, sql_primary_key: bool = False):
     args = [table_name] + args
 
     # execute statement
-    cursor.execute(statement, *args)
+    connection.cursor.execute(statement, *args)
 
 
-def from_dataframe(self, connection, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
+def from_dataframe(connection, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
 row_count: int = 1000):
     """ Create SQL table by inferring SQL create table parameters from the contents of the DataFrame. 
     After table creation, the DataFrame values are inserted into the table.
@@ -146,6 +145,7 @@ row_count: int = 1000):
     Parameters
     ----------
 
+    connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of table
     dataframe (DataFrame) : data used to create table
     primary_key (str, default = 'sql') : method of setting the table's primary key, see below for description of options
@@ -163,7 +163,9 @@ row_count: int = 1000):
 
     """
 
-    cursor = connection.cursor()
+    options = [None,'sql','index','infer']
+    if primary_key not in options:
+        raise ValueError("primary_key must be one of: "+str(options))
 
     # assume initial default data type
     columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
@@ -192,7 +194,7 @@ row_count: int = 1000):
 
     # create temp table to determine data types
     name_temp = "##DataType_"+table_name
-    self.create_table(name_temp, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=None)
+    table(connection, name_temp, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=None)
 
     # insert data into temp table to determine datatype
     subset = dataframe.loc[0:row_count, :]
@@ -208,8 +210,14 @@ row_count: int = 1000):
     # # treat empty like as None (NULL in SQL)
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None})
     # insert subset of data then use SQL to determine SQL data type
-    self.insert.insert_data(table_name=name_temp, dataframe=subset)
-    dtypes = self.__infer_datatypes(table_name=name_temp, columns=list(dataframe.columns))
+    write.insert(connection, table_name=name_temp, dataframe=subset)
+    dtypes = helpers.infer_datatypes(connection, table_name=name_temp, column_names=dataframe.columns)
+
+    # determine length of VARCHAR columns
+    length = [k for k,v in dtypes.items() if v=="VARCHAR"]
+    length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
+    length = {k:"VARCHAR("+str(v)+")" for k,v in length.items()}
+    dtypes.update(length)
 
     # infer primary key column after best fit data types have been determined
     if primary_key=='infer':
@@ -237,5 +245,5 @@ row_count: int = 1000):
                     primary_key_column = None    
 
     # create final SQL table then insert data
-    self.create_table(table_name, dtypes, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
-    self.insert.insert_data(table_name, dataframe)
+    table(connection, table_name, dtypes, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+    write.insert(connection, table_name, dataframe)

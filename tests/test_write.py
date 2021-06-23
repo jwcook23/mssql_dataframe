@@ -14,19 +14,19 @@ def connection():
     db.connection.close()
 
 
-def test__prepare_values():
+def test_prepare_values():
 
     dataframe = pd.DataFrame({
         'Column': [np.nan, pd.NA, None, pd.NaT]
     })
-    dataframe = write.__prepare_values(dataframe)
+    dataframe = write.prepare_values(dataframe)
     assert all(dataframe['Column'].values==None)
 
     dataframe = pd.DataFrame({
         'Column': ['a  ','  b  ','c','','   '],
         
     })
-    dataframe = write.__prepare_values(dataframe)
+    dataframe = write.prepare_values(dataframe)
     assert all(dataframe['Column'].values==['a','b','c',None,None])
 
 

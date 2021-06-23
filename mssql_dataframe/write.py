@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
-
+import pyodbc
 
 from mssql_dataframe import errors
 from mssql_dataframe import helpers
 
 
-def __prepare_values(dataframe):
+def prepare_values(dataframe):
     """Prepare values for loading into SQL.
     
     Parameters
@@ -57,9 +57,7 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
 
     # sanitize table and column names for safe sql
     table_name = helpers.safe_sql(connection, table_name)
-    table_name = table_name[0]
-    column_names = helpers.safe_sql(connection, dataframe.columns)
-    column_names = ",\n".join(column_names)
+    column_names = ",\n".join(helpers.safe_sql(connection, dataframe.columns))
 
     # insert values
     statement = """
@@ -73,21 +71,24 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
     statement = statement.format(
         table_name=table_name, 
         column_names=column_names,
-        parameters=', '.join(['?']*len(dataframe.columns)))
+        parameters=', '.join(['?']*len(dataframe.columns))
+    )
     dataframe = __prepare_values(dataframe)
     values = dataframe.values.tolist()
     try:
         connection.cursor.executemany(statement, values)
+    except pyodbc.ProgrammingError:
+        raise errors.TableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
     except:
-        raise errors.GeneralError("GeneralError")
+        raise errors.GeneralError("GeneralError") from None
 
 
 def update():
-    raise NotImplementedError('update not implemented')
+    raise NotImplementedError('update not implemented') from None
 
 
 def merge():
-    raise NotImplementedError('merge not implemented')
+    raise NotImplementedError('merge not implemented') from None
     
 # class merge():
 

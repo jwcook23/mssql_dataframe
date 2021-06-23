@@ -22,7 +22,7 @@ def safe_sql(connection, inputs):
     '''
     
     flatten = False
-    if isinstance(inputs,str):
+    if isinstance(inputs, str):
         flatten = True
         inputs = [inputs]
     elif not isinstance(inputs, list):
@@ -35,12 +35,33 @@ def safe_sql(connection, inputs):
     try: 
         clean = connection.cursor.execute(statement, inputs).fetchone()
     except:
-        raise errors.GeneralError("GeneralError")
+        raise errors.GeneralError("GeneralError") from None
     
     if flatten:
         clean = clean[0]
 
     return clean
+
+
+def where_clause(conditions: str):
+    ''' Safely format a where clause condition.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    '''
+
+    join = r'\bAND\b|\bOR\b'
+    comparison = ["=",">","<",">=","<=","<>","!=","!>","!<","IS NULL","IS NOT NULL"]
+    comparison = r'|'.join(["("+x+")?" for x in comparison])
+
+    re.split(join, conditions, flags=re.IGNORECASE)
+    re.findall(join, conditions, flags=re.IGNORECASE)
+
+    re.split(comparison, 'ColumnA >5 ')
 
 
 def column_spec(columns: list):
@@ -65,7 +86,7 @@ def column_spec(columns: list):
         columns = [columns]
         flatten = True
 
-    pattern = r"(\(\d.+\)|\(MAX\))"
+    pattern = r"(\(\d+\)|\(\d.+\)|\(MAX\))"
     size = [re.findall(pattern, x) for x in columns]
     size = [x[0] if len(x)>0 else None for x in size]
     dtypes = [re.sub(pattern,'',var) for var in columns]
@@ -77,7 +98,7 @@ def column_spec(columns: list):
     return size, dtypes
 
 
-def infer_datatypes(connection, table_name: str, columns: list):
+def infer_datatypes(connection, table_name: str, column_names: list):
     """ Dynamically determine SQL variable types by issuing a statement against an SQL table.
 
     Parameters
@@ -85,7 +106,7 @@ def infer_datatypes(connection, table_name: str, columns: list):
 
     connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of table
-    columns (list) : columns to infer data types for
+    column_names (list|str) : columns to infer data types for
 
     Returns
     -------
@@ -97,11 +118,12 @@ def infer_datatypes(connection, table_name: str, columns: list):
 
     """
 
-    cursor = connection.cursor()
+    if isinstance(column_names, str):
+        column_names = [column_names]
 
     # develop syntax for SQL variable declaration
     vars = list(zip(
-        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in columns]
+        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in column_names]
     ))
 
     vars = [
@@ -114,13 +136,12 @@ def infer_datatypes(connection, table_name: str, columns: list):
     # develop syntax for determine data types
     # # assign positional column names to avoid running raw input in SQL
     sql = list(zip(
-        ["''Column"+str(idx)+"''" for idx,_ in enumerate(columns)],
-        ["+QUOTENAME(@ColumnName_"+x+")+" for x in columns]
+        ["''Column"+str(idx)+"''" for idx,_ in enumerate(column_names)],
+        ["+QUOTENAME(@ColumnName_"+x+")+" for x in column_names]
     ))
     sql = ",\n".join(["\t("+x[0]+", '"+x[1]+"')" for x in sql])
 
     sql = "CROSS APPLY (VALUES \n"+sql+" \n) v(ColumnName, _Column)"
-    # TODO: use SQL function DATALENGTH instead of assuming VARCHAR(255): maybe in same call?
     sql = """
     SET @SQLStatement = N'
     SELECT ColumnName,
@@ -134,7 +155,7 @@ def infer_datatypes(connection, table_name: str, columns: list):
             THEN ''TIME''
         WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''DATETIME''
         WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''FLOAT''
-        ELSE ''VARCHAR(255)''
+        ELSE ''VARCHAR''
     END) AS type
     FROM '+QUOTENAME(@TableName)+'
     """+\
@@ -145,12 +166,12 @@ def infer_datatypes(connection, table_name: str, columns: list):
     """  
 
     # develop syntax for sp_executesql parameters
-    params = ["@ColumnName_"+x+" SYSNAME" for x in columns]
+    params = ["@ColumnName_"+x+" SYSNAME" for x in column_names]
 
     params = "N'@TableName SYSNAME, "+", ".join(params)+"'"
 
     # create input for sp_executesql SQL syntax
-    load = ["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in columns]
+    load = ["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in column_names]
 
     load = "@TableName=@TableName, "+", ".join(load)
 
@@ -158,12 +179,12 @@ def infer_datatypes(connection, table_name: str, columns: list):
     statement = "\n".join([vars,sql,"EXEC sp_executesql \n @SQLStatement,",params+',',load+';'])
 
     # create variables for execute method
-    args = [table_name] + [x for x in columns]
+    args = [table_name] + [x for x in column_names]
 
     # execute statement
-    dtypes = cursor.execute(statement, *args).fetchall()
+    dtypes = connection.cursor.execute(statement, *args).fetchall()
     dtypes = [x[1] for x in dtypes]
-    dtypes = list(zip(columns,dtypes))
+    dtypes = list(zip(column_names,dtypes))
     dtypes = {x[0]:x[1] for x in dtypes}
 
     return dtypes
@@ -182,6 +203,7 @@ def read_query(connection, statement: str, arguments: list = None) -> pd.DataFra
     dataframe = pd.DataFrame(dataframe, columns=columns)
 
     return dataframe
+
 
 def get_schema(connection, table_name: str):
     ''' Get SQL schema of a table.
@@ -224,7 +246,7 @@ def get_schema(connection, table_name: str):
 
     schema = read_query(connection, statement)
     if len(schema)==0:
-         raise errors.TableDoesNotExist('{table_name} does not exist'.format(table_name=table_name))
+         raise errors.TableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
     
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)

@@ -66,7 +66,7 @@ class SQLServer():
         else: 
             driver = [x for x in installed if x==driver_search]
         if len(driver)!=1:
-            raise errors.ODBCDriverNotFound('Unable to find ODBC driver.')
+            raise errors.ODBCDriverNotFound('Unable to find ODBC driver.') from None
         driver = driver[0]
 
         return driver
@@ -88,5 +88,5 @@ class AzureSQLDatabase():
 
     def __init__(self):
 
-        raise NotImplementedError('AzureSQLDatabase not yet implemented')
+        raise NotImplementedError('AzureSQLDatabase not yet implemented') from None
 

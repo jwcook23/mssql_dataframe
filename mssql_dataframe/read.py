@@ -6,7 +6,8 @@ from mssql_dataframe import errors
 from mssql_dataframe import helpers
 
 
-def select(connection, table_name: str, column_names: list, conditions) -> pd.DataFrame:
+def select(connection, table_name: str, column_names: list = None, where: list = None,
+limit: int = None, order: dict = {'column': None, 'direction': None}) -> pd.DataFrame:
     """Select data from SQL into a dataframe.
 
     Parameters
@@ -14,7 +15,10 @@ def select(connection, table_name: str, column_names: list, conditions) -> pd.Da
 
     connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of table to select data frame
-    column_names (list) : list of columns to select
+    column_names (list, default=None) : list of columns to select
+    where (list, default=None) : where clause filter to apply
+    limit (int, default=None) : select limited number of records only
+    order (dict, default={'column': None, 'direction': None}) : order results by column & direction
 
     Returns
     -------
@@ -30,9 +34,18 @@ def select(connection, table_name: str, column_names: list, conditions) -> pd.Da
 
     """
 
+    #
+    table_name = helpers.safe_sql(connection, table_name)
+    column_names = ',\n'.join(helpers.safe_sql(connection, column_names))
+    
+
+    options = [None, "=",">","<",">=","<=","<>","!=","!>","!<","IS NULL","IS NOT NULL"]
+    if conditions not in options:
+        raise ValueError("conditions must be one of: "+str(options))
+
+
     # sanitize table and column names for safe sql
     table_name = helpers.safe_sql(connection, table_name)
-    table_name = table_name[0]
     column_names = helpers.safe_sql(connection, column_names)
     column_names = ", ".join(column_names)
 
@@ -58,4 +71,4 @@ def select(connection, table_name: str, column_names: list, conditions) -> pd.Da
     try:
         connection.cursor.executemany(statement, values)
     except:
-        raise errors.GeneralError("GeneralError")
+        raise errors.GeneralError("GeneralError") from None

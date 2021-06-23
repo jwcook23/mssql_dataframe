@@ -1,12 +1,15 @@
 from typing import Literal
 
+from mssql_dataframe import helpers
 
-def modify_column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null=False):
+
+def column(connection, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null=False):
     """Add, alter, or drop a column in an existing SQL table.
 
     Parameters
     ----------
 
+    connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of table
     modify (str) : method of modification, see below for description of options
     column_name (str) : name of column
@@ -28,6 +31,10 @@ def modify_column(self, table_name: str, modify: Literal['add','alter','drop'], 
     TODO: add example
 
     """
+
+    options = ['add','alter','drop']
+    if modify not in options:
+        raise ValueError("modify must be one of: "+str(options))
     
     statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
@@ -67,7 +74,7 @@ def modify_column(self, table_name: str, modify: Literal['add','alter','drop'], 
         type_column = "+' '+QUOTENAME(@ColumnType)"
         parameter_type = ", @ColumnType SYSNAME"
         value_type = ", @ColumnType=@ColumnType"
-        size, dtypes = self._table__column_spec(data_type)
+        size, dtypes = helpers.column_spec(data_type)
         if size is None:
             declare_size = ""
             size_column = ""
@@ -94,15 +101,16 @@ def modify_column(self, table_name: str, modify: Literal['add','alter','drop'], 
     )
 
     args = [x for x in args if x is not None]
-    self.cursor.execute(statement, *args)
+    connection.cursor.execute(statement, *args)
 
 
-def modify_primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
+def primary_key(connection, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
     '''Add or drop the primary key from a table.
 
     Parameters
     ----------
 
+    connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of the table to add/drop the primary key
     key_name (str) : name of the primary key to add/drop
     colums (list|str) : name of the column(s) to add/drop as the primary key
@@ -114,6 +122,10 @@ def modify_primary_key(self, table_name: str, modify: Literal['add','drop'], col
 
     None
     '''
+
+    options = ['add','drop']
+    if modify not in options:
+        raise ValueError("modify must be one of: "+str(options))
 
     if isinstance(columns,str):
         columns = [columns]
@@ -153,4 +165,4 @@ def modify_primary_key(self, table_name: str, modify: Literal['add','drop'], col
         parameter=parameter, value=value
     )
 
-    self.cursor.execute(statement, *args)
+    connection.cursor.execute(statement, *args)
