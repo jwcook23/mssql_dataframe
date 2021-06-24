@@ -5,6 +5,7 @@ from datetime import date
 
 from mssql_dataframe import connect
 from mssql_dataframe import write
+from mssql_dataframe import create
 
 @pytest.fixture(scope="module")
 def connection():
@@ -33,16 +34,13 @@ def test_prepare_values():
 def test_insert(connection):
 
     table_name = '##test_insert'
-    connection.cursor.execute('''
-        CREATE TABLE {table_name} (
-            ColumnA TINYINT,
-            ColumnB INT,
-            ColumnC BIGINT,
-            ColumnD DATE,
-            ColumnE VARCHAR(10)
-        )
-    '''.format(table_name=table_name)
-    )
+    create.table(connection, table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'INT',
+            'ColumnC': 'BIGINT',
+            'ColumnD': 'DATE',
+            'ColumnE': 'VARCHAR(10)'
+    })
 
     # single value
     dataframe = pd.DataFrame({'ColumnA': [1]})

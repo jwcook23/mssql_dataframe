@@ -43,25 +43,62 @@ def safe_sql(connection, inputs):
     return clean
 
 
-def where_clause(conditions: str):
+def where_clause(connection, where: str):
     ''' Safely format a where clause condition.
 
     Parameters
     ----------
 
+    connection (mssql_dataframe.connect) : connection for executing statement
+    where (str) : where conditions to apply
+
     Returns
     -------
 
+    where_statement (str) : where statement containing named parameters such as "...WHERE [username] = %(Param0)s"
+    args (dict) : named parameter values such as {'Param0': username}
+
+    Example
+    -------
+
+    where_statement, where_args = where_clause(connection, 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL')
+    where_statement == 'WHERE [ColumnA] > %(Param0)s AND [ColumnB] = %(Param1)s and [ColumnANDC] IS NOT NULL'
+    where_args == {'Param0': '5', 'Param1': '2'}
+
     '''
 
-    join = r'\bAND\b|\bOR\b'
+    # regular expressions to parse where statement
+    combine = r'\bAND\b|\bOR\b'
     comparison = ["=",">","<",">=","<=","<>","!=","!>","!<","IS NULL","IS NOT NULL"]
-    comparison = r'|'.join(["("+x+")?" for x in comparison])
+    comparison = r'('+'|'.join([x for x in comparison])+')'
+    
+    # split on AND/OR
+    conditions = re.split(combine, where, flags=re.IGNORECASE)
+    # split on comparison operator
+    conditions = [re.split(comparison,x, flags=re.IGNORECASE) for x in conditions]
+    if len(conditions)==1 and len(conditions[0])==1:
+        raise errors.InvalidSyntax("invalid syntax for where = "+where)
+    # form dict for each colum, while handling IS NULL/IS NOT NULL split
+    conditions = [[y.strip() for y in x] for x in conditions]
+    conditions = {x[0]:(x[1::] if len(x[2])>0 else [x[1]]) for x in conditions}
 
-    re.split(join, conditions, flags=re.IGNORECASE)
-    re.findall(join, conditions, flags=re.IGNORECASE)
+    # santize column names
+    column_names =  safe_sql(connection, conditions.keys())
+    column_names = dict(zip(conditions.keys(), column_names))
+    conditions = dict((column_names[key], value) for (key, value) in conditions.items())
+    conditions = conditions.items()
 
-    re.split(comparison, 'ColumnA >5 ')
+    # form SQL where statement
+    where_statement = [x[0]+' '+x[1][0]+' %(param'+str(idx)+')s' if len(x[1])>1 else x[0]+' '+x[1][0] for idx,x in enumerate(conditions)]
+    recombine = re.findall(combine, where, flags=re.IGNORECASE)+['']
+    where_statement = list(zip(where_statement,recombine))
+    where_statement = 'WHERE '+' '.join([x[0]+' '+x[1] for x in where_statement])
+    where_statement = where_statement.strip()
+
+    # form arguments, skipping IS NULL/IS NOT NULL
+    where_args = {'param'+str(idx):x[1][1] for idx,x in enumerate(conditions) if len(x[1])>1}
+
+    return where_statement, where_args
 
 
 def column_spec(columns: list):

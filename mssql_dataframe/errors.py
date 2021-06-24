@@ -11,3 +11,7 @@ class ODBCDriverNotFound(Exception):
 class TableDoesNotExist(Exception):
     '''Exception for SQL table that does not exist.'''
     pass
+
+class InvalidSyntax(Exception):
+    '''Exception for invalid syntax'''
+    pass

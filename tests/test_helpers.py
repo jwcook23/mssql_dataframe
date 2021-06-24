@@ -34,11 +34,22 @@ def test_safe_sql(connection):
     assert len(clean)==dataframe.shape[1]
 
 
-def test_where_clause():
+def test_where_clause(connection):
 
-    conditions = 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL'
-    conditions = helpers.where_clause(conditions)
-    assert 1==1
+    where = 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL'
+    where_statement, where_args = helpers.where_clause(connection, where)
+    assert where_statement=='WHERE [ColumnA] > %(param0)s AND [ColumnB] = %(param1)s and [ColumnANDC] IS NOT NULL'
+    assert where_args=={'param0': '5', 'param1': '2'}
+
+    where = 'ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL'
+    where_statement, where_args = helpers.where_clause(connection, where)
+    assert where_statement=='WHERE [ColumnB] > %(param0)s AND [ColumnC] IS NOT NULL OR [ColumnD] IS NULL'
+    assert where_args=={'param0': '4'}
+
+
+    conditions = 'no operator present'
+    with pytest.raises(errors.InvalidSyntax):
+        helpers.where_clause(connection, conditions)
 
 
 def test_column_spec():

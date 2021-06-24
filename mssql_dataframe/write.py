@@ -73,7 +73,7 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
         column_names=column_names,
         parameters=', '.join(['?']*len(dataframe.columns))
     )
-    dataframe = __prepare_values(dataframe)
+    dataframe = prepare_values(dataframe)
     values = dataframe.values.tolist()
     try:
         connection.cursor.executemany(statement, values)
