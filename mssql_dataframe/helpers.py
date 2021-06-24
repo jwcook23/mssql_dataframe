@@ -55,15 +55,15 @@ def where_clause(connection, where: str):
     Returns
     -------
 
-    where_statement (str) : where statement containing named parameters such as "...WHERE [username] = %(Param0)s"
-    args (dict) : named parameter values such as {'Param0': username}
+    where_statement (str) : where statement containing parameters such as "...WHERE [username] = ?"
+    where_args (list) : parameter values
 
     Example
     -------
 
     where_statement, where_args = where_clause(connection, 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL')
-    where_statement == 'WHERE [ColumnA] > %(Param0)s AND [ColumnB] = %(Param1)s and [ColumnANDC] IS NOT NULL'
-    where_args == {'Param0': '5', 'Param1': '2'}
+    where_statement == 'WHERE [ColumnA] > ? AND [ColumnB] = ? and [ColumnANDC] IS NOT NULL'
+    where_args == ['5','2']
 
     '''
 
@@ -89,7 +89,7 @@ def where_clause(connection, where: str):
     conditions = conditions.items()
 
     # form SQL where statement
-    where_statement = [x[0]+' '+x[1][0]+' %(param'+str(idx)+')s' if len(x[1])>1 else x[0]+' '+x[1][0] for idx,x in enumerate(conditions)]
+    where_statement = [x[0]+' '+x[1][0]+' ?' if len(x[1])>1 else x[0]+' '+x[1][0] for x in conditions]
     recombine = re.findall(combine, where, flags=re.IGNORECASE)+['']
     where_statement = list(zip(where_statement,recombine))
     where_statement = 'WHERE '+' '.join([x[0]+' '+x[1] for x in where_statement])
@@ -97,6 +97,7 @@ def where_clause(connection, where: str):
 
     # form arguments, skipping IS NULL/IS NOT NULL
     where_args = {'param'+str(idx):x[1][1] for idx,x in enumerate(conditions) if len(x[1])>1}
+    where_args = [x[1][1] for x in conditions if len(x[1])>1]
 
     return where_statement, where_args
 

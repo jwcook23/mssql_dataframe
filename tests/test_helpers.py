@@ -38,14 +38,13 @@ def test_where_clause(connection):
 
     where = 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL'
     where_statement, where_args = helpers.where_clause(connection, where)
-    assert where_statement=='WHERE [ColumnA] > %(param0)s AND [ColumnB] = %(param1)s and [ColumnANDC] IS NOT NULL'
-    assert where_args=={'param0': '5', 'param1': '2'}
+    assert where_statement=='WHERE [ColumnA] > ? AND [ColumnB] = ? and [ColumnANDC] IS NOT NULL'
+    assert where_args==['5','2']
 
     where = 'ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL'
     where_statement, where_args = helpers.where_clause(connection, where)
-    assert where_statement=='WHERE [ColumnB] > %(param0)s AND [ColumnC] IS NOT NULL OR [ColumnD] IS NULL'
-    assert where_args=={'param0': '4'}
-
+    assert where_statement=='WHERE [ColumnB] > ? AND [ColumnC] IS NOT NULL OR [ColumnD] IS NULL'
+    assert where_args==['4']
 
     conditions = 'no operator present'
     with pytest.raises(errors.InvalidSyntax):

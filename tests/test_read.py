@@ -50,7 +50,8 @@ def test_select(connection):
     # assert dataframe.shape[0]==input.shape[0]
 
     # where
-    dataframe = read.select(connection, table_name, where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
+    dataframe = read.select(connection, table_name, column_names=['ColumnB','ColumnC','ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
+    assert len(dataframe)==2
 
     # limit
     dataframe = read.select(connection, table_name, limit=1)

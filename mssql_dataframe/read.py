@@ -89,7 +89,7 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
         if where_args is None:
             dataframe = helpers.read_query(connection, statement)
         else:
-            connection.cursor.execute(statement, where_args).fetchall()
+            dataframe = helpers.read_query(connection, statement, where_args)
     except:
         raise errors.GeneralError("GeneralError") from None
 
