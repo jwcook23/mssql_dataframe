@@ -15,3 +15,7 @@ class TableDoesNotExist(Exception):
 class InvalidSyntax(Exception):
     '''Exception for invalid syntax'''
     pass
+
+class UndefinedPythonDataType(Exception):
+    '''Exception for undefined SQL equalivant Python data type.'''
+    pass

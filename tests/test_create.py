@@ -87,6 +87,24 @@ def test_table_sqlpk(connection):
     assert all(schema['is_primary_key']==[True,False])
 
 
+def test_from_dataframe_simple(connection):
+
+    table_name = '##test_from_dataframe_simple'
+    dataframe = pd.DataFrame({"ColumnA": [1]})
+    create.from_dataframe(connection, table_name, dataframe)
+    schema = helpers.get_schema(connection, table_name)
+
+    assert len(schema)==1
+    assert all(schema.index=='ColumnA')
+    assert all(schema['data_type']=='bit')
+    assert all(schema['max_length']==1)
+    assert all(schema['precision']==1)
+    assert all(schema['is_nullable']==False)
+    assert all(schema['is_identity']==False)
+    assert all(schema['is_primary_key']==False)
+    assert all(schema['python_type']=='boolean')
+
+
 def test_from_dataframe_nopk(connection, dataframe):
 
     table_name = '##test_from_dataframe_nopk'

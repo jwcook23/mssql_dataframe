@@ -60,6 +60,20 @@ def test_column_spec():
     assert dtypes==['VARCHAR', 'VARCHAR', 'VARCHAR', 'VARCHAR', 'INT', 'DECIMAL']
 
 
+def test_infer_datatypes_simple(connection):
+    
+    table_name = '##test_infer_datatypes_simple'
+
+    dataframe = pd.DataFrame({'_bit': [1]})
+
+    columns = {k: 'VARCHAR(100)' for k in dataframe.columns}
+    create.table(connection, table_name, columns)
+    write.insert(connection, table_name, dataframe)
+
+    dtypes = helpers.infer_datatypes(connection, table_name, column_names=dataframe.columns)
+    assert dtypes['_bit']=='BIT'
+
+
 def test_infer_datatypes(connection):
     
     table_name = '##test_infer_datatypes'

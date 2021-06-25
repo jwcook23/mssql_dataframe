@@ -87,6 +87,6 @@ class AzureSQLDatabase():
     """    
 
     def __init__(self):
-
+        # TODO: define AzureSQLDatebase class
         raise NotImplementedError('AzureSQLDatabase not yet implemented') from None
 
