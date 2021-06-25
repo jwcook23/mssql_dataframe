@@ -84,10 +84,12 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
 
 
 def update():
+    # TODO: define update function
     raise NotImplementedError('update not implemented') from None
 
 
 def merge():
+    # TODO: define merge function
     raise NotImplementedError('merge not implemented') from None
     
 # class merge():

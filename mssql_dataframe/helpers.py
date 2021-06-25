@@ -184,6 +184,8 @@ def infer_datatypes(connection, table_name: str, column_names: list):
     SET @SQLStatement = N'
     SELECT ColumnName,
     (CASE 
+        WHEN count(try_convert(BIT, _Column)) = count(_Column) 
+            AND MAX(_Column)=1 THEN ''BIT''
         WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''TINYINT''
         WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''SMALLINT''
         WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''INT''
@@ -237,6 +239,7 @@ def read_query(connection, statement: str, arguments: list = None) -> pd.DataFra
     dataframe = dataframe.fetchall()
     dataframe = [list(x) for x in dataframe]
 
+    # form dataframe with column names
     columns = [col[0] for col in connection.cursor.description]
     dataframe = pd.DataFrame(dataframe, columns=columns)
 
@@ -288,5 +291,23 @@ def get_schema(connection, table_name: str):
     
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)
+
+
+    # define Python type equalivant
+    equal = pd.DataFrame.from_dict({
+        'varchar': ['object'],
+        'bool': ['boolean'],
+        'tinyint': ['Int8'],
+        'smallint': ['Int16'],
+        'int': ['Int32'],
+        'bigint': ['Int64'],
+        'float': ['float64'],
+        'decimal': ['float64'],
+        'time': ['timedelta64[ns]'],
+        'date': ['timedelta64[ns]'],
+        'datetime': ['datetime64[ns]'],
+        'datetime2': ['datetime64[ns]']
+    }, orient='index', columns=["python_type"])
+    schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
 
     return schema

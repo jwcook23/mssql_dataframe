@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import date
 
 from mssql_dataframe import connect
 from mssql_dataframe import write
@@ -24,12 +23,12 @@ def test_select(connection):
             'ColumnA': 'TINYINT',
             'ColumnB': 'INT',
             'ColumnC': 'BIGINT',
-            'ColumnD': 'DATE',
+            'ColumnD': 'DATETIME',
             'ColumnE': 'VARCHAR(10)'
     })
 
     input = pd.DataFrame({
-        'ColumnA': [5,np.nan,7],
+        'ColumnA': [5,6,7],
         'ColumnB': [5,6,None],
         'ColumnC': [pd.NA,6,7],
         'ColumnD': ['06-22-2021','06-22-2021',pd.NaT],
@@ -39,22 +38,29 @@ def test_select(connection):
     input['ColumnD'] = pd.to_datetime(input['ColumnD'])
     write.insert(connection, table_name, input)
 
-    # # all columns and rows
-    # dataframe = read.select(connection, table_name)
-    # assert all(dataframe.columns==input.columns)
-    # assert dataframe.shape==input.shape
+    # all columns and rows
+    dataframe = read.select(connection, table_name)
+    assert all(dataframe.columns==input.columns)
+    assert dataframe.shape==input.shape
+    assert dataframe.dtypes['ColumnA']=='Int8'
+    assert dataframe.dtypes['ColumnB']=='Int32'
+    assert dataframe.dtypes['ColumnC']=='Int64'
+    assert dataframe.dtypes['ColumnD']=='datetime64[ns]'
+    assert dataframe.dtypes['ColumnE']=='object'
 
     # # columns
-    # dataframe = read.select(connection, table_name, column_names=["ColumnA","ColumnB"])
-    # assert all(dataframe.columns==["ColumnA","ColumnB"])
-    # assert dataframe.shape[0]==input.shape[0]
+    dataframe = read.select(connection, table_name, column_names=["ColumnA","ColumnB"])
+    assert all(dataframe.columns==["ColumnA","ColumnB"])
+    assert dataframe.shape[0]==input.shape[0]
 
     # where
     dataframe = read.select(connection, table_name, column_names=['ColumnB','ColumnC','ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
-    assert len(dataframe)==2
+    assert sum((dataframe['ColumnB']>4 & dataframe['ColumnC'].notna()) | dataframe['ColumnD'].isna())==2
 
     # limit
     dataframe = read.select(connection, table_name, limit=1)
     assert dataframe.shape[0]==1
 
     # order
+    dataframe = read.select(connection, table_name, column_names=["ColumnA"], order_column='ColumnA', order_direction='DESC')
+    assert(all(dataframe['ColumnA']==[7,6,5]))

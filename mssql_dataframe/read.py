@@ -36,7 +36,7 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
     """
 
     # sanitize table and column names for safe sql
-    table_name = helpers.safe_sql(connection, table_name)
+    table_clean = helpers.safe_sql(connection, table_name)
     if column_names is None:
         column_names = '*'
     else:
@@ -64,7 +64,7 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
     elif order_direction not in options:
         raise ValueError("order direction must be one of: "+str(options))
     elif order_column is not None:
-        order = "ORDER BY "+helpers.safe_sql(order_column)+" "+order_direction
+        order = "ORDER BY "+helpers.safe_sql(connection, order_column)+" "+order_direction
     else:
         order = ""
 
@@ -79,12 +79,12 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
         {order}
     """.format(limit=limit,
         column_names=column_names, 
-        table_name=table_name, 
+        table_name=table_clean, 
         where_statement=where_statement, 
         order=order
     )
 
-
+    # read sql query
     try:
         if where_args is None:
             dataframe = helpers.read_query(connection, statement)
@@ -92,6 +92,11 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
             dataframe = helpers.read_query(connection, statement, where_args)
     except:
         raise errors.GeneralError("GeneralError") from None
+    
+    # change to best datatype
+    schema = helpers.get_schema(connection, table_name)
+    schema = schema['python_type'].reset_index().values
+    schema = {x[0]:x[1] for x in schema if x[0] in dataframe.columns}
+    dataframe = dataframe.astype(schema)
 
-    # TODO: cast return to a better Python datatype
     return dataframe

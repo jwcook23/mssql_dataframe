@@ -66,6 +66,7 @@ def test_infer_datatypes(connection):
 
     dataframe = pd.DataFrame({
         '_varchar': [None,'b','c','4','e'],
+        '_bit': [0,1,1,0,None],
         '_tinyint': [None,2,3,4,5],
         '_smallint': [256,2,6,4,5],
         '_int': [32768,2,3,4,5],
@@ -74,7 +75,7 @@ def test_infer_datatypes(connection):
         '_time': [datetime.now().time()]*5,
         '_datetime': [datetime.now()]*4+[pd.NaT]
     })
-    dataframe[['_tinyint','_bigint']] = dataframe[['_tinyint','_bigint']].astype('Int64') 
+    dataframe[['_bit','_tinyint','_bigint']] = dataframe[['_bit','_tinyint','_bigint']].astype('Int64') 
 
     columns = {k: 'VARCHAR(100)' for k in dataframe.columns}
     create.table(connection, table_name, columns)
@@ -82,6 +83,7 @@ def test_infer_datatypes(connection):
 
     dtypes = helpers.infer_datatypes(connection, table_name, column_names=dataframe.columns)
     assert dtypes['_varchar']=="VARCHAR"
+    assert dtypes['_bit']=="BIT"
     assert dtypes['_tinyint']=="TINYINT"
     assert dtypes['_smallint']=="SMALLINT"
     assert dtypes['_bigint']=="BIGINT"
@@ -96,11 +98,12 @@ def test_get_schema(connection):
     with pytest.raises(errors.TableDoesNotExist):
         helpers.get_schema(connection, table_name)
 
-    columns = {"A": "INT"}
-    create.table(connection, table_name, columns, primary_key_column="A")
+    columns = {"_varchar": "VARCHAR", "_bit": "BIT", "_tinyint": "TINYINT", "_smallint": "SMALLINT", "_int": "INT", "_bigint": "BIGINT",
+    "_float": "FLOAT", "_time": "TIME", "_datetime": "DATETIME"}
+    create.table(connection, table_name, columns)
     schema = helpers.get_schema(connection, table_name)
 
     assert schema.index.name=='column_name'
-    assert all(schema.select_dtypes('object').columns==['data_type'])
+    assert all(schema.select_dtypes('object').columns==['data_type','python_type'])
     assert all(schema.select_dtypes('int64').columns==['max_length', 'precision', 'scale'])
     assert all(schema.select_dtypes('bool').columns==['is_nullable','is_identity', 'is_primary_key'])
