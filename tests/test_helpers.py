@@ -19,19 +19,26 @@ def connection():
 
 def test_safe_sql(connection):
 
+    # list of values
     inputs = ["TableName","##TableName","ColumnName","'; select true; --", "abc[]def", "user's custom name"]
     clean = helpers.safe_sql(connection, inputs)
     assert isinstance(inputs, list)
     assert len(clean)==len(inputs)
 
+    # single string
     inputs = "SingleString"
     clean = helpers.safe_sql(connection, inputs)
     assert isinstance(inputs, str)
     assert clean=="[SingleString]"
 
+    # dataframe columns
     dataframe = pd.DataFrame(columns=["A","B"])
     clean = helpers.safe_sql(connection, dataframe.columns)
     assert len(clean)==dataframe.shape[1]
+
+    # value that is too long
+    with pytest.raises(errors.GeneralError):
+        helpers.safe_sql(connection, inputs='a'*1000)
 
 
 def test_where_clause(connection):
@@ -109,8 +116,6 @@ def test_infer_datatypes(connection):
 def test_get_schema(connection):
 
     table_name = '##test_get_schema'
-    with pytest.raises(errors.TableDoesNotExist):
-        helpers.get_schema(connection, table_name)
 
     columns = {"_varchar": "VARCHAR", "_bit": "BIT", "_tinyint": "TINYINT", "_smallint": "SMALLINT", "_int": "INT", "_bigint": "BIGINT",
     "_float": "FLOAT", "_time": "TIME", "_datetime": "DATETIME"}
@@ -121,3 +126,16 @@ def test_get_schema(connection):
     assert all(schema.select_dtypes('object').columns==['data_type','python_type'])
     assert all(schema.select_dtypes('int64').columns==['max_length', 'precision', 'scale'])
     assert all(schema.select_dtypes('bool').columns==['is_nullable','is_identity', 'is_primary_key'])
+
+
+def test_get_schema_errors(connection):
+
+    # table does not exist
+    table_name = '##test_get_schema_errors'
+    with pytest.raises(errors.TableDoesNotExist):
+        helpers.get_schema(connection, table_name)
+    
+    columns = {"_error": "SMALLDATETIME"}
+    create.table(connection, table_name, columns)
+    with pytest.raises(errors.UndefinedPythonDataType):
+        helpers.get_schema(connection, table_name)

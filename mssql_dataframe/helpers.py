@@ -32,9 +32,10 @@ def safe_sql(connection, inputs):
     syntax = ", ".join(["QUOTENAME(?)"]*len(inputs))
     statement = statement.format(syntax=syntax)
     
-    try: 
-        clean = connection.cursor.execute(statement, inputs).fetchone()
-    except:
+    
+    clean = connection.cursor.execute(statement, inputs).fetchone()
+    # values too long with return None, so raise an exception
+    if len([x for x in clean if x is None])>0:
         raise errors.GeneralError("GeneralError") from None
     
     if flatten:
@@ -186,10 +187,7 @@ def infer_datatypes(connection, table_name: str, column_names: list):
     @TableName=@TableName, {values};
     """
 
-    if isinstance(column_names, str):
-        column_names = [column_names]
-    else:
-        column_names = list(column_names)
+    column_names = list(column_names)
     alias_names = [str(x) for x in list(range(0,len(column_names)))]
 
     # develop syntax for SQL variable declaration
@@ -311,6 +309,6 @@ def get_schema(connection, table_name: str):
     }, orient='index', columns=["python_type"])
     schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
     if any(schema['python_type'].isna()):
-        raise errors.UndefinedPythonDataType("SQL Columns: "+str(schema[schema['python_type'].isna()].index))
+        raise errors.UndefinedPythonDataType("SQL Columns: "+str(list(schema[schema['python_type'].isna()].index)))
 
     return schema

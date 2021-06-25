@@ -69,6 +69,16 @@ def test_table_pk(connection):
     assert all(schema['is_primary_key']==[True, False, False])
 
 
+def test_table_errorpk(connection):
+
+    with pytest.raises(ValueError):
+        table_name = "##test_table_errorpk"
+        columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
+        primary_key_column = "A"
+        not_null = "B"
+        create.table(connection, table_name, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=True)
+
+
 def test_table_sqlpk(connection):
 
     table_name = '##test_table_sqlpk'
@@ -103,6 +113,13 @@ def test_from_dataframe_simple(connection):
     assert all(schema['is_identity']==False)
     assert all(schema['is_primary_key']==False)
     assert all(schema['python_type']=='boolean')
+
+
+def test_from_dataframe_errorpk(connection):
+
+    with pytest.raises(ValueError):
+        table_name = '##test_from_dataframe_nopk'
+        create.from_dataframe(connection, table_name, dataframe, primary_key=1)
 
 
 def test_from_dataframe_nopk(connection, dataframe):

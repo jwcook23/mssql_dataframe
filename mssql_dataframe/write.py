@@ -55,6 +55,10 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
 
     """
 
+    # dataframe index is likely the SQL primary key
+    if dataframe.index.name is not None:
+        dataframe = dataframe.reset_index()
+
     # sanitize table and column names for safe sql
     table_name = helpers.safe_sql(connection, table_name)
     column_names = ",\n".join(helpers.safe_sql(connection, dataframe.columns))

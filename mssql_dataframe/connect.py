@@ -72,7 +72,7 @@ class SQLServer():
         return driver
 
 
-class AzureSQLDatabase():
+class AzureSQL():
     """
 
     Parameters
@@ -87,6 +87,6 @@ class AzureSQLDatabase():
     """    
 
     def __init__(self):
-        # TODO: define AzureSQLDatebase class
-        raise NotImplementedError('AzureSQLDatabase not yet implemented') from None
+        # TODO: define AzureSQL class
+        raise NotImplementedError('AzureSQL not yet implemented') from None
 

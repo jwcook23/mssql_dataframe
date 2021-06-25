@@ -18,3 +18,9 @@ def test_SQLServer():
     # invalid driver name
     with pytest.raises(errors.ODBCDriverNotFound):
         connect.SQLServer(database_name='master', server_name='localhost', driver='')
+
+
+def test_AzureSQL():
+
+    with pytest.raises(NotImplementedError):
+        connect.AzureSQL()
