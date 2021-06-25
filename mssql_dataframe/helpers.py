@@ -151,75 +151,76 @@ def infer_datatypes(connection, table_name: str, column_names: list):
 
     dtypes (dict) : keys = column name, values = data types and optionally size
 
-    Dynamic SQL Sample
-    ------------------
 
+    """
+
+    statement = """
+    DECLARE @SQLStatement AS NVARCHAR(MAX);
+    DECLARE @TableName SYSNAME = ?;
+    {declare}
+    SET @SQLStatement = N'
+        SELECT ColumnName,
+        (CASE 
+            WHEN count(try_convert(BIT, _Column)) = count(_Column) 
+                AND MAX(_Column)=1 THEN ''BIT''
+            WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''TINYINT''
+            WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''SMALLINT''
+            WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''INT''
+            WHEN count(try_convert(BIGINT, _Column)) = count(_Column) THEN ''BIGINT''
+            WHEN count(try_convert(TIME, _Column)) = count(_Column) 
+                AND SUM(CASE WHEN try_convert(DATE, _Column) = ''1900-01-01'' THEN 0 ELSE 1 END) = 0
+                THEN ''TIME''
+            WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''DATETIME''
+            WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''FLOAT''
+            ELSE ''VARCHAR''
+        END) AS type
+        FROM '+QUOTENAME(@TableName)+'
+        CROSS APPLY (VALUES
+            {syntax}
+        ) v(ColumnName, _Column)
+        WHERE _Column IS NOT NULL
+        GROUP BY ColumnName;'
+    EXEC sp_executesql 
+    @SQLStatement,
+    N'@TableName SYSNAME, {parameters}',
+    @TableName=@TableName, {values};
     """
 
     if isinstance(column_names, str):
         column_names = [column_names]
+    else:
+        column_names = list(column_names)
+    alias_names = [str(x) for x in list(range(0,len(column_names)))]
 
     # develop syntax for SQL variable declaration
-    vars = list(zip(
-        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in column_names]
+    declare = list(zip(
+        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in alias_names]
     ))
-
-    vars = [
-        "DECLARE @SQLStatement AS NVARCHAR(MAX);",
-        "DECLARE @TableName SYSNAME = ?;",
-    ] + ['\n'.join(x) for x in vars]
-
-    vars = "\n".join(vars)
+    declare = "\n".join(["\n".join(x) for x in declare])
 
     # develop syntax for determine data types
-    # # assign positional column names to avoid running raw input in SQL
-    sql = list(zip(
-        ["''Column"+str(idx)+"''" for idx,_ in enumerate(column_names)],
-        ["+QUOTENAME(@ColumnName_"+x+")+" for x in column_names]
+    syntax = list(zip(
+        ["''Column"+x+"''" for x in alias_names],
+        ["+QUOTENAME(@ColumnName_"+x+")+" for x in alias_names]
     ))
-    sql = ",\n".join(["\t("+x[0]+", '"+x[1]+"')" for x in sql])
-
-    sql = "CROSS APPLY (VALUES \n"+sql+" \n) v(ColumnName, _Column)"
-    sql = """
-    SET @SQLStatement = N'
-    SELECT ColumnName,
-    (CASE 
-        WHEN count(try_convert(BIT, _Column)) = count(_Column) 
-            AND MAX(_Column)=1 THEN ''BIT''
-        WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''TINYINT''
-        WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''SMALLINT''
-        WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''INT''
-        WHEN count(try_convert(BIGINT, _Column)) = count(_Column) THEN ''BIGINT''
-        WHEN count(try_convert(TIME, _Column)) = count(_Column) 
-            AND SUM(CASE WHEN try_convert(DATE, _Column) = ''1900-01-01'' THEN 0 ELSE 1 END) = 0
-            THEN ''TIME''
-        WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''DATETIME''
-        WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''FLOAT''
-        ELSE ''VARCHAR''
-    END) AS type
-    FROM '+QUOTENAME(@TableName)+'
-    """+\
-    sql+\
-    """
-    WHERE _Column IS NOT NULL
-    GROUP BY ColumnName;'
-    """  
+    syntax = ",\n".join(["\t("+x[0]+", '"+x[1]+"')" for x in syntax])
 
     # develop syntax for sp_executesql parameters
-    params = ["@ColumnName_"+x+" SYSNAME" for x in column_names]
-
-    params = "N'@TableName SYSNAME, "+", ".join(params)+"'"
+    parameters = ", ".join(["@ColumnName_"+x+" SYSNAME" for x in alias_names])
 
     # create input for sp_executesql SQL syntax
-    load = ["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in column_names]
-
-    load = "@TableName=@TableName, "+", ".join(load)
+    values = ", ".join(["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in alias_names])
 
     # join components into final synax
-    statement = "\n".join([vars,sql,"EXEC sp_executesql \n @SQLStatement,",params+',',load+';'])
+    statement = statement.format(
+        declare=declare,
+        syntax=syntax,
+        parameters=parameters,
+        values=values
+    )
 
     # create variables for execute method
-    args = [table_name] + [x for x in column_names]
+    args = [table_name] + column_names
 
     # execute statement
     dtypes = connection.cursor.execute(statement, *args).fetchall()
@@ -296,7 +297,7 @@ def get_schema(connection, table_name: str):
     # define Python type equalivant
     equal = pd.DataFrame.from_dict({
         'varchar': ['object'],
-        'bool': ['boolean'],
+        'bit': ['boolean'],
         'tinyint': ['Int8'],
         'smallint': ['Int16'],
         'int': ['Int32'],
@@ -309,5 +310,7 @@ def get_schema(connection, table_name: str):
         'datetime2': ['datetime64[ns]']
     }, orient='index', columns=["python_type"])
     schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
+    if any(schema['python_type'].isna()):
+        raise errors.UndefinedPythonDataType("SQL Columns: "+str(schema[schema['python_type'].isna()].index))
 
     return schema

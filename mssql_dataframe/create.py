@@ -30,107 +30,84 @@ primary_key_column: str = None, sql_primary_key: bool = False):
     
     create_table(table_name='##SingleColumnTable', columns={"A": "VARCHAR(100)"})
 
-    sp_executesql statement
-    -----------------------
-
+    """
+    
+    statement = """
     DECLARE @SQLStatement AS NVARCHAR(MAX);
     DECLARE @TableName SYSNAME = ?;
-    DECLARE @ColumnName_A SYSNAME = ?;
-    DECLARE @ColumnType_A SYSNAME = ?;
-    DECLARE @ColumnSize_A SYSNAME = ?;
+    {declare}
     SET @SQLStatement = N'CREATE TABLE '+QUOTENAME(@TableName)+' ('+
-    QUOTENAME(@ColumnName_A)+' '+QUOTENAME(@ColumnType_A)+' '+@ColumnSize_A+
-    ');'
-    EXEC sp_executesql 
+    {syntax}
+    +');'
+    EXEC sp_executesql
     @SQLStatement,
-    N'@TableName SYSNAME, @ColumnName_A SYSNAME, @ColumnType_A SYSNAME, @ColumnSize_A VARCHAR(MAX)',
-    @TableName=@TableName, @ColumnName_A=@ColumnName_A, @ColumnType_A=@ColumnType_A, @ColumnSize_A=@ColumnSize_A;
-
-
-    sp_executesql parameters
-    ------------------------
-
-    ['##SingleColumn', 'A', 'VARCHAR', '(100)']
-
+    N'@TableName SYSNAME, {parameters}',
+    @TableName=@TableName, {values};
     """
 
-    names = list(columns.keys())
-    # dtypes = columns.values()
-
-    # extract SQL variable size
+    column_names = list(columns.keys())
+    alias_names = [str(x) for x in list(range(0,len(column_names)))]
     size, dtypes = helpers.column_spec(columns.values())
-
-    size_vars = [names[idx] if x is not None else "" for idx,x in enumerate(size)]
+    size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
 
     # develop syntax for SQL variable declaration
-    vars = list(zip(
-        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in names],
-        ["DECLARE @ColumnType_"+x+" SYSNAME = ?;" for x in names],
-        ["DECLARE @ColumnSize_"+x+" SYSNAME = ?;" if len(x)>0 else "" for x in size_vars]
+    declare = list(zip(
+        ["DECLARE @ColumnName_"+x+" SYSNAME = ?;" for x in alias_names],
+        ["DECLARE @ColumnType_"+x+" SYSNAME = ?;" for x in alias_names],
+        ["DECLARE @ColumnSize_"+x+" SYSNAME = ?;" if x is not None else "" for x in size_vars]
     ))
-
-    vars = [
-        "DECLARE @SQLStatement AS NVARCHAR(MAX);",
-        "DECLARE @TableName SYSNAME = ?;",
-    ] + ['\n'.join(x) for x in vars]
-
-    vars = "\n".join(vars)
+    declare = '\n'.join(['\n'.join(x) for x in declare])
 
     # develop syntax for SQL table creation
     if sql_primary_key and primary_key_column is not None:
         raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
-
-    sql = list(zip(
-        ["QUOTENAME(@ColumnName_"+x+")" for x in names],
-        ["QUOTENAME(@ColumnType_"+x+")" for x in names],
-        ["@ColumnSize_"+x+"" if len(x)>0 else "" for x in size_vars],
-        ["'NOT NULL'" if x in not_null else "" for x in names],
-        ["'PRIMARY KEY'" if x==primary_key_column else "" for x in names]
+    syntax = list(zip(
+        ["QUOTENAME(@ColumnName_"+x+")" for x in alias_names],
+        ["QUOTENAME(@ColumnType_"+x+")" for x in alias_names],
+        ["@ColumnSize_"+x+"" if x is not None else "" for x in size_vars],
+        ["'NOT NULL'" if x in not_null else "" for x in column_names],
+        ["'PRIMARY KEY'" if x==primary_key_column else "" for x in column_names]
     ))
-
-    sql = "+','+\n".join(
-        ["+' '+".join([x for x in col if len(x)>0]) for col in sql]
+    syntax = "+','+\n".join(
+        ["+' '+".join([x for x in col if len(x)>0]) for col in syntax]
     )
 
     if sql_primary_key:
-        sql = "'_pk INT NOT NULL IDENTITY(1,1) PRIMARY KEY,'+\n"+sql
-
-    sql = "SET @SQLStatement = N'CREATE TABLE '+QUOTENAME(@TableName)+' ('+\n"+sql+"+\n');'"
+        syntax = "'_pk INT NOT NULL IDENTITY(1,1) PRIMARY KEY,'+\n"+syntax
 
     # develop syntax for sp_executesql parameters
-    params = list(zip(
-        ["@ColumnName_"+x+" SYSNAME" for x in names],
-        ["@ColumnType_"+x+" SYSNAME" for x in names],
-        ["@ColumnSize_"+x+" VARCHAR(MAX)" if len(x)>0 else "" for x in size_vars]
+    parameters = list(zip(
+        ["@ColumnName_"+x+" SYSNAME" for x in alias_names],
+        ["@ColumnType_"+x+" SYSNAME" for x in alias_names],
+        ["@ColumnSize_"+x+" VARCHAR(MAX)" if x is not None else "" for x in size_vars]
     ))
-
-    params = [", ".join([item for item in sublist if len(item)>0]) for sublist in params]
-    params = "N'@TableName SYSNAME, "+", ".join(params)+"'"
+    parameters = [", ".join([item for item in sublist if len(item)>0]) for sublist in parameters]
+    parameters = ", ".join(parameters)
 
     # create input for sp_executesql SQL syntax
-    load = list(zip(
-        ["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in names],
-        ["@ColumnType_"+x+""+"=@ColumnType_"+x+"" for x in names],
-        ["@ColumnSize_"+x+""+"=@ColumnSize_"+x+"" if len(x)>0 else "" for x in size_vars]
+    values = list(zip(
+        ["@ColumnName_"+x+""+"=@ColumnName_"+x+"" for x in alias_names],
+        ["@ColumnType_"+x+""+"=@ColumnType_"+x+"" for x in alias_names],
+        ["@ColumnSize_"+x+""+"=@ColumnSize_"+x+"" if x is not None else "" for x in size_vars]
     ))
-
-    load = [", ".join([item for item in sublist if len(item)>0]) for sublist in load]
-
-    load = "@TableName=@TableName, "+", ".join(load)
+    values = [", ".join([item for item in sublist if len(item)>0]) for sublist in values]
+    values = ", ".join(values)
 
     # join components into final synax
-    statement = "\n".join([vars,sql,"EXEC sp_executesql \n @SQLStatement,",params+',',load+';'])
+    statement = statement.format(
+        declare=declare,
+        syntax=syntax,
+        parameters=parameters,
+        values=values
+    )
 
     # create variables for execute method
     args = list(zip(
-        [x for x in names],
+        [x for x in column_names],
         [x for x in dtypes],
         [x for x in size]
     ))
-
-    # args = [item for sublist in args for item in sublist if len(item)>0]
     args = [item for sublist in args for item in sublist if item is not None]
-
     args = [table_name] + args
 
     # execute statement
