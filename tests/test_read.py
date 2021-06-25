@@ -25,7 +25,7 @@ def test_select(connection):
             'ColumnC': 'BIGINT',
             'ColumnD': 'DATETIME',
             'ColumnE': 'VARCHAR(10)'
-    })
+    }, primary_key_column="ColumnA")
 
     input = pd.DataFrame({
         'ColumnA': [5,6,7],
@@ -40,27 +40,29 @@ def test_select(connection):
 
     # all columns and rows
     dataframe = read.select(connection, table_name)
-    assert all(dataframe.columns==input.columns)
-    assert dataframe.shape==input.shape
-    assert dataframe.dtypes['ColumnA']=='Int8'
+    assert dataframe.index.name=='ColumnA'
+    assert dataframe.shape[1]==input.shape[1]-1
+    assert dataframe.shape[0]==input.shape[0]
     assert dataframe.dtypes['ColumnB']=='Int32'
     assert dataframe.dtypes['ColumnC']=='Int64'
     assert dataframe.dtypes['ColumnD']=='datetime64[ns]'
     assert dataframe.dtypes['ColumnE']=='object'
 
-    # # columns
-    dataframe = read.select(connection, table_name, column_names=["ColumnA","ColumnB"])
-    assert all(dataframe.columns==["ColumnA","ColumnB"])
+    # # optional columns specified
+    dataframe = read.select(connection, table_name, column_names=["ColumnB","ColumnC"])
+    assert dataframe.index.name=='ColumnA'
+    assert all(dataframe.columns==["ColumnB","ColumnC"])
     assert dataframe.shape[0]==input.shape[0]
 
-    # where
+    # optional where statement
     dataframe = read.select(connection, table_name, column_names=['ColumnB','ColumnC','ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
     assert sum((dataframe['ColumnB']>4 & dataframe['ColumnC'].notna()) | dataframe['ColumnD'].isna())==2
 
-    # limit
+    # optional limit
     dataframe = read.select(connection, table_name, limit=1)
     assert dataframe.shape[0]==1
 
-    # order
-    dataframe = read.select(connection, table_name, column_names=["ColumnA"], order_column='ColumnA', order_direction='DESC')
-    assert(all(dataframe['ColumnA']==[7,6,5]))
+    # optional order
+    dataframe = read.select(connection, table_name, column_names=["ColumnB"], order_column='ColumnA', order_direction='DESC')
+    assert dataframe.index.name=='ColumnA'
+    assert all(dataframe.index==[7,6,5])

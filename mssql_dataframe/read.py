@@ -35,11 +35,15 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
 
     """
 
+    schema = helpers.get_schema(connection, table_name)
+    primary_key = list(schema[schema['is_primary_key']].index)
+
     # sanitize table and column names for safe sql
     table_clean = helpers.safe_sql(connection, table_name)
     if column_names is None:
         column_names = '*'
     else:
+        column_names = [x for x in primary_key if x not in column_names]+column_names
         column_names = helpers.safe_sql(connection, column_names)
         column_names = "\n,".join(column_names)
 
@@ -92,11 +96,16 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
             dataframe = helpers.read_query(connection, statement, where_args)
     except:
         raise errors.GeneralError("GeneralError") from None
-    
+
     # change to best datatype
-    schema = helpers.get_schema(connection, table_name)
-    schema = schema['python_type'].reset_index().values
-    schema = {x[0]:x[1] for x in schema if x[0] in dataframe.columns}
-    dataframe = dataframe.astype(schema)
+    dtypes = schema['python_type'].reset_index().values
+    dtypes = {x[0]:x[1] for x in dtypes if x[0] in dataframe.columns}
+    dataframe = dataframe.astype(dtypes)
+
+    # set dataframe index as primary key
+    if len(primary_key)>0:
+        dataframe = dataframe.set_index(keys=primary_key)
+        # use lowercase version, which represents non-nullable datatype for example, int64 for Int64
+        dataframe.index = dataframe.index.astype(dtypes[primary_key[0]].lower())
 
     return dataframe
