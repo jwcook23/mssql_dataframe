@@ -303,7 +303,7 @@ def get_schema(connection, table_name: str):
         'float': ['float64'],
         'decimal': ['float64'],
         'time': ['timedelta64[ns]'],
-        'date': ['timedelta64[ns]'],
+        'date': ['datetime64[ns]'],
         'datetime': ['datetime64[ns]'],
         'datetime2': ['datetime64[ns]']
     }, orient='index', columns=["python_type"])

@@ -6,6 +6,7 @@ from datetime import date
 from mssql_dataframe import connect
 from mssql_dataframe import write
 from mssql_dataframe import create
+from mssql_dataframe import read
 
 @pytest.fixture(scope="module")
 def connection():
@@ -62,11 +63,72 @@ def test_insert(connection):
     dataframe['ColumnD'] = pd.to_datetime(dataframe['ColumnD'])
     write.insert(connection, table_name, dataframe)
 
-    results = connection.cursor.execute('SELECT * FROM {table_name}'.format(table_name=table_name)).fetchall()
-    assert list(results[0])==[1, None, None, None, None]
-    assert list(results[1])==[None, 2, None, None, None]
-    assert list(results[2])==[None, 3, None, None, None]
-    assert list(results[3])==[None, 4, None, None, None]
-    assert list(results[4])==[5, 5, None, date(2021,6,22), 'a']
-    assert list(results[5])==[None, 6, 6, date(2021,6,22), 'b']
-    assert list(results[6])==[7, None, 7, None, None]
+    # test all insertions
+    results = read.select(connection, table_name)
+    assert all(results.loc[results['ColumnA'].notna(),'ColumnA']==pd.Series([1,5,7], index=[0,4,6]))
+    assert all(results.loc[results['ColumnB'].notna(),'ColumnB']==pd.Series([2,3,4,5,6], index=[1,2,3,4,5]))
+    assert all(results.loc[results['ColumnC'].notna(),'ColumnC']==pd.Series([6,7], index=[5,6]))
+    assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22), date(2021,6,22)], index=[4,5]))
+    assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
+
+
+def test_update(connection):
+
+    table_name = '##test_update'
+
+    # create table to update
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key='sql')
+
+    # update values in table, using the primary key created in SQL
+    dataframe['ColumnC'] = [5,6]
+    pk = read.select(connection, table_name, column_names=['_pk','ColumnB'])
+    dataframe = dataframe.merge(pk.reset_index()).set_index('_pk')
+    write.update(connection, table_name, dataframe[['ColumnC']])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
+    assert (expected.values==result.values).all()
+
+
+def test_update_performance(connection):
+    
+    table_name = "##test_update_performance"
+
+    dataframe = pd.DataFrame({
+        'ColumnA': list(range(0,100000,1))
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key='index', row_count=len(dataframe))
+
+    # update values in table
+    dataframe['ColumnA'] = 0
+    write.update(connection, table_name, dataframe[['ColumnA']])
+
+    # test result
+    result = read.select(connection, table_name)
+    assert (result['ColumnA']==0).all()
+
+
+def test_update_new_column(connection):
+
+    table_name = '##test_update_new_column'
+
+    # create table to update
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2]
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key='index')
+
+    # update values in table, using the primary key created in SQL
+    dataframe['NewColumn'] = [3,4]
+    write.update(connection, table_name, dataframe[['NewColumn']])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
+    assert (expected.values==result.values).all()

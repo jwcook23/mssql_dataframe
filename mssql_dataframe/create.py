@@ -113,6 +113,38 @@ primary_key_column: str = None, sql_primary_key: bool = False):
     # execute statement
     connection.cursor.execute(statement, *args)
 
+def __table_schema(schema): 
+    '''Convert output from helpers.get_schema to inputs for table function.'''
+    
+    schema = schema.copy()
+
+    # determine column's value
+    schema[['max_length','precision','scale']] = schema[['max_length','precision','scale']].astype('str')
+    schema['value'] = schema['data_type']
+    # length
+    dtypes = ['varchar','nvarchar']
+    idx = schema['data_type'].isin(dtypes)
+    schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'max_length']+')'
+    # precision & scale
+    dtypes = ['decimal','numeric']
+    idx = schema['data_type'].isin(dtypes)
+    schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'precision']+','+schema.loc[idx,'scale']+')'
+
+    columns = schema['value'].to_dict()
+    
+    
+    # non-null columns
+    not_null = list(schema[~schema['is_nullable']].index)
+
+    # primary_key_column/sql_primary_key
+    primary_key_column = None
+    sql_primary_key = False
+    if sum(schema['is_identity'] & schema['is_primary_key'])==1:
+        sql_primary_key = True
+    elif sum(schema['is_primary_key'])==1:
+        primary_key_column = schema[schema['is_primary_key']].index[0]
+
+    return columns, not_null, primary_key_column, sql_primary_key
 
 def from_dataframe(connection, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
 row_count: int = 1000):
@@ -170,7 +202,7 @@ row_count: int = 1000):
     not_null = list(dataframe.columns[dataframe.notna().all()])
 
     # create temp table to determine data types
-    name_temp = "##DataType_"+table_name
+    name_temp = "##from_dataframe_"+table_name
     table(connection, name_temp, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=None)
 
     # insert data into temp table to determine datatype
