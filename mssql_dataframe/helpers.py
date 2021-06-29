@@ -1,8 +1,11 @@
 import re
 
 import pandas as pd
+import numpy as np
 
 from mssql_dataframe import errors
+from mssql_dataframe import write
+from mssql_dataframe import create
 
 
 def safe_sql(connection, inputs):
@@ -137,15 +140,16 @@ def column_spec(columns: list):
     return size, dtypes
 
 
-def infer_datatypes(connection, table_name: str, column_names: list):
-    """ Dynamically determine SQL variable types by issuing a statement against an SQL table.
+def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_count: int = 1000):
+    """ Dynamically determine SQL variable types by issuing a statement against a temporary SQL table.
 
     Parameters
     ----------
 
     connection (mssql_dataframe.connect) : connection for executing statement
-    table_name (str) : name of table
-    column_names (list|str) : columns to infer data types for
+    table_name (str) : name of temporary table to create
+    dataframe (pandas.DataFrame) : data that needs data type inferred
+    row_count (int, default = 1000) : number of rows for determining data types
 
     Returns
     -------
@@ -154,6 +158,25 @@ def infer_datatypes(connection, table_name: str, column_names: list):
 
 
     """
+    # create temporary table
+    columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
+    create.table(connection, table_name, columns)
+    
+    # insert subset of data into temporary table
+    subset = dataframe.loc[0:row_count, :]
+    datetimes = subset.select_dtypes('datetime').columns
+    numeric = subset.select_dtypes(include=np.number).columns
+    subset = subset.astype('str')
+    for col in subset:
+        subset[col] = subset[col].str.strip()
+    # # truncate datetimes to 3 decimal places
+    subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
+    # # remove zero decimal places from numeric values
+    subset[numeric] = subset[numeric].replace(r'\.0+','', regex=True)
+    # # treat empty like as None (NULL in SQL)
+    subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})
+    # insert subset of data then use SQL to determine SQL data type
+    write.insert(connection, table_name, dataframe=subset)
 
     statement = """
     DECLARE @SQLStatement AS NVARCHAR(MAX);
@@ -187,7 +210,7 @@ def infer_datatypes(connection, table_name: str, column_names: list):
     @TableName=@TableName, {values};
     """
 
-    column_names = list(column_names)
+    column_names = list(dataframe.columns)
     alias_names = [str(x) for x in list(range(0,len(column_names)))]
 
     # develop syntax for SQL variable declaration
@@ -225,6 +248,12 @@ def infer_datatypes(connection, table_name: str, column_names: list):
     dtypes = [x[1] for x in dtypes]
     dtypes = list(zip(column_names,dtypes))
     dtypes = {x[0]:x[1] for x in dtypes}
+
+    # determine length of VARCHAR columns
+    length = [k for k,v in dtypes.items() if v=="VARCHAR"]
+    length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
+    length = {k:"VARCHAR("+str(v)+")" for k,v in length.items()}
+    dtypes.update(length)
 
     return dtypes
 

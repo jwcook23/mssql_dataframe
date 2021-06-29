@@ -73,11 +73,7 @@ def test_infer_datatypes_simple(connection):
 
     dataframe = pd.DataFrame({'_bit': [1]})
 
-    columns = {k: 'VARCHAR(100)' for k in dataframe.columns}
-    create.table(connection, table_name, columns)
-    write.insert(connection, table_name, dataframe)
-
-    dtypes = helpers.infer_datatypes(connection, table_name, column_names=dataframe.columns)
+    dtypes = helpers.infer_datatypes(connection, table_name, dataframe)
     assert dtypes['_bit']=='BIT'
 
 
@@ -98,12 +94,8 @@ def test_infer_datatypes(connection):
     })
     dataframe[['_bit','_tinyint','_bigint']] = dataframe[['_bit','_tinyint','_bigint']].astype('Int64') 
 
-    columns = {k: 'VARCHAR(100)' for k in dataframe.columns}
-    create.table(connection, table_name, columns)
-    write.insert(connection, table_name, dataframe)
-
-    dtypes = helpers.infer_datatypes(connection, table_name, column_names=dataframe.columns)
-    assert dtypes['_varchar']=="VARCHAR"
+    dtypes = helpers.infer_datatypes(connection, table_name, dataframe)
+    assert dtypes['_varchar']=="VARCHAR(1)"
     assert dtypes['_bit']=="BIT"
     assert dtypes['_tinyint']=="TINYINT"
     assert dtypes['_smallint']=="SMALLINT"

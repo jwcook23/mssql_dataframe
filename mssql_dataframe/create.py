@@ -113,6 +113,7 @@ primary_key_column: str = None, sql_primary_key: bool = False):
     # execute statement
     connection.cursor.execute(statement, *args)
 
+
 def __table_schema(schema): 
     '''Convert output from helpers.get_schema to inputs for table function.'''
     
@@ -146,6 +147,7 @@ def __table_schema(schema):
 
     return columns, not_null, primary_key_column, sql_primary_key
 
+
 def from_dataframe(connection, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
 row_count: int = 1000):
     """ Create SQL table by inferring SQL create table parameters from the contents of the DataFrame. 
@@ -176,8 +178,8 @@ row_count: int = 1000):
     if primary_key not in options:
         raise ValueError("primary_key must be one of: "+str(options))
 
-    # assume initial default data type
-    columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
+    # # assume initial default data type
+    # columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
 
     # determine primary key
     if primary_key is None:
@@ -191,7 +193,7 @@ row_count: int = 1000):
         if dataframe.index.name is None:
             dataframe.index.name = '_index'
         # # use the max allowed size for a primary key
-        columns[dataframe.index.name] = 'NVARCHAR(450)'
+        # columns[dataframe.index.name] = 'NVARCHAR(450)'
         primary_key_column = dataframe.index.name
         dataframe = dataframe.reset_index()
     elif primary_key == 'infer':
@@ -203,30 +205,31 @@ row_count: int = 1000):
 
     # create temp table to determine data types
     name_temp = "##from_dataframe_"+table_name
-    table(connection, name_temp, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=None)
+    # table(connection, name_temp, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=None)
 
     # insert data into temp table to determine datatype
-    subset = dataframe.loc[0:row_count, :]
-    datetimes = subset.select_dtypes('datetime').columns
-    numeric = subset.select_dtypes(include=np.number).columns
-    subset = subset.astype('str')
-    for col in subset:
-        subset[col] = subset[col].str.strip()
-    # # truncate datetimes to 3 decimal places
-    subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
-    # # remove zero decimal places from numeric values
-    subset[numeric] = subset[numeric].replace(r'\.0+','', regex=True)
-    # # treat empty like as None (NULL in SQL)
-    subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None})
-    # insert subset of data then use SQL to determine SQL data type
-    write.insert(connection, table_name=name_temp, dataframe=subset)
-    dtypes = helpers.infer_datatypes(connection, table_name=name_temp, column_names=dataframe.columns)
+    # subset = dataframe.loc[0:row_count, :]
+    # datetimes = subset.select_dtypes('datetime').columns
+    # numeric = subset.select_dtypes(include=np.number).columns
+    # subset = subset.astype('str')
+    # for col in subset:
+    #     subset[col] = subset[col].str.strip()
+    # # # truncate datetimes to 3 decimal places
+    # subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
+    # # # remove zero decimal places from numeric values
+    # subset[numeric] = subset[numeric].replace(r'\.0+','', regex=True)
+    # # # treat empty like as None (NULL in SQL)
+    # subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None})
+    # # insert subset of data then use SQL to determine SQL data type
+    # write.insert(connection, table_name=name_temp, dataframe=subset)
+    # dtypes = helpers.infer_datatypes(connection, table_name=name_temp, column_names=dataframe.columns)
+    dtypes = helpers.infer_datatypes(connection, name_temp, dataframe, row_count)
 
-    # determine length of VARCHAR columns
-    length = [k for k,v in dtypes.items() if v=="VARCHAR"]
-    length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
-    length = {k:"VARCHAR("+str(v)+")" for k,v in length.items()}
-    dtypes.update(length)
+    # # determine length of VARCHAR columns
+    # length = [k for k,v in dtypes.items() if v=="VARCHAR"]
+    # length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
+    # length = {k:"VARCHAR("+str(v)+")" for k,v in length.items()}
+    # dtypes.update(length)
 
     # infer primary key column after best fit data types have been determined
     if primary_key=='infer':

@@ -35,6 +35,30 @@ def prepare_values(dataframe):
     return dataframe
 
 
+def new_column(connection, table_name: str, dataframe: pd.DataFrame, column_names: list):
+    '''Add new column(s) to table after insert failure.
+    
+    Parameters
+    ----------
+    connection (mssql_dataframe.connect) : connection for executing statement
+    table_name (str) : name of table to add column(s)
+    dataframe (pandas.DataFrame) : data containing columns(s) to add
+    column_names (list) : new column(s) to add
+
+    Returns
+    -------
+    None
+    '''
+
+    table_temp = "##new_column_"+table_name
+
+    dtypes = helpers.infer_datatypes(connection, table_temp, dataframe[column_names])
+
+    for column, data_type in dtypes.items():
+        # SQL does not allow adding a non-null column
+        modify.column(connection, table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+
+
 def insert(connection, table_name: str, dataframe: pd.DataFrame):
     """Insert data into SQL table from a dataframe.
 
@@ -118,20 +142,21 @@ def update(connection, table_name, dataframe):
 
     """
 
-    # perform update using primary key
-    schema = helpers.get_schema(connection, table_name)
-    primary_key =  schema[schema['is_primary_key']].index
-    if len(primary_key)==0:
-        raise errors.UndefinedPrimaryKey("Primary key not defined in SQL table: "+table_name)
-    else:
-        primary_key = primary_key[0]
-    
     # insert data into temporary SQL table
+    table_temp = "##update_"+table_name
     if dataframe.index.name is None:
         raise errors.UndefinedPrimaryKey("Index (primary key) of the input dataframe is not defined.")
-    table_temp = "##update_"+table_name
+    schema = helpers.get_schema(connection, table_name)
+    new = dataframe.columns[~dataframe.columns.isin(schema.index)]
+    if len(new)>0:
+        new_column(connection, table_name, dataframe.reset_index(drop=True), column_names=new)
+        schema = helpers.get_schema(connection, table_name)
     temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
-    columns, not_null, primary_key_column, _ = create.__table_schema(temp)
+    columns, not_null, primary_key_column, sql_primary_key = create.__table_schema(temp)
+    if primary_key_column is None and sql_primary_key==False:
+        raise errors.UndefinedPrimaryKey("Primary key not defined in SQL table: "+table_name)
+    elif sql_primary_key:
+        primary_key_column = '_pk'
     # # sql_primary_key == False since it must be input to this function
     create.table(connection, table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
     insert(connection, table_temp, dataframe)
@@ -175,7 +200,7 @@ def update(connection, table_name, dataframe):
     )
 
     # perform update
-    args = [table_name, table_temp, primary_key] + column_names
+    args = [table_name, table_temp, primary_key_column] + column_names
     connection.cursor.execute(statement, *args)
 
 

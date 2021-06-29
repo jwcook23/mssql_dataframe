@@ -1,4 +1,5 @@
 # mssql_dataframe
+# TODO: provide examples for functions
 Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In practice this module 
 may be useful for model updating, data normalization, data engineering, and web scraping.
 

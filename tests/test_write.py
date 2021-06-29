@@ -115,7 +115,7 @@ def test_update_performance(connection):
 
 
 def test_update_new_column(connection):
-
+    
     table_name = '##test_update_new_column'
 
     # create table to update
@@ -130,5 +130,5 @@ def test_update_new_column(connection):
 
     # test result
     result = read.select(connection, table_name)
-    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
+    expected = pd.DataFrame({'ColumnA': [1,2], 'NewColumn': [3,4]})
     assert (expected.values==result.values).all()
