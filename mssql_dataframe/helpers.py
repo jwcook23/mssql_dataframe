@@ -186,7 +186,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
         SELECT ColumnName,
         (CASE 
             WHEN count(try_convert(BIT, _Column)) = count(_Column) 
-                AND MAX(_Column)=1 THEN ''BIT''
+                AND MAX(_Column)=1 AND count(_Column)>2 THEN ''BIT''
             WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''TINYINT''
             WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''SMALLINT''
             WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''INT''

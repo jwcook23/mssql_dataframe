@@ -1,5 +1,10 @@
 # mssql_dataframe
-# TODO: provide examples for functions
+# TODO: provide a basic full syntax example of sp_executesql
+# TODO: provide examples for functions and validate documentation
+# TODO: clean up imports
+# TODO: create a class made up of functions
+# TODO: validate workflow of primary keys during update & merge
+# TODO: default update & merge on columsn to primary key (allow non-primary key?)
 Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In practice this module 
 may be useful for model updating, data normalization, data engineering, and web scraping.
 

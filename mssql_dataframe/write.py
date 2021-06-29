@@ -186,7 +186,7 @@ def update(connection, table_name, dataframe):
 
     column_names = list(dataframe.columns)
     alias_names = [str(x) for x in list(range(0,len(column_names)))]
-    declare = '\n'.join(["DECLARE @Column_"+x+" SYSNAME = ?;" for x in alias_names])
+    declare = "\n".join(["DECLARE @Column_"+x+" SYSNAME = ?;" for x in alias_names])
     columns = ["QUOTENAME(@Column_"+x+")" for x in alias_names]
     columns = ",\n".join([x+"+'=_temp.'+"+x for x in columns])
     parameters = ", ".join(["@Column_"+x+" SYSNAME" for x in alias_names])
@@ -204,61 +204,125 @@ def update(connection, table_name, dataframe):
     connection.cursor.execute(statement, *args)
 
 
-def merge():
-    # TODO: define merge function
-    raise NotImplementedError('merge not implemented') from None
+def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: list):
+    ''' Merge a dataframe into an SQL table by updating, deleting, and inserting rows using Transact-SQL MERGE.
+
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    table_name (str) : name of the SQL table
+    match_columns (list) : column names used to match records between the dataframe and SQL table
+    dataframe (pd.DataFrame): tabular data to merge into SQL table
+
+    Returns
+    -------
     
-# class merge():
+    None
 
-#     def __init__(self):
+    '''
 
-#         self.statement = """
-#             MERGE {table} AS _target
-#             USING #{table}_merge AS _source 
-#             ON {_pk}
-#             WHEN MATCHED THEN
-#                 UPDATE SET {_update}
-#             WHEN NOT MATCHED BY TARGET THEN
-#                 INSERT ({_insert}) VALUES ({_values});
-#         """
+    # read target table schema
+    schema = helpers.get_schema(connection, table_name)
 
-#             # WHEN NOT MATCHED BY SOURCE THEN
-#             #     DELETE  
+    # add new columns if needed
+    new = dataframe.columns[~dataframe.columns.isin(schema.index)]
+    if len(new)>0:
+        new_column(connection, table_name, dataframe.reset_index(drop=True), column_names=new)
+        schema = helpers.get_schema(connection, table_name)
 
+    # add interal tracking columns if needed
+    if '_time_insert' not in schema.index:
+        modify.column(connection, table_name, modify='add', column_name='_time_insert', data_type='DATETIME')
+    if '_time_update' not in schema.index:
+        modify.column(connection, table_name, modify='add', column_name='_time_update', data_type='DATETIME')
 
-#     def merge(self,dataset):
-#         """
-#         Merge dataframe into SQL using a temporary table and a T-SQL MERGE statement.
+    # insert data into source temporary table with same schema as target
+    table_temp = "##merge_"+table_name
+    columns, not_null, primary_key_column, sql_primary_key = create.__table_schema(schema)
+    create.table(connection, table_temp, columns, not_null, primary_key_column, sql_primary_key)
+    insert(connection, table_temp, dataframe)
 
-#         Parameters
+    # format SQL statement
+    # statement = """
+    # MERGE TEST AS _target
+    # USING ##_merge_TEST AS _source 
+    # ON (_target._pk = _source._pk AND _target.County = _source.County)
+    # WHEN MATCHED THEN
+    #     UPDATE SET ColumnA=_source.ColumnA, ColumnB=_source.ColumnB, _time_update=GETDATE()
+    # WHEN NOT MATCHED THEN
+    #     INSERT (_pk, County, ColumnA, ColumnB, _time_insert) 
+    #     VALUES (_source._pk, _source.County, _source.ColumnA, _source.ColumnB, GETDATE())
+    # WHEN NOT MATCHED BY SOURCE THEN DELETE;
+    # """
+    statement = """
+        DECLARE @SQLStatement AS NVARCHAR(MAX);
+        DECLARE @TableName SYSNAME = ?;
+        DECLARE @TableTemp SYSNAME = ?;
+        {declare}
 
-#             dataset         dataframe               data to merge into SQL table
-#             update          bool, default=True      (WHEN MATCHED)
-#             insert          bool, default=True      (WHEN NOT MATCHED BY TARGET)
-#             delete          bool, default=False     (WHEN NOT MATCHED BY SOURCE)
+        SET @SQLStatement = 
+        N' MERGE '+QUOTENAME(@TableName)+' AS _target '
+        +' USING '+QUOTENAME(@TableTemp)+' AS _source '
+        +' ON ('+{match_syntax}+') '
+        +' WHEN MATCHED THEN UPDATE SET _time_update=GETDATE(), '+{update_syntax}
+        +' WHEN NOT MATCHED THEN INSERT (_time_insert, '+{insert_syntax}+')'
+        +' VALUES (GETDATE(), '+{insert_values}+')'
+        +' WHEN NOT MATCHED BY SOURCE THEN DELETE;'
 
-#         Returns
+        EXEC sp_executesql
+            @SQLStatement,
+            N'@TableName SYSNAME, @TableTemp SYSNAME, {parameters}',
+            @TableName=@TableName, @TableTemp=@TableTemp, {values};
+    """
 
-#             None
-        
-#         """
+    # update all columns in dataframe, besides match columns
+    update_columns = list(dataframe.columns[~dataframe.columns.isin(match_columns)])
 
-#         statement = self.statement.format(
-#             _table = table.name,
-#             _temp = update.name, 
-#             _pk = ', '.join(['_target.'+x+'=_source.'+x for x in pk]),
-#             _update = ', '.join(['_target.'+x+'=_source.'+x for x in non_pks]),
-#             # auto increment
-#             # _insert = ', '.join(non_pks),
-#             # _values = ', '.join(['_source.'+x for x in non_pks])
-#             # non-auto increment
-#             _insert = ', '.join(pk+non_pks),
-#             _values = ', '.join(['_source.'+x for x in pk+non_pks])        
-#         )
+    # insert all columns in dataframe
+    insert_columns = list(dataframe.columns)
 
+    # alias columns to prevent direct input into SQL syntax
+    alias_match = [str(x) for x in list(range(0,len(match_columns)))]
+    alias_update = [str(x) for x in list(range(0,len(update_columns)))]
+    alias_insert = [str(x) for x in list(range(0,len(insert_columns)))]
 
-#     def temp_table(self):
-#         """
-        
-#         """
-#         pass
+    declare = ["DECLARE @Match_"+x+" SYSNAME = ?;" for x in alias_match]
+    declare += ["DECLARE @Update_"+x+" SYSNAME = ?;" for x in alias_match]
+    declare += ["DECLARE @Insert_"+x+" SYSNAME = ?;" for x in alias_insert]
+    declare = "\n".join(declare)
+
+    match_syntax = ["QUOTENAME(@Match_"+x+")" for x in alias_match]
+    match_syntax = "+' AND '+".join(["'_target.'+"+x+"+'=_source.'+"+x for x in match_syntax])
+
+    update_syntax = ["QUOTENAME(@Update_"+x+")" for x in alias_update]
+    update_syntax = "+','+".join([x+"+'=_source.'+"+x for x in update_syntax])
+
+    insert_syntax = "+','+".join(["QUOTENAME(@Insert_"+x+")" for x in alias_insert])
+    insert_values = "+','+".join(["'_source.'+QUOTENAME(@Insert_"+x+")" for x in alias_insert])
+
+    parameters = []
+    values = []
+
+    parameters = ["@Match_"+x+" SYSNAME" for x in alias_match]
+    parameters += ["@Update_"+x+" SYSNAME" for x in alias_update]
+    parameters += ["@Insert_"+x+" SYSNAME" for x in alias_insert]
+    parameters =  ", ".join(parameters)
+
+    values = ["@Match_"+x+"=@Match_"+x for x in alias_match]
+    values += ["@Update_"+x+"=@Update_"+x for x in alias_match]
+    values += ["@Insert_"+x+"=@Insert_"+x for x in alias_insert]
+    values =  ", ".join(values)
+
+    statement = statement.format(
+        declare=declare,
+        match_syntax=match_syntax,
+        update_syntax=update_syntax,
+        insert_syntax=insert_syntax,
+        insert_values=insert_values,
+        parameters=parameters,
+        values=values
+    )
+
+    args = [table_name, table_temp]+match_columns+update_columns+insert_columns
+    connection.cursor.execute(statement, *args)

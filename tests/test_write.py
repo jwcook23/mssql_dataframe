@@ -132,3 +132,63 @@ def test_update_new_column(connection):
     result = read.select(connection, table_name)
     expected = pd.DataFrame({'ColumnA': [1,2], 'NewColumn': [3,4]})
     assert (expected.values==result.values).all()
+
+
+def test_merge_simple(connection):
+    
+    table_name = "##test_merge_simple"
+
+    # create table to merge into
+    dataframe = pd.DataFrame({
+        '_pk': [0,1],
+        'ColumnA': [3,4]
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
+
+    # perform merge
+    dataframe = pd.DataFrame({
+        '_pk': [1,2],
+        'ColumnA': [5,6]
+    })
+    write.merge(connection, table_name, dataframe, match_columns=['_pk'])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({'_pk': [1,2], 'ColumnA': [5,6]})
+    assert (expected.values==result[['_pk','ColumnA']].values).all()
+    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
+    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==2,'_time_insert'].notna())
+    assert all(result.loc[result['_pk']==2,'_time_update'].isna())
+
+
+def test_merge_complex(connection):
+    
+    table_name = "##test_merge_complex"
+
+    # create table to merge into
+    dataframe = pd.DataFrame({
+        '_pk': [0,1],
+        'ColumnA': [3,4],
+        'ColumnB': ['a','b'],
+        'State': ['A','B']
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
+
+    # perform merge
+    dataframe = pd.DataFrame({
+        '_pk': [1,2],
+        'ColumnA': [5,6],
+        'ColumnB': ['c','d'],
+        'State': ['B','C']
+    })
+    write.merge(connection, table_name, dataframe, match_columns=['_pk','State'])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({'_pk': [1,2], 'ColumnA': [5,6], 'ColumnB': ['c','d'], 'State':['B','C']})
+    assert (expected.values==result[['_pk','ColumnA','ColumnB','State']].values).all()
+    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
+    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==2,'_time_insert'].notna())
+    assert all(result.loc[result['_pk']==2,'_time_update'].isna())

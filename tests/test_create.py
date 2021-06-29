@@ -125,13 +125,13 @@ def test_from_dataframe_simple(connection):
 
     assert len(schema)==1
     assert all(schema.index=='ColumnA')
-    assert all(schema['data_type']=='bit')
+    assert all(schema['data_type']=='tinyint')
     assert all(schema['max_length']==1)
-    assert all(schema['precision']==1)
+    assert all(schema['precision']==3)
     assert all(schema['is_nullable']==False)
     assert all(schema['is_identity']==False)
     assert all(schema['is_primary_key']==False)
-    assert all(schema['python_type']=='boolean')
+    assert all(schema['python_type']=='Int8')
 
 
 def test_from_dataframe_errorpk(connection):

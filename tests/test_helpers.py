@@ -71,10 +71,10 @@ def test_infer_datatypes_simple(connection):
     
     table_name = '##test_infer_datatypes_simple'
 
-    dataframe = pd.DataFrame({'_bit': [1]})
+    dataframe = pd.DataFrame({'_tinyint': [1]})
 
     dtypes = helpers.infer_datatypes(connection, table_name, dataframe)
-    assert dtypes['_bit']=='BIT'
+    assert dtypes['_tinyint']=='TINYINT'
 
 
 def test_infer_datatypes(connection):
