@@ -7,6 +7,7 @@ from mssql_dataframe import connect
 from mssql_dataframe import write
 from mssql_dataframe import create
 from mssql_dataframe import read
+from mssql_dataframe import errors
 
 @pytest.fixture(scope="module")
 def connection():
@@ -72,6 +73,21 @@ def test_insert(connection):
     assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
 
 
+def test_update_no_table(connection):
+
+    table_name = '##test_update_no_table'
+
+    # create table to update
+    dataframe = pd.DataFrame({
+        '_pk': [0,1],
+        'ColumnA': [1,2]
+    }).set_index(keys='_pk')
+    
+    with pytest.raises(errors.TableDoesNotExist):
+        # attempt updating table that does not exist
+        write.update(connection, table_name, dataframe)
+
+
 def test_update(connection):
 
     table_name = '##test_update'
@@ -134,9 +150,22 @@ def test_update_new_column(connection):
     assert (expected.values==result.values).all()
 
 
+def test_merge_no_table(connection):
+    
+    table_name = "##test_merge_no_table"
+    
+    with pytest.raises(errors.TableDoesNotExist):
+        # attempt merge into table that doesn't exist
+        dataframe = pd.DataFrame({
+            '_pk': [1,2],
+            'ColumnA': [5,6]
+        })
+        write.merge(connection, table_name, dataframe, match_columns=['_pk'])
+
+
 def test_merge_one_match_column(connection):
     
-    table_name = "##test_merge_simple"
+    table_name = "##test_merge_one_match_column"
 
     # create table to merge into
     dataframe = pd.DataFrame({
@@ -163,7 +192,7 @@ def test_merge_one_match_column(connection):
 
 
 def test_merge_two_match_columns(connection):
-    table_name = "##test_merge_complex"
+    table_name = "##test_merge_two_match_columns"
 
     # create table to merge into
     dataframe = pd.DataFrame({
@@ -195,7 +224,7 @@ def test_merge_two_match_columns(connection):
 
 def test_merge_one_subset_column(connection):
     
-    table_name = "##test_merge_complex"
+    table_name = "##test_merge_one_subset_column"
 
     # create table to merge into
     dataframe = pd.DataFrame({
@@ -228,4 +257,38 @@ def test_merge_one_subset_column(connection):
 
 
 def test_merge_two_subset_columns(connection):
-    pass
+
+    table_name = "##test_merge_two_subset_columns"
+
+    # create table to merge into
+    dataframe = pd.DataFrame({
+        '_pk': [0,1,2],
+        'State1': ['A','B','B'],
+        'State2': ['X','Y','Z'],
+        'ColumnA': [3,4,4],
+        'ColumnB': ['a','b','b']
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
+
+    # perform merge
+    dataframe = pd.DataFrame({
+        '_pk': [1,3],
+        'State1': ['B','C'],
+        'State2': ['Y','Z'],
+        'ColumnA': [5,6],
+        'ColumnB': ['c','d']
+    })
+    write.merge(connection, table_name, dataframe, match_columns=['_pk'], subset_columns=['State1','State2'])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({
+        '_pk': [0,1,3], 'State1':['A','B','C'], 'State2':['X','Y','Z'], 'ColumnA': [3,5,6], 'ColumnB': ['a','c','d']
+    })
+    assert (expected.values==result[['_pk','State1','State2','ColumnA','ColumnB']].values).all()
+    assert all(result.loc[result['_pk']==0,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==0,'_time_update'].isna())
+    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
+    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==3,'_time_insert'].notna())
+    assert all(result.loc[result['_pk']==3,'_time_update'].isna())

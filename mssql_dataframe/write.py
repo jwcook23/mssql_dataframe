@@ -300,7 +300,7 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
         subset_syntax = "''"
     else:
         subset_syntax = ["'AND _target.'+QUOTENAME(@Subset_"+x+")+' IN (SELECT '+QUOTENAME(@Subset_"+x+")+' FROM '+QUOTENAME(@TableTemp)+')'" for x in alias_subset]
-        subset_syntax = " ".join(subset_syntax)
+        subset_syntax = " + ".join(subset_syntax)
 
     parameters = ["@Match_"+x+" SYSNAME" for x in alias_match]
     parameters += ["@Update_"+x+" SYSNAME" for x in alias_update]
