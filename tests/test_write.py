@@ -134,7 +134,7 @@ def test_update_new_column(connection):
     assert (expected.values==result.values).all()
 
 
-def test_merge_simple(connection):
+def test_merge_one_match_column(connection):
     
     table_name = "##test_merge_simple"
 
@@ -162,33 +162,70 @@ def test_merge_simple(connection):
     assert all(result.loc[result['_pk']==2,'_time_update'].isna())
 
 
-def test_merge_complex(connection):
-    
+def test_merge_two_match_columns(connection):
     table_name = "##test_merge_complex"
 
     # create table to merge into
     dataframe = pd.DataFrame({
         '_pk': [0,1],
+        'State': ['A','B'],
         'ColumnA': [3,4],
-        'ColumnB': ['a','b'],
-        'State': ['A','B']
+        'ColumnB': ['a','b']
     })
     create.from_dataframe(connection, table_name, dataframe, primary_key=None)
 
     # perform merge
     dataframe = pd.DataFrame({
         '_pk': [1,2],
+        'State': ['B','C'],
         'ColumnA': [5,6],
-        'ColumnB': ['c','d'],
-        'State': ['B','C']
+        'ColumnB': ['c','d']
     })
     write.merge(connection, table_name, dataframe, match_columns=['_pk','State'])
 
     # test result
     result = read.select(connection, table_name)
-    expected = pd.DataFrame({'_pk': [1,2], 'ColumnA': [5,6], 'ColumnB': ['c','d'], 'State':['B','C']})
-    assert (expected.values==result[['_pk','ColumnA','ColumnB','State']].values).all()
+    expected = pd.DataFrame({'_pk': [1,2], 'State':['B','C'], 'ColumnA': [5,6], 'ColumnB': ['c','d']})
+    assert (expected.values==result[['_pk','State','ColumnA','ColumnB']].values).all()
     assert all(result.loc[result['_pk']==1,'_time_update'].notna())
     assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
     assert all(result.loc[result['_pk']==2,'_time_insert'].notna())
     assert all(result.loc[result['_pk']==2,'_time_update'].isna())
+
+
+def test_merge_one_subset_column(connection):
+    
+    table_name = "##test_merge_complex"
+
+    # create table to merge into
+    dataframe = pd.DataFrame({
+        '_pk': [0,1,2],
+        'State': ['A','B','B'],
+        'ColumnA': [3,4,4],
+        'ColumnB': ['a','b','b']
+    })
+    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
+
+    # perform merge
+    dataframe = pd.DataFrame({
+        '_pk': [1,3],
+        'State': ['B','C'],
+        'ColumnA': [5,6],
+        'ColumnB': ['c','d']
+    })
+    write.merge(connection, table_name, dataframe, match_columns=['_pk'], subset_columns=['State'])
+
+    # test result
+    result = read.select(connection, table_name)
+    expected = pd.DataFrame({'_pk': [0,1,3], 'State':['A','B','C'], 'ColumnA': [3,5,6], 'ColumnB': ['a','c','d']})
+    assert (expected.values==result[['_pk','State','ColumnA','ColumnB']].values).all()
+    assert all(result.loc[result['_pk']==0,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==0,'_time_update'].isna())
+    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
+    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
+    assert all(result.loc[result['_pk']==3,'_time_insert'].notna())
+    assert all(result.loc[result['_pk']==3,'_time_update'].isna())
+
+
+def test_merge_two_subset_columns(connection):
+    pass

@@ -204,7 +204,7 @@ def update(connection, table_name, dataframe):
     connection.cursor.execute(statement, *args)
 
 
-def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: list):
+def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: list, subset_columns: list = None):
     ''' Merge a dataframe into an SQL table by updating, deleting, and inserting rows using Transact-SQL MERGE.
 
     Parameters
@@ -213,6 +213,7 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
     connection (mssql_dataframe.connect) : connection for executing statement
     table_name (str) : name of the SQL table
     match_columns (list) : column names used to match records between the dataframe and SQL table
+    subset_columns (list) : used to prevent deleting non-matching columns during incremental loading
     dataframe (pd.DataFrame): tabular data to merge into SQL table
 
     Returns
@@ -243,18 +244,6 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
     create.table(connection, table_temp, columns, not_null, primary_key_column, sql_primary_key)
     insert(connection, table_temp, dataframe)
 
-    # format SQL statement
-    # statement = """
-    # MERGE TEST AS _target
-    # USING ##_merge_TEST AS _source 
-    # ON (_target._pk = _source._pk AND _target.County = _source.County)
-    # WHEN MATCHED THEN
-    #     UPDATE SET ColumnA=_source.ColumnA, ColumnB=_source.ColumnB, _time_update=GETDATE()
-    # WHEN NOT MATCHED THEN
-    #     INSERT (_pk, County, ColumnA, ColumnB, _time_insert) 
-    #     VALUES (_source._pk, _source.County, _source.ColumnA, _source.ColumnB, GETDATE())
-    # WHEN NOT MATCHED BY SOURCE THEN DELETE;
-    # """
     statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
         DECLARE @TableName SYSNAME = ?;
@@ -268,7 +257,7 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
         +' WHEN MATCHED THEN UPDATE SET _time_update=GETDATE(), '+{update_syntax}
         +' WHEN NOT MATCHED THEN INSERT (_time_insert, '+{insert_syntax}+')'
         +' VALUES (GETDATE(), '+{insert_values}+')'
-        +' WHEN NOT MATCHED BY SOURCE THEN DELETE;'
+        +' WHEN NOT MATCHED BY SOURCE '+{subset_syntax}+' THEN DELETE;'
 
         EXEC sp_executesql
             @SQLStatement,
@@ -286,10 +275,15 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
     alias_match = [str(x) for x in list(range(0,len(match_columns)))]
     alias_update = [str(x) for x in list(range(0,len(update_columns)))]
     alias_insert = [str(x) for x in list(range(0,len(insert_columns)))]
+    if subset_columns is None:
+        alias_subset = []
+    else:
+        alias_subset = [str(x) for x in list(range(0,len(subset_columns)))]
 
     declare = ["DECLARE @Match_"+x+" SYSNAME = ?;" for x in alias_match]
-    declare += ["DECLARE @Update_"+x+" SYSNAME = ?;" for x in alias_match]
+    declare += ["DECLARE @Update_"+x+" SYSNAME = ?;" for x in alias_update]
     declare += ["DECLARE @Insert_"+x+" SYSNAME = ?;" for x in alias_insert]
+    declare += ["DECLARE @Subset_"+x+" SYSNAME = ?;" for x in alias_subset]
     declare = "\n".join(declare)
 
     match_syntax = ["QUOTENAME(@Match_"+x+")" for x in alias_match]
@@ -301,17 +295,23 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
     insert_syntax = "+','+".join(["QUOTENAME(@Insert_"+x+")" for x in alias_insert])
     insert_values = "+','+".join(["'_source.'+QUOTENAME(@Insert_"+x+")" for x in alias_insert])
 
-    parameters = []
-    values = []
+    # AND _target.COUNTY IN (SELECT COUNTY FROM ##_merge_TEST)
+    if subset_columns is None:
+        subset_syntax = "''"
+    else:
+        subset_syntax = ["'AND _target.'+QUOTENAME(@Subset_"+x+")+' IN (SELECT '+QUOTENAME(@Subset_"+x+")+' FROM '+QUOTENAME(@TableTemp)+')'" for x in alias_subset]
+        subset_syntax = " ".join(subset_syntax)
 
     parameters = ["@Match_"+x+" SYSNAME" for x in alias_match]
     parameters += ["@Update_"+x+" SYSNAME" for x in alias_update]
     parameters += ["@Insert_"+x+" SYSNAME" for x in alias_insert]
+    parameters += ["@Subset_"+x+" SYSNAME" for x in alias_subset]
     parameters =  ", ".join(parameters)
 
     values = ["@Match_"+x+"=@Match_"+x for x in alias_match]
-    values += ["@Update_"+x+"=@Update_"+x for x in alias_match]
+    values += ["@Update_"+x+"=@Update_"+x for x in alias_update]
     values += ["@Insert_"+x+"=@Insert_"+x for x in alias_insert]
+    values += ["@Subset_"+x+"=@Subset_"+x for x in alias_subset]
     values =  ", ".join(values)
 
     statement = statement.format(
@@ -320,9 +320,13 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
         update_syntax=update_syntax,
         insert_syntax=insert_syntax,
         insert_values=insert_values,
+        subset_syntax=subset_syntax,
         parameters=parameters,
         values=values
     )
 
-    args = [table_name, table_temp]+match_columns+update_columns+insert_columns
+    if subset_columns is None:
+        args = [table_name, table_temp]+match_columns+update_columns+insert_columns
+    else:
+        args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
     connection.cursor.execute(statement, *args)

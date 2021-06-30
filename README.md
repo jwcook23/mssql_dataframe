@@ -5,13 +5,36 @@
 # TODO: create a class made up of functions
 # TODO: validate workflow of primary keys during update & merge
 # TODO: default update & merge on columsn to primary key (allow non-primary key?)
-Provides an easy & efficient interaction between Microsoft SQL and Python DataFrames. In practice this module 
+Provides an easy & efficient interaction between Microsoft Transact-SQL and Python DataFrames. In practice this module 
 may be useful for model updating, data normalization, data engineering, and web scraping.
 
-Key elements include: 
-- efficiently update or merge data from Python into SQL
-- automatic and dynamic SQL table and column creation/modification based on DataFrame contents
-- prevention of SQL injection by utilizing the stored procedure sp_executesql, the function QUOTENAME, and the SYSNAME data type
+## Core Functionality
+
+### Update SQL Table from Python dataframe
+
+Updating ...
+
+### Merge into SQL Table from Python dataframe
+
+Merging inserts, updates, and/or deletes records depending on how records are matched between the dataframe and SQL table. This is similar to the SQL "upsert" pattern and is a wrapper around the T-SQL MERGE statement.
+
+### Dynamic SQL Table & Column
+
+DECLARE @SQLStatement AS NVARCHAR(MAX);
+DECLARE @TableName SYSNAME = ?;
+DECLARE @ColumnName SYSNAME = ?;
+DECLARE @ColumnType SYSNAME = ?;
+DECLARE @ColumnSize SYSNAME = ?;
+
+SET @SQLStatement = 
+    N'ALTER TABLE '+QUOTENAME(@TableName)+
+    'ADD' +QUOTENAME(@ColumnName)+' '+QUOTENAME(@ColumnType)+' '+@ColumnSize+';'
+
+EXEC sp_executesql 
+    @SQLStatement,
+    N'@TableName SYSNAME, @ColumnName SYSNAME, @ColumnType SYSNAME, @ColumnSize VARCHAR(MAX)',
+    @TableName=@TableName, @ColumnName=@ColumnName, @ColumnType=@ColumnType, @ColumnSize=@ColumnSize;
+    
 
 ## Dependancies
 [pandas](https://pandas.pydata.org/): The Python DataFrame data type.
