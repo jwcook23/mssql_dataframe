@@ -88,9 +88,9 @@ def test_update_no_table(connection):
         write.update(connection, table_name, dataframe)
 
 
-def test_update(connection):
+def test_update_one_match_column(connection):
 
-    table_name = '##test_update'
+    table_name = '##test_update_one_match_column'
 
     # create table to update
     dataframe = pd.DataFrame({
@@ -109,25 +109,32 @@ def test_update(connection):
     # test result
     result = read.select(connection, table_name)
     expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
-    assert (expected.values==result.values).all()
+    assert (expected.values==result[['ColumnA','ColumnB','ColumnC']].values).all()
+    assert (result['_time_update'].notna()).all()
 
 
-def test_update_performance(connection):
-    
-    table_name = "##test_update_performance"
+def test_update_two_match_columns(connection):
 
+    table_name = '##test_update_two_match_columns'
+
+    # create table to update
     dataframe = pd.DataFrame({
-        'ColumnA': list(range(0,100000,1))
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
     })
-    create.from_dataframe(connection, table_name, dataframe, primary_key='index', row_count=len(dataframe))
+    create.from_dataframe(connection, table_name, dataframe, primary_key='sql')
 
-    # update values in table
-    dataframe['ColumnA'] = 0
-    write.update(connection, table_name, dataframe[['ColumnA']])
+    # update values in table, using the primary key created in SQL and ColumnA
+    dataframe = read.select(connection, table_name)
+    dataframe['ColumnC'] = [5,6]
+    write.update(connection, table_name, dataframe, match_columns=['_pk','ColumnA'])
 
     # test result
     result = read.select(connection, table_name)
-    assert (result['ColumnA']==0).all()
+    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
+    assert (expected.values==result[['ColumnA','ColumnB','ColumnC']].values).all()
+    assert (result['_time_update'].notna()).all()
 
 
 def test_update_new_column(connection):
@@ -147,7 +154,8 @@ def test_update_new_column(connection):
     # test result
     result = read.select(connection, table_name)
     expected = pd.DataFrame({'ColumnA': [1,2], 'NewColumn': [3,4]})
-    assert (expected.values==result.values).all()
+    assert (expected.values==result[['ColumnA','NewColumn']].values).all()
+    assert (result['_time_update'].notna()).all()
 
 
 def test_merge_no_table(connection):
@@ -169,26 +177,26 @@ def test_merge_one_match_column(connection):
 
     # create table to merge into
     dataframe = pd.DataFrame({
-        '_pk': [0,1],
         'ColumnA': [3,4]
     })
-    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
+    create.from_dataframe(connection, table_name, dataframe, primary_key='index')
 
     # perform merge
     dataframe = pd.DataFrame({
-        '_pk': [1,2],
+        '_index': [1,2],
         'ColumnA': [5,6]
     })
-    write.merge(connection, table_name, dataframe, match_columns=['_pk'])
+    write.merge(connection, table_name, dataframe)
 
     # test result
     result = read.select(connection, table_name)
-    expected = pd.DataFrame({'_pk': [1,2], 'ColumnA': [5,6]})
-    assert (expected.values==result[['_pk','ColumnA']].values).all()
-    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
-    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==2,'_time_insert'].notna())
-    assert all(result.loc[result['_pk']==2,'_time_update'].isna())
+    expected = pd.DataFrame({'ColumnA': [5,6]}, index=[1,2])
+    expected.index.name='_index'
+    assert (expected.values==result[['ColumnA']].values).all()
+    assert all(result.loc[1,['_time_update']].notna())
+    assert all(result.loc[1,['_time_insert']].isna())
+    assert all(result.loc[2,['_time_insert']].notna())
+    assert all(result.loc[2,['_time_update']].isna())
 
 
 def test_merge_two_match_columns(connection):
