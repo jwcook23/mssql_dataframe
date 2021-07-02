@@ -1,8 +1,7 @@
 import pyodbc
 import pytest
 
-from mssql_dataframe import connect
-from mssql_dataframe import errors
+from mssql_dataframe import errors, connect
 
 
 def test_SQLServer():

@@ -3,9 +3,20 @@ import re
 import pandas as pd
 import numpy as np
 
-from mssql_dataframe import errors
-from mssql_dataframe import write
-from mssql_dataframe import create
+from mssql_dataframe import errors, create, write
+
+def execute(connection, statement:str, args:list=None):
+    '''Execute an SQL statement prevent exposing any errors.'''
+
+    try:
+        if args is None:
+            connection.cursor.execute(statement)
+        else:
+            connection.cursor.execute(statement, *args)
+    except:
+        raise errors.GeneralError("GeneralError") from None
+
+    return connection
 
 
 def safe_sql(connection, inputs):
@@ -35,8 +46,8 @@ def safe_sql(connection, inputs):
     syntax = ", ".join(["QUOTENAME(?)"]*len(inputs))
     statement = statement.format(syntax=syntax)
     
-    
-    clean = connection.cursor.execute(statement, inputs).fetchone()
+    connection = execute(connection, statement, inputs)
+    clean = connection.cursor.fetchone()
     # values too long with return None, so raise an exception
     if len([x for x in clean if x is None])>0:
         raise errors.GeneralError("GeneralError") from None
@@ -244,7 +255,8 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     args = [table_name] + column_names
 
     # execute statement
-    dtypes = connection.cursor.execute(statement, *args).fetchall()
+    connection = execute(connection, statement, args)
+    dtypes = connection.cursor.fetchall()
     dtypes = [x[1] for x in dtypes]
     dtypes = list(zip(column_names,dtypes))
     dtypes = {x[0]:x[1] for x in dtypes}
@@ -258,13 +270,10 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     return dtypes
 
 
-def read_query(connection, statement: str, arguments: list = None) -> pd.DataFrame:
+def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     
-    if arguments is None:
-         dataframe = connection.cursor.execute(statement)
-    else:
-        dataframe = connection.cursor.execute(statement, *arguments)
-    dataframe = dataframe.fetchall()
+    connection = execute(connection, statement, args)
+    dataframe = connection.cursor.fetchall()
     dataframe = [list(x) for x in dataframe]
 
     # form dataframe with column names

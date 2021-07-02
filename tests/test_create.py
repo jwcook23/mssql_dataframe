@@ -3,9 +3,7 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-from mssql_dataframe import connect
-from mssql_dataframe import create
-from mssql_dataframe import helpers
+from mssql_dataframe import helpers, connect, create
 
 
 @pytest.fixture(scope="module")

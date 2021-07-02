@@ -1,10 +1,8 @@
 from typing import Literal
 
 import pandas as pd
-import numpy as np
 
-from mssql_dataframe import helpers
-from mssql_dataframe import write
+from mssql_dataframe import helpers, write
 
 def table(connection, table_name: str, columns: dict, not_null: list = [],
 primary_key_column: str = None, sql_primary_key: bool = False):
@@ -111,7 +109,7 @@ primary_key_column: str = None, sql_primary_key: bool = False):
     args = [table_name] + args
 
     # execute statement
-    connection.cursor.execute(statement, *args)
+    helpers.execute(connection, statement, args)
 
 
 def __table_schema(schema): 

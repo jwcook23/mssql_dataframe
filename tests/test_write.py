@@ -3,11 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import date
 
-from mssql_dataframe import connect
-from mssql_dataframe import write
-from mssql_dataframe import create
-from mssql_dataframe import read
-from mssql_dataframe import errors
+from mssql_dataframe import errors, connect, create, write, read
 
 @pytest.fixture(scope="module")
 def connection():
@@ -31,6 +27,27 @@ def test_prepare_values():
     })
     dataframe = write.prepare_values(dataframe)
     assert all(dataframe['Column'].values==['a','b','c',None,None])
+
+
+def test_insert_errors(connection):
+
+    table_name = '##test_insert_errors'
+    create.table(connection, table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(1)'
+    })    
+
+    with pytest.raises(errors.TableDoesNotExist):
+        write.insert(connection, 'error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
+
+    with pytest.raises(errors.ColumnDoesNotExist):
+        write.insert(connection, table_name, dataframe=pd.DataFrame({'ColumnC': [1]}))
+
+    with pytest.raises(errors.InsufficientColumnSize):
+        write.insert(connection, table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
+
+    with pytest.raises(errors.InsufficientColumnSize):
+        write.insert(connection, table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
 
 
 def test_insert(connection):
@@ -71,6 +88,26 @@ def test_insert(connection):
     assert all(results.loc[results['ColumnC'].notna(),'ColumnC']==pd.Series([6,7], index=[5,6]))
     assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22), date(2021,6,22)], index=[4,5]))
     assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
+
+
+def test_update_prep_errors(connection):
+
+    table_name = '##test_update_prep_errors'
+    create.table(connection, table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'INT'
+    })
+
+    dataframe = pd.DataFrame({'ColumnA': [1]})
+
+    with pytest.raises(errors.UndefinedSQLPrimaryKey):
+        write.__prep_update_merge(connection, table_name, match_columns=None, dataframe=dataframe, operation='update')
+
+    with pytest.raises(errors.UndefinedSQLColumn):
+        write.__prep_update_merge(connection, table_name, match_columns='MissingColumn', dataframe=dataframe, operation='update')       
+
+    with pytest.raises(errors.UndefinedDataframeColumn):
+        write.__prep_update_merge(connection, table_name, match_columns='ColumnB', dataframe=dataframe, operation='update')   
 
 
 def test_update_no_table(connection):

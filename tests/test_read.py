@@ -2,10 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from mssql_dataframe import connect
-from mssql_dataframe import write
-from mssql_dataframe import read
-from mssql_dataframe import create
+from mssql_dataframe import connect, create, write, read
 
 @pytest.fixture(scope="module")
 def connection():
@@ -13,6 +10,23 @@ def connection():
     db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
     yield db
     db.connection.close()
+
+
+def test_select_input_errors(connection):
+
+    table_name = '##test_select_input_errors'
+    create.table(connection, table_name, columns={
+            'ColumnA': 'TINYINT'
+    })
+
+    with pytest.raises(ValueError):
+        read.select(connection, table_name, limit='1')
+
+    with pytest.raises(ValueError):
+        read.select(connection, table_name, order_column='A', order_direction=None)
+
+    with pytest.raises(ValueError):
+        read.select(connection, table_name, order_column='A', order_direction='a')    
 
 
 def test_select(connection):

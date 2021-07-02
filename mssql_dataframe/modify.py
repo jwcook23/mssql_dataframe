@@ -101,7 +101,7 @@ def column(connection, table_name: str, modify: Literal['add','alter','drop'], c
     )
 
     args = [x for x in args if x is not None]
-    connection.cursor.execute(statement, *args)
+    connection = helpers.execute(connection, statement, args)
 
 
 def primary_key(connection, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
@@ -165,4 +165,4 @@ def primary_key(connection, table_name: str, modify: Literal['add','drop'], colu
         parameter=parameter, value=value
     )
 
-    connection.cursor.execute(statement, *args)
+    helpers.execute(connection, statement, args)

@@ -1,10 +1,8 @@
 # mssql_dataframe
 # TODO: provide a basic full syntax example of sp_executesql
 # TODO: provide examples for functions and validate documentation
-# TODO: clean up imports
 # TODO: create a class made up of functions
-# TODO: validate workflow of primary keys during update & merge
-# TODO: default update & merge on columsn to primary key (allow non-primary key?)
+
 Provides an easy & efficient interaction between Microsoft Transact-SQL and Python DataFrames. In practice this module 
 may be useful for model updating, data normalization, data engineering, and web scraping.
 
@@ -18,22 +16,32 @@ Updating ...
 
 Merging inserts, updates, and/or deletes records depending on how records are matched between the dataframe and SQL table. This is similar to the SQL "upsert" pattern and is a wrapper around the T-SQL MERGE statement.
 
-### Dynamic SQL Table & Column
+### Dynamic SQL Table & Column Interaction
 
+Table and column names are passed through the stored procedure sp_executesql to prevent dynamic strings from being directly executed.
+
+For example, a column is added to a table using:
+
+```python
+statement = '''
 DECLARE @SQLStatement AS NVARCHAR(MAX);
 DECLARE @TableName SYSNAME = ?;
 DECLARE @ColumnName SYSNAME = ?;
 DECLARE @ColumnType SYSNAME = ?;
-DECLARE @ColumnSize SYSNAME = ?;
 
 SET @SQLStatement = 
     N'ALTER TABLE '+QUOTENAME(@TableName)+
-    'ADD' +QUOTENAME(@ColumnName)+' '+QUOTENAME(@ColumnType)+' '+@ColumnSize+';'
+    'ADD' +QUOTENAME(@ColumnName)+' '+QUOTENAME(@ColumnType)';'
 
 EXEC sp_executesql 
     @SQLStatement,
-    N'@TableName SYSNAME, @ColumnName SYSNAME, @ColumnType SYSNAME, @ColumnSize VARCHAR(MAX)',
-    @TableName=@TableName, @ColumnName=@ColumnName, @ColumnType=@ColumnType, @ColumnSize=@ColumnSize;
+    N'@TableName SYSNAME, @ColumnName SYSNAME, @ColumnType SYSNAME',
+    @TableName=@TableName, @ColumnName=@ColumnName, @ColumnType=@ColumnType;
+'''
+
+args = ['DynamicSQLTableName','DynamicSQLColumnName','DynamicSQLDataType']
+cursor.execute(statment, *args)
+```
     
 
 ## Dependancies

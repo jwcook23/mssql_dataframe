@@ -2,7 +2,6 @@ from typing import Literal
 
 import pandas as pd
 
-from mssql_dataframe import errors
 from mssql_dataframe import helpers
 
 
@@ -43,6 +42,7 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
     if column_names is None:
         column_names = '*'
     else:
+        # always read in the primary_key
         column_names = [x for x in primary_key if x not in column_names]+column_names
         column_names = helpers.safe_sql(connection, column_names)
         column_names = "\n,".join(column_names)
@@ -89,13 +89,10 @@ limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','
     )
 
     # read sql query
-    try:
-        if where_args is None:
-            dataframe = helpers.read_query(connection, statement)
-        else:
-            dataframe = helpers.read_query(connection, statement, where_args)
-    except:
-        raise errors.GeneralError("GeneralError") from None
+    if where_args is None:
+        dataframe = helpers.read_query(connection, statement)
+    else:
+        dataframe = helpers.read_query(connection, statement, where_args)
 
     # change to best datatype
     dtypes = schema['python_type'].reset_index().values

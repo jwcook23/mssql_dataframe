@@ -3,10 +3,7 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe import errors
-from mssql_dataframe import helpers
-from mssql_dataframe import create
-from mssql_dataframe import modify
+from mssql_dataframe import errors, helpers, create, modify
 
 
 def prepare_values(dataframe):
@@ -82,10 +79,6 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
 
     """
 
-    # dataframe index is likely the SQL primary key
-    if dataframe.index.name is not None:
-        dataframe = dataframe.reset_index()
-
     # sanitize table and column names for safe sql
     table_name = helpers.safe_sql(connection, table_name)
     column_names = ",\n".join(helpers.safe_sql(connection, dataframe.columns))
@@ -109,19 +102,22 @@ def insert(connection, table_name: str, dataframe: pd.DataFrame):
     try:
         connection.cursor.executemany(statement, values)
     except pyodbc.ProgrammingError as error:
-        if 'not sure what this error should be' in str(error):
+        if 'Invalid object name' in str(error):
             raise errors.TableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
         elif 'Invalid column name' in str(error):
             raise errors.ColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
+        elif 'String data, right truncation' in str(error):
+            raise errors.InsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
         else:
             raise errors.GeneralError("GeneralError") from None
     except pyodbc.DataError:
-        raise errors.InsufficientColumnSize("A column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
-    except:
-        raise errors.GeneralError("GeneralError") from None
+        raise errors.InsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
 
 
 def __prep_update_merge(connection, table_name, match_columns, dataframe, operation: Literal['update','merge']):
+
+    if isinstance(match_columns,str):
+        match_columns = [match_columns]
 
    # read target table schema
     schema = helpers.get_schema(connection, table_name)
@@ -264,7 +260,7 @@ def update(connection, table_name: str, dataframe: pd.DataFrame, match_columns: 
 
     # perform update
     args = [table_name, table_temp]+match_columns+update_columns
-    connection.cursor.execute(statement, *args)
+    helpers.execute(connection, statement, args)
 
 
 def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None):
@@ -383,4 +379,4 @@ def merge(connection, table_name: str, dataframe: pd.DataFrame, match_columns: l
         args = [table_name, table_temp]+match_columns+update_columns+insert_columns
     else:
         args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
-    connection.cursor.execute(statement, *args)
+    helpers.execute(connection, statement, args)

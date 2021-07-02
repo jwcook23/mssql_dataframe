@@ -3,10 +3,7 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-from mssql_dataframe import connect
-from mssql_dataframe import create
-from mssql_dataframe import helpers
-from mssql_dataframe import modify
+from mssql_dataframe import helpers, connect, create, modify
 
 
 @pytest.fixture(scope="module")
@@ -15,6 +12,16 @@ def connection():
     db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
     yield db
     db.connection.close()
+
+
+def test_column_input_error(connection):
+
+    table_name = '##column_input_error'
+    columns = {"A": "VARCHAR", "B": "VARCHAR"}
+    create.table(connection, table_name, columns)
+    
+    with pytest.raises(ValueError):
+        modify.column(connection,table_name, modify='delete', column_name='B')
 
 
 def test_column_drop(connection):
@@ -65,16 +72,47 @@ def test_column_alter(connection):
     assert schema.at['C', 'is_nullable']==False
 
 
-def test_primary_key(connection):
+def test_primary_key_input_error(connection):
 
-    table_name = '##test_primary_key'
+    table_name = '##test_primary_key_input_error'
+    columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
+    create.table(connection, table_name, columns, not_null=["A","B"])
+
+    with pytest.raises(ValueError):
+        modify.primary_key(connection, table_name, modify='create', columns=['A','B'], primary_key_name = '_pk_1') 
+
+
+def test_primary_key_one_column(connection):
+
+    table_name = '##test_primary_key_one_column'
+    columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
+    create.table(connection, table_name, columns, not_null=["A","B"])
+
+    modify.primary_key(connection, table_name, modify='add', columns='A', primary_key_name = '_pk_1')
+    schema = helpers.get_schema(connection, table_name)
+    assert schema.at['A','is_primary_key']==True
+    assert sum(schema['is_primary_key'])==1
+
+    modify.primary_key(connection, table_name, modify='drop', columns='A',  primary_key_name = '_pk_1')
+    schema = helpers.get_schema(connection, table_name)
+    assert schema.at['A','is_primary_key']==False
+    assert sum(schema['is_primary_key'])==0
+
+
+def test_primary_key_two_columns(connection):
+
+    table_name = '##test_primary_key_two_columns'
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
     create.table(connection, table_name, columns, not_null=["A","B"])
 
     modify.primary_key(connection, table_name, modify='add', columns=['A','B'], primary_key_name = '_pk_1')
     schema = helpers.get_schema(connection, table_name)
     assert schema.at['A','is_primary_key']==True
+    assert schema.at['B','is_primary_key']==True
+    assert sum(schema['is_primary_key'])==2
 
     modify.primary_key(connection, table_name, modify='drop', columns=['A','B'],  primary_key_name = '_pk_1')
     schema = helpers.get_schema(connection, table_name)
     assert schema.at['A','is_primary_key']==False
+    assert schema.at['B','is_primary_key']==False
+    assert sum(schema['is_primary_key'])==0

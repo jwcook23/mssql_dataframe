@@ -2,11 +2,7 @@ import pytest
 import pandas as pd
 from datetime import datetime
 
-from mssql_dataframe import connect
-from mssql_dataframe import helpers
-from mssql_dataframe import errors
-from mssql_dataframe import write
-from mssql_dataframe import create
+from mssql_dataframe import errors, helpers, connect, create
 
 
 @pytest.fixture(scope="module")
@@ -15,6 +11,12 @@ def connection():
     db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
     yield db
     db.connection.close()
+
+
+def test_execute(connection):
+
+    with pytest.raises(errors.GeneralError):
+        helpers.execute(connection, statement='error')
 
 
 def test_safe_sql(connection):
