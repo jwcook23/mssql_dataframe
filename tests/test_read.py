@@ -1,39 +1,46 @@
 import pytest
 import pandas as pd
-import numpy as np
 
-from mssql_dataframe import connect, create, write, read
+from mssql_dataframe import connect
+import mssql_dataframe.create
+import mssql_dataframe.write
+import mssql_dataframe.read
+
+class package:
+    def __init__(self, connection):
+        self.create = mssql_dataframe.create.create(connection)
+        self.write = mssql_dataframe.write.write(connection)
+        self.read = mssql_dataframe.read.read(connection)
 
 @pytest.fixture(scope="module")
-def connection():
-
+def sql():
     db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
-    yield db
+    yield package(db)
     db.connection.close()
 
 
-def test_select_input_errors(connection):
+def test_select_input_errors(sql):
 
     table_name = '##test_select_input_errors'
-    create.table(connection, table_name, columns={
+    sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT'
     })
 
     with pytest.raises(ValueError):
-        read.select(connection, table_name, limit='1')
+        sql.read.select(table_name, limit='1')
 
     with pytest.raises(ValueError):
-        read.select(connection, table_name, order_column='A', order_direction=None)
+        sql.read.select(table_name, order_column='A', order_direction=None)
 
     with pytest.raises(ValueError):
-        read.select(connection, table_name, order_column='A', order_direction='a')    
+        sql.read.select(table_name, order_column='A', order_direction='a')    
 
 
-def test_select(connection):
+def test_select(sql):
 
     # create table and insert sample data
     table_name = '##test_select'
-    create.table(connection, table_name, columns={
+    sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT',
             'ColumnB': 'INT',
             'ColumnC': 'BIGINT',
@@ -50,10 +57,10 @@ def test_select(connection):
     })
     input['ColumnB'] = input['ColumnB'].astype('Int64')
     input['ColumnD'] = pd.to_datetime(input['ColumnD'])
-    write.insert(connection, table_name, input)
+    sql.write.insert(table_name, input)
 
     # all columns and rows
-    dataframe = read.select(connection, table_name)
+    dataframe = sql.read.select(table_name)
     assert dataframe.index.name=='ColumnA'
     assert dataframe.shape[1]==input.shape[1]-1
     assert dataframe.shape[0]==input.shape[0]
@@ -63,20 +70,20 @@ def test_select(connection):
     assert dataframe.dtypes['ColumnE']=='object'
 
     # # optional columns specified
-    dataframe = read.select(connection, table_name, column_names=["ColumnB","ColumnC"])
+    dataframe = sql.read.select(table_name, column_names=["ColumnB","ColumnC"])
     assert dataframe.index.name=='ColumnA'
     assert all(dataframe.columns==["ColumnB","ColumnC"])
     assert dataframe.shape[0]==input.shape[0]
 
     # optional where statement
-    dataframe = read.select(connection, table_name, column_names=['ColumnB','ColumnC','ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
+    dataframe = sql.read.select(table_name, column_names=['ColumnB','ColumnC','ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL")
     assert sum((dataframe['ColumnB']>4 & dataframe['ColumnC'].notna()) | dataframe['ColumnD'].isna())==2
 
     # optional limit
-    dataframe = read.select(connection, table_name, limit=1)
+    dataframe = sql.read.select(table_name, limit=1)
     assert dataframe.shape[0]==1
 
     # optional order
-    dataframe = read.select(connection, table_name, column_names=["ColumnB"], order_column='ColumnA', order_direction='DESC')
+    dataframe = sql.read.select(table_name, column_names=["ColumnB"], order_column='ColumnA', order_direction='DESC')
     assert dataframe.index.name=='ColumnA'
     assert all(dataframe.index==[7,6,5])

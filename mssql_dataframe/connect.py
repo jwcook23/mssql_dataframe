@@ -1,6 +1,7 @@
 import pyodbc
 
-from mssql_dataframe import errors
+import mssql_dataframe.errors
+
 
 class SQLServer():
     """
@@ -66,7 +67,7 @@ class SQLServer():
         else: 
             driver = [x for x in installed if x==driver_search]
         if len(driver)!=1:
-            raise errors.ODBCDriverNotFound('Unable to find ODBC driver.') from None
+            raise mssql_dataframe.errors.ODBCDriverNotFound('Unable to find ODBC driver.') from None
         driver = driver[0]
 
         return driver

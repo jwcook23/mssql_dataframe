@@ -3,14 +3,19 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-from mssql_dataframe import helpers, connect, create
+from mssql_dataframe import helpers, connect
+import mssql_dataframe.create
 
+
+class package:
+    def __init__(self, connection):
+        self.connection = connection
+        self.create = mssql_dataframe.create.create(connection)
 
 @pytest.fixture(scope="module")
-def connection():
-
+def sql():
     db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
-    yield db
+    yield package(db)
     db.connection.close()
 
 
@@ -29,7 +34,7 @@ def dataframe():
     return dataframe
 
 
-def test__table_schema():
+def test__table_schema(sql):
 
     schema = pd.DataFrame.from_dict(
         {
@@ -41,19 +46,21 @@ def test__table_schema():
     )
     schema.index.name = 'column_name'
 
-    columns, not_null, primary_key_column, sql_primary_key = create.__table_schema(schema)
+    columns, not_null, primary_key_column, sql_primary_key = sql.create._create__table_schema(schema)
+
     
     assert columns=={'_index': 'bit', 'ColumnA': 'tinyint', 'ColumnB': 'varchar(1)', 'ColumnC': 'decimal(5,2)'}
     assert not_null==['_index', 'ColumnA', 'ColumnB', 'ColumnC']
     assert primary_key_column=='_index'
     assert sql_primary_key==False
 
-def test_table_column(connection):
+
+def test_table_column(sql):
 
     table_name = '##test_table_column'
     columns = {"A": "VARCHAR"}
-    create.table(connection, table_name, columns)
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.table(table_name, columns)
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==1
     assert all(schema.index=='A')
@@ -66,14 +73,14 @@ def test_table_column(connection):
     assert all(schema['is_primary_key']==False)
 
 
-def test_table_pk(connection):
+def test_table_pk(sql):
 
     table_name = "##test_table_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
     primary_key_column = "A"
     not_null = "B"
-    create.table(connection, table_name, columns, not_null=not_null, primary_key_column=primary_key_column)
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column)
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==3
     assert all(schema.index==['A','B','C'])
@@ -86,22 +93,22 @@ def test_table_pk(connection):
     assert all(schema['is_primary_key']==[True, False, False])
 
 
-def test_table_errorpk(connection):
+def test_table_errorpk(sql):
 
     with pytest.raises(ValueError):
         table_name = "##test_table_errorpk"
         columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
         primary_key_column = "A"
         not_null = "B"
-        create.table(connection, table_name, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=True)
+        sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=True)
 
 
-def test_table_sqlpk(connection):
+def test_table_sqlpk(sql):
 
     table_name = '##test_table_sqlpk'
     columns = {"A": "VARCHAR"}
-    create.table(connection, table_name, columns, sql_primary_key=True)
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.table(table_name, columns, sql_primary_key=True)
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==2
     assert all(schema.index==['_pk','A'])
@@ -114,12 +121,12 @@ def test_table_sqlpk(connection):
     assert all(schema['is_primary_key']==[True,False])
 
 
-def test_from_dataframe_simple(connection):
+def test_from_dataframe_simple(sql):
 
     table_name = '##test_from_dataframe_simple'
     dataframe = pd.DataFrame({"ColumnA": [1]})
-    create.from_dataframe(connection, table_name, dataframe)
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe)
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==1
     assert all(schema.index=='ColumnA')
@@ -132,18 +139,18 @@ def test_from_dataframe_simple(connection):
     assert all(schema['python_type']=='Int8')
 
 
-def test_from_dataframe_errorpk(connection):
+def test_from_dataframe_errorpk(sql):
 
     with pytest.raises(ValueError):
         table_name = '##test_from_dataframe_nopk'
-        create.from_dataframe(connection, table_name, dataframe, primary_key=1)
+        sql.create.from_dataframe(table_name, dataframe, primary_key="ColumnName")
 
 
-def test_from_dataframe_nopk(connection, dataframe):
+def test_from_dataframe_nopk(sql, dataframe):
 
     table_name = '##test_from_dataframe_nopk'
-    create.from_dataframe(connection, table_name, dataframe, primary_key=None)
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key=None)
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==8
     assert all(schema.index==['_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
@@ -156,11 +163,11 @@ def test_from_dataframe_nopk(connection, dataframe):
     assert all(schema['is_primary_key']==False)
 
 
-def test_from_dataframe_sqlpk(connection, dataframe):
+def test_from_dataframe_sqlpk(sql, dataframe):
 
     table_name = '##test_from_dataframe_sqlpk'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='sql')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='sql')
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==9
     assert all(schema.index==['_pk','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
@@ -173,12 +180,12 @@ def test_from_dataframe_sqlpk(connection, dataframe):
     assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False])
 
 
-def test_from_dataframe_indexpk(connection, dataframe):
+def test_from_dataframe_indexpk(sql, dataframe):
 
     # unamed dataframe index
     table_name = '##test_from_dataframe_indexpk'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='index')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='index')
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==9
     assert all(schema.index==['_index','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
@@ -193,8 +200,8 @@ def test_from_dataframe_indexpk(connection, dataframe):
     # named dataframe index
     table_name = '##DataFrameIndexPKNamed'
     dataframe.index.name = 'NamedIndex'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='index')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='index')
+    schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==9
     assert all(schema.index==['NamedIndex','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
@@ -207,7 +214,7 @@ def test_from_dataframe_indexpk(connection, dataframe):
     assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False])
 
 
-def test_from_dataframe_inferpk(connection):
+def test_from_dataframe_inferpk(sql):
 
     # integer primary key
     dataframe = pd.DataFrame({
@@ -220,8 +227,8 @@ def test_from_dataframe_inferpk(connection):
         '_float2': [1.1111, 2, 3, 4, 6]
     })
     table_name = '##test_from_dataframe_inferpk_integer'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='infer')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='infer')
+    schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_smallint','is_primary_key']
 
     # float primary key
@@ -233,8 +240,8 @@ def test_from_dataframe_inferpk(connection):
         '_float2': [1.1111, 2, 3, 4, 6]
     })
     table_name = '##test_from_dataframe_inferpk_float'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='infer')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='infer')
+    schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_float1','is_primary_key']
 
     # string primary key
@@ -243,8 +250,8 @@ def test_from_dataframe_inferpk(connection):
         '_varchar2': ['aa','b','c','d','e'],
     })
     table_name = '##test_from_dataframe_inferpk_string'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='infer')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='infer')
+    schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_varchar1','is_primary_key']
 
     # uninferrable primary key
@@ -253,7 +260,7 @@ def test_from_dataframe_inferpk(connection):
         '_varchar2': [None,'b','c','d','e'],
     })
     table_name = '##test_from_dataframe_inferpk_uninferrable'
-    create.from_dataframe(connection, table_name, dataframe, primary_key='infer')
-    schema = helpers.get_schema(connection, table_name)
+    sql.create.from_dataframe(table_name, dataframe, primary_key='infer')
+    schema = helpers.get_schema(sql.connection, table_name)
     assert all(schema['is_primary_key']==False)
 

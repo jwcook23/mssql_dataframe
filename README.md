@@ -2,6 +2,8 @@
 # TODO: provide a basic full syntax example of sp_executesql
 # TODO: provide examples for functions and validate documentation
 # TODO: create a class made up of functions
+# TODO: develop AzureSQL functionality
+# TODO: utilize pyodb curor functionality (https://github.com/mkleehammer/pyodbc/wiki/Cursor)
 
 Provides an easy & efficient interaction between Microsoft Transact-SQL and Python DataFrames. In practice this module 
 may be useful for model updating, data normalization, data engineering, and web scraping.
