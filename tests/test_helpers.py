@@ -1,6 +1,8 @@
+from datetime import datetime
+import warnings
+
 import pytest
 import pandas as pd
-from datetime import datetime
 
 from mssql_dataframe import errors, helpers, connect
 import mssql_dataframe.create
@@ -10,10 +12,11 @@ class package:
     def __init__(self, connection):
         self.connection = connection
         self.create = mssql_dataframe.create.create(connection)
+        self.write = mssql_dataframe.write.write(connection)
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
+    db = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
     yield package(db)
     db.connection.close()
 
@@ -133,8 +136,41 @@ def test_get_schema_errors(sql):
     table_name = '##test_get_schema_errors'
     with pytest.raises(errors.TableDoesNotExist):
         helpers.get_schema(sql.connection, table_name)
-    
-    columns = {"_error": "SMALLDATETIME"}
+
+
+def test_get_schema_undefined(sql):
+
+    table_name = '##test_get_schema_undefined'
+    columns = {"_geography": "GEOGRAPHY", "_hierarchyid": "HIERARCHYID"}
     sql.create.table(table_name, columns)
-    with pytest.raises(errors.UndefinedPythonDataType):
-        helpers.get_schema(sql.connection, table_name)
+
+    with warnings.catch_warnings(record=True) as warn:
+        schema = helpers.get_schema(sql.connection, table_name)
+        assert len(warn)==1
+        assert issubclass(warn[-1].category, UserWarning)
+        assert "['_geography', '_hierarchyid']" in str(warn[-1].message)
+        assert all(schema['python_type']=='str')
+
+
+def test_read_query_undefined_type(sql):
+
+    table_name = '##test_read_query_undefined_type'
+    columns = {"_geography": "GEOGRAPHY", "_datetimeoffset": "DATETIMEOFFSET(4)"}
+    sql.create.table(table_name, columns)
+
+    geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
+    datetimeoffset = "'12-10-25 12:32:10 +01:00'"
+    statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
+    sql.connection.cursor.execute(statement.format(
+        table_name=table_name,
+        geography=geography,
+        datetimeoffset=datetimeoffset
+    ))
+
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = helpers.read_query(sql.connection, "SELECT * FROM {table_name}".format(table_name=table_name))
+        assert len(warn)==1
+        assert issubclass(warn[-1].category, UserWarning)
+        assert "['_geography', '_datetimeoffset']" in str(warn[-1].message)
+        assert len(dataframe)==1
+        assert all(dataframe.columns==['_geography', '_datetimeoffset'])

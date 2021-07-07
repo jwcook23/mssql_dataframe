@@ -20,10 +20,6 @@ class InvalidSyntax(Exception):
     '''Exception for invalid syntax'''
     pass
 
-class UndefinedPythonDataType(Exception):
-    '''Exception for undefined SQL equalivant Python data type.'''
-    pass
-
 class UndefinedSQLPrimaryKey(Exception):
     '''Exception for undefined SQL primary key in table.'''
     pass

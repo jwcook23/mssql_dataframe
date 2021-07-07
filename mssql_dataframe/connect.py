@@ -3,24 +3,41 @@ import pyodbc
 import mssql_dataframe.errors
 
 
-class SQLServer():
+class connect():
     """
-    Connect to SQL Server using ODBC connection.
+    Connect to local, remote, or cloud SQL Server using ODBC connection.
 
     Parameters
     ----------
 
     database_name (str, default='master') : name of database to connect to
-    server_name (str, default='localhost') : server to connect to
-    driver (str, default=None) : if not given, find first driver "for SQL Server"
-    fast_executemany (bool, default=True) : envoke pyodbc fast_execute mode
+    server_name (str, default='localhost') : name of server to connect to
+    driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
+    fast_executemany (bool, default=True) : increases performance of executemany operations
     autocommit (bool, default=True) : automatically commit transactions
+    username (str, default=None) : if not given, use Windows account credentials to connect
+    password (str, default=None) : if not given, use Windows account credentials to connect
 
-    Returns
-    -------
+    Properties
+    ----------
 
-    connection (pyodbc.Connection)
-    cursor (pyodbc.Cursor)
+    connection (pyodbc.Connection) : manage operations to database connection and database transactions
+    cursor (pyodbc.Cursor) : database cursor to manage read and write operations
+
+    Examples
+    --------
+
+    #### local host connection using Windows account credentials and inferring the ODBC driver
+    db = connect.connect()
+
+    #### remote server using username and password
+    db = connect.connect(database_name='master', server_name='<remote>', username='<username>', password='<password>')
+
+    #### Azue SQL Server instance
+    db = connect.connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
+
+    #### using a specific driver
+    db = connect.connect(driver_name='ODBC Driver 17 for SQL Server')
 
     """
 
@@ -44,7 +61,6 @@ class SQLServer():
 
         self.cursor = self.connection.cursor()
         self.cursor.fast_executemany = fast_executemany
-
 
     @staticmethod
     def _get_driver(driver_search):
@@ -71,23 +87,4 @@ class SQLServer():
         driver = driver[0]
 
         return driver
-
-
-class AzureSQL():
-    """
-
-    Parameters
-    ---------- 
-
-    Returns
-    -------
-
-    connection (?)
-    cursor (?)
-
-    """    
-
-    def __init__(self):
-        # TODO: define AzureSQL class
-        raise NotImplementedError('AzureSQL not yet implemented') from None
 

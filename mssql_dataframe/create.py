@@ -15,8 +15,7 @@ class create():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-
-        self.connection = connection
+        self.__connection__ = connection
         
 
     def table(self, table_name: str, columns: dict, not_null: list = [],
@@ -123,10 +122,10 @@ class create():
         args = [table_name] + args
 
         # execute statement
-        mssql_dataframe.helpers.execute(self.connection, statement, args)
+        mssql_dataframe.helpers.execute(self.__connection__, statement, args)
 
 
-    def from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
+    def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
     row_count: int = 1000):
         """ Create SQL table by inferring SQL create table parameters from the contents of the DataFrame.
 
@@ -180,9 +179,9 @@ class create():
         not_null = list(dataframe.columns[dataframe.notna().all()])
 
         # create temp table to determine data types
-        name_temp = "##from_dataframe_"+table_name
+        name_temp = "##table_from_dataframe_"+table_name
  
-        dtypes = mssql_dataframe.helpers.infer_datatypes(self.connection, name_temp, dataframe, row_count)
+        dtypes = mssql_dataframe.helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':
@@ -213,6 +212,7 @@ class create():
         self.table(table_name, dtypes, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
         
         return dataframe
+
 
     def __table_schema(self, schema): 
         '''Convert output from helpers.get_schema to inputs for table function.'''

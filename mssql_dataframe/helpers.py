@@ -1,7 +1,9 @@
 import re
+import warnings
 
 import pandas as pd
 import numpy as np
+import pyodbc
 
 import mssql_dataframe.errors
 import mssql_dataframe.create
@@ -40,8 +42,9 @@ def safe_sql(connection, inputs):
     
     flatten = False
     if isinstance(inputs, str):
+        # split schema specification
         flatten = True
-        inputs = [inputs]
+        inputs = inputs.split('.')
     elif not isinstance(inputs, list):
         inputs = list(inputs)
 
@@ -56,7 +59,8 @@ def safe_sql(connection, inputs):
         raise mssql_dataframe.errors.GeneralError("GeneralError") from None
     
     if flatten:
-        clean = clean[0]
+        # rejoin schema specification
+        clean = ".".join(clean)
 
     return clean
 
@@ -276,14 +280,50 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
 
 
 def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
+    ''' Read SQL query and return results in a dataframe. Skip errors due to undefined ODBC SQL data types.
+
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    statement (str) : statement to execute
+    args (list, default=None) : arguments to pass to execute
+
+    Returns
+    -------
     
+    dataframe (pandas.DataFrame) :
+    '''
+
     connection = execute(connection, statement, args)
-    dataframe = connection.cursor.fetchall()
-    dataframe = [list(x) for x in dataframe]
+
+    # return result as string if SQL ODBC data type is not defined
+    undefined_type = None
+    default_index = []
+    while undefined_type is None or len(undefined_type)>0:
+        try:
+            dataframe = connection.cursor.fetchall()
+            undefined_type = []
+        except pyodbc.ProgrammingError as error:
+            undefined_type = re.findall(r'ODBC SQL type (-?\d+) is not yet supported.*',error.args[0])
+            if len(undefined_type)>0:
+                # set undefined type default conversion as str
+                default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
+                connection.connection.add_output_converter(int(undefined_type[0]), str)
+                connection = execute(connection, statement, args)
+            else:
+                raise mssql_dataframe.errors.GeneralError("General error reading query.")
+        except:
+            raise mssql_dataframe.errors.GeneralError("General error reading query.")
 
     # form dataframe with column names
+    dataframe = [list(x) for x in dataframe]
     columns = [col[0] for col in connection.cursor.description]
     dataframe = pd.DataFrame(dataframe, columns=columns)
+
+    # issue warning for undefined SQL ODBC data types
+    if len(default_index)>0:
+        warnings.warn("Undefined Python data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
 
     return dataframe
 
@@ -334,8 +374,7 @@ def get_schema(connection, table_name: str):
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)
 
-
-    # define Python type equalivant
+    # define Python type equalivant of the smallest data size that is also nullable
     equal = pd.DataFrame.from_dict({
         'varchar': ['object'],
         'bit': ['boolean'],
@@ -351,7 +390,9 @@ def get_schema(connection, table_name: str):
         'datetime2': ['datetime64[ns]']
     }, orient='index', columns=["python_type"])
     schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
-    if any(schema['python_type'].isna()):
-        raise mssql_dataframe.errors.UndefinedPythonDataType("SQL Columns: "+str(list(schema[schema['python_type'].isna()].index)))
+    undefined = list(schema[schema['python_type'].isna()].index)
+    if len(undefined)>0:
+        warnings.warn("Undefined dataframe best data type generically inferred as strings for columns : "+str(undefined))
+        schema['python_type'] = schema['python_type'].fillna('str')
 
     return schema

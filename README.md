@@ -1,5 +1,4 @@
 # mssql_dataframe
-# TODO: provide a basic full syntax example of sp_executesql
 # TODO: provide examples for functions and validate documentation
 # TODO: create a class made up of functions
 # TODO: develop AzureSQL functionality

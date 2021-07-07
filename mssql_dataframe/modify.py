@@ -13,7 +13,7 @@ class modify():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.connection = connection
+        self.__connection__ = connection
 
 
     def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null=False):
@@ -113,7 +113,7 @@ class modify():
         )
 
         args = [x for x in args if x is not None]
-        _ = mssql_dataframe.helpers.execute(self.connection, statement, args)
+        _ = mssql_dataframe.helpers.execute(self.__connection__, statement, args)
 
 
     def primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
@@ -176,4 +176,4 @@ class modify():
             parameter=parameter, value=value
         )
 
-        _ = mssql_dataframe.helpers.execute(self.connection, statement, args)
+        _ = mssql_dataframe.helpers.execute(self.__connection__, statement, args)

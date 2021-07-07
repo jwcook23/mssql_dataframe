@@ -17,7 +17,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.SQLServer(database_name='tempdb', server_name='localhost', autocommit=False)
+    db = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
     yield package(db)
     db.connection.close()
 
@@ -27,14 +27,14 @@ def test_prepare_values(sql):
     dataframe = pd.DataFrame({
         'Column': [np.nan, pd.NA, None, pd.NaT]
     })
-    dataframe = sql.write.prepare_values(dataframe)
+    dataframe = sql.write._write__prepare_values(dataframe)
     assert all(dataframe['Column'].values==None)
 
     dataframe = pd.DataFrame({
         'Column': ['a  ','  b  ','c','','   '],
         
     })
-    dataframe = sql.write.prepare_values(dataframe)
+    dataframe = sql.write._write__prepare_values(dataframe)
     assert all(dataframe['Column'].values==['a','b','c',None,None])
 
 
@@ -53,10 +53,10 @@ def test_insert_errors(sql):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}))
 
     with pytest.raises(errors.InsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
 
     with pytest.raises(errors.InsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
 
 
 def test_insert(sql):
@@ -145,7 +145,7 @@ def test_update_one_match_column(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key='sql')
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
     sql.write.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL
@@ -171,7 +171,7 @@ def test_update_two_match_columns(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key='sql')
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
     sql.write.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -194,7 +194,7 @@ def test_update_new_column(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [1,2]
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key='index')
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL
@@ -229,7 +229,7 @@ def test_merge_one_match_column(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key='index')
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
     # perform merge
@@ -260,7 +260,7 @@ def test_merge_two_match_columns(sql):
         'ColumnA': [3,4],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key=None)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
     sql.write.insert(table_name, dataframe)
 
     # perform merge
@@ -293,7 +293,7 @@ def test_merge_one_subset_column(sql):
         'ColumnA': [3,4,4],
         'ColumnB': ['a','b','b']
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key=None)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
     sql.write.insert(table_name, dataframe)
 
     # perform merge
@@ -329,7 +329,7 @@ def test_merge_two_subset_columns(sql):
         'ColumnA': [3,4,4],
         'ColumnB': ['a','b','b']
     })
-    dataframe = sql.create.from_dataframe(table_name, dataframe, primary_key=None)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
     sql.write.insert(table_name, dataframe)
 
     # perform merge

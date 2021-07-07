@@ -15,7 +15,7 @@ class read():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.connection = connection
+        self.__connection__ = connection
 
 
     def select(self, table_name: str, column_names: list = None, where: str = None,
@@ -46,24 +46,24 @@ class read():
 
         """
 
-        schema = helpers.get_schema(self.connection, table_name)
+        schema = helpers.get_schema(self.__connection__, table_name)
         primary_key = list(schema[schema['is_primary_key']].index)
 
         # sanitize table and column names for safe sql
-        table_clean = helpers.safe_sql(self.connection, table_name)
+        table_clean = helpers.safe_sql(self.__connection__, table_name)
         if column_names is None:
             column_names = '*'
         else:
             # always read in the primary_key
             column_names = [x for x in primary_key if x not in column_names]+column_names
-            column_names = helpers.safe_sql(self.connection, column_names)
+            column_names = helpers.safe_sql(self.__connection__, column_names)
             column_names = "\n,".join(column_names)
 
         # format optional where_statement
         if where is None:
             where_statement, where_args = ("", None)
         else:
-            where_statement, where_args = helpers.where_clause(self.connection, where)
+            where_statement, where_args = helpers.where_clause(self.__connection__, where)
 
         # format optional limit
         if limit is None:
@@ -80,7 +80,7 @@ class read():
         elif order_direction not in options:
             raise ValueError("order direction must be one of: "+str(options))
         elif order_column is not None:
-            order = "ORDER BY "+helpers.safe_sql(self.connection, order_column)+" "+order_direction
+            order = "ORDER BY "+helpers.safe_sql(self.__connection__, order_column)+" "+order_direction
         else:
             order = ""
 
@@ -102,9 +102,9 @@ class read():
 
         # read sql query
         if where_args is None:
-            dataframe = helpers.read_query(self.connection, statement)
+            dataframe = helpers.read_query(self.__connection__, statement)
         else:
-            dataframe = helpers.read_query(self.connection, statement, where_args)
+            dataframe = helpers.read_query(self.__connection__, statement, where_args)
 
         # change to best datatype
         dtypes = schema['python_type'].reset_index().values

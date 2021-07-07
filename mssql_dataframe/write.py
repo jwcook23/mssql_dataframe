@@ -6,8 +6,6 @@ import pyodbc
 from mssql_dataframe import errors, helpers
 import mssql_dataframe.create
 import mssql_dataframe.modify
-# from mssql_dataframe.create import create
-# from mssql_dataframe.modify import modify
 
 
 class write():
@@ -20,63 +18,9 @@ class write():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.connection = connection
-        # create.__init__(self, connection)
-        # modify.__init__(self, connection)
-        # super().__init__(connection)
-        self.create = mssql_dataframe.create.create(connection)
-        self.modify = mssql_dataframe.modify.modify(connection)
-
-
-    def prepare_values(self, dataframe):
-        """Prepare values for loading into SQL.
-        
-        Parameters
-        ----------
-
-        dataframe (pandas.DataFrame) : contains NA values
-
-        Returns
-        -------
-
-        DataFrame (pandas.DataFrame) : NA values changed to None
-
-        """
-
-        # strip leading/trailing spaces and empty strings
-        columns = (dataframe.applymap(type) == str).all(0)
-        columns = columns.index[columns]
-        dataframe[columns] = dataframe[columns].apply(lambda x: x.str.strip())
-        dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
-
-        # missing values as None, to be NULL in SQL
-        dataframe = dataframe.fillna(np.nan).replace([np.nan], [None])
-
-        return dataframe
-
-
-    def new_column(self, table_name: str, dataframe: pd.DataFrame, column_names: list):
-        '''Add new column(s) to table after insert failure.
-        
-        Parameters
-        ----------
-
-        table_name (str) : name of table to add column(s)
-        dataframe (pandas.DataFrame) : data containing columns(s) to add
-        column_names (list) : new column(s) to add
-
-        Returns
-        -------
-        None
-        '''
-
-        table_temp = "##new_column_"+table_name
-
-        dtypes = helpers.infer_datatypes(self.connection, table_temp, dataframe[column_names])
-
-        for column, data_type in dtypes.items():
-            # SQL does not allow adding a non-null column
-            self.modify.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+        self.__connection__ = connection
+        self.__create__ = mssql_dataframe.create.create(connection)
+        self.__modify__ = mssql_dataframe.modify.modify(connection)
 
 
     def insert(self, table_name: str, dataframe: pd.DataFrame):
@@ -101,8 +45,8 @@ class write():
         """
 
         # sanitize table and column names for safe sql
-        table_name = helpers.safe_sql(self.connection, table_name)
-        column_names = ",\n".join(helpers.safe_sql(self.connection, dataframe.columns))
+        table_name = helpers.safe_sql(self.__connection__, table_name)
+        column_names = ",\n".join(helpers.safe_sql(self.__connection__, dataframe.columns))
 
         # insert values
         statement = """
@@ -118,10 +62,10 @@ class write():
             column_names=column_names,
             parameters=', '.join(['?']*len(dataframe.columns))
         )
-        dataframe = self.prepare_values(dataframe)
+        dataframe = self.__prepare_values(dataframe)
         values = dataframe.values.tolist()
         try:
-            self.connection.cursor.executemany(statement, values)
+            self.__connection__.cursor.executemany(statement, values)
         except pyodbc.ProgrammingError as error:
             if 'Invalid object name' in str(error):
                 raise errors.TableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
@@ -131,53 +75,10 @@ class write():
                 raise errors.InsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
             else:
                 raise errors.GeneralError("GeneralError") from None
-        except pyodbc.DataError:
+        except pyodbc.DataError as error:
             raise errors.InsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
-
-
-    def __prep_update_merge(self, table_name, match_columns, dataframe, operation: Literal['update','merge']):
-
-        if isinstance(match_columns,str):
-            match_columns = [match_columns]
-
-        # read target table schema
-        schema = helpers.get_schema(self.connection, table_name)
-
-        # check validitiy of match_columns, use primary key if needed
-        if match_columns is None:
-            match_columns = list(schema[schema['is_primary_key']].index)
-            if len(match_columns)==0:
-                raise errors.UndefinedSQLPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
-        # check match_column presence is SQL table
-        if sum(schema.index.isin(match_columns))!=len(match_columns):
-            raise errors.UndefinedSQLColumn('match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
-        # check match_column presence in dataframe, use dataframe index if needed
-        if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
-            if len([x for x in match_columns if x==dataframe.index.name])>0:
-                dataframe = dataframe.reset_index()
-            else:
-                raise errors.UndefinedDataframeColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
-
-        # check if new columns need to be added to SQL table
-        new = dataframe.columns[~dataframe.columns.isin(schema.index)]
-        if len(new)>0:
-            self.new_column(table_name, dataframe.reset_index(drop=True), column_names=new)
-            schema = helpers.get_schema(self.connection, table_name)
-        temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
-        columns, not_null, primary_key_column, _ = self.create._create__table_schema(temp)
-
-        # add interal tracking columns if needed
-        if operation=='merge' and '_time_insert' not in schema.index:
-            self.modify.column(table_name, modify='add', column_name='_time_insert', data_type='DATETIME')
-        if '_time_update' not in schema.index:
-            self.modify.column(table_name, modify='add', column_name='_time_update', data_type='DATETIME')
-
-        # insert data into temporary table to use for updating/merging
-        table_temp = "##"+operation+"_"+table_name
-        self.create.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
-        self.insert(table_temp, dataframe)
-
-        return dataframe, match_columns, table_temp
+        except Exception as error:
+            raise errors.GeneralError("Generic error attempting to insert values.")
 
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None):
@@ -203,7 +104,7 @@ class write():
         dataframe = pd.DataFrame({
             'ColumnA': [0]*100000
         })
-        create.from_dataframe(connection, table_name, dataframe, primary_key='index', row_count=len(dataframe))
+        create.table_from_dataframe(connection, table_name, dataframe, primary_key='index', row_count=len(dataframe))
 
         # update values in table
         dataframe['ColumnA'] = list(range(0,100000,1))
@@ -280,7 +181,7 @@ class write():
 
         # perform update
         args = [table_name, table_temp]+match_columns+update_columns
-        helpers.execute(self.connection, statement, args)
+        helpers.execute(self.__connection__, statement, args)
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None):
@@ -398,4 +299,101 @@ class write():
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns
         else:
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
-        helpers.execute(self.connection, statement, args)
+        helpers.execute(self.__connection__, statement, args)
+
+
+    def __prepare_values(self, dataframe):
+        """Prepare values for loading into SQL.
+        
+        Parameters
+        ----------
+
+        dataframe (pandas.DataFrame) : contains NA values
+
+        Returns
+        -------
+
+        DataFrame (pandas.DataFrame) : NA values changed to None
+
+        """
+
+        # strip leading/trailing spaces and empty strings
+        columns = (dataframe.applymap(type) == str).all(0)
+        columns = columns.index[columns]
+        dataframe[columns] = dataframe[columns].apply(lambda x: x.str.strip())
+        dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
+
+        # missing values as None, to be NULL in SQL
+        dataframe = dataframe.fillna(np.nan).replace([np.nan], [None])
+
+        return dataframe
+
+
+    def __new_column(self, table_name: str, dataframe: pd.DataFrame, column_names: list):
+        '''Add new column(s) to table after insert failure.
+        
+        Parameters
+        ----------
+
+        table_name (str) : name of table to add column(s)
+        dataframe (pandas.DataFrame) : data containing columns(s) to add
+        column_names (list) : new column(s) to add
+
+        Returns
+        -------
+        None
+        '''
+
+        table_temp = "##__new_column_"+table_name
+
+        dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe[column_names])
+
+        for column, data_type in dtypes.items():
+            # SQL does not allow adding a non-null column
+            self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+
+
+    def __prep_update_merge(self, table_name, match_columns, dataframe, operation: Literal['update','merge']):
+
+        if isinstance(match_columns,str):
+            match_columns = [match_columns]
+
+        # read target table schema
+        schema = helpers.get_schema(self.__connection__, table_name)
+
+        # check validitiy of match_columns, use primary key if needed
+        if match_columns is None:
+            match_columns = list(schema[schema['is_primary_key']].index)
+            if len(match_columns)==0:
+                raise errors.UndefinedSQLPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
+        # check match_column presence is SQL table
+        if sum(schema.index.isin(match_columns))!=len(match_columns):
+            raise errors.UndefinedSQLColumn('match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
+        # check match_column presence in dataframe, use dataframe index if needed
+        if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
+            if len([x for x in match_columns if x==dataframe.index.name])>0:
+                dataframe = dataframe.reset_index()
+            else:
+                raise errors.UndefinedDataframeColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
+
+        # check if new columns need to be added to SQL table
+        new = dataframe.columns[~dataframe.columns.isin(schema.index)]
+        if len(new)>0:
+            self.__new_column(table_name, dataframe.reset_index(drop=True), column_names=new)
+            schema = helpers.get_schema(self.__connection__, table_name)
+        temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
+        columns, not_null, primary_key_column, _ = self.__create__._create__table_schema(temp)
+
+        # add interal tracking columns if needed
+        if operation=='merge' and '_time_insert' not in schema.index:
+            self.__modify__.column(table_name, modify='add', column_name='_time_insert', data_type='DATETIME')
+        if '_time_update' not in schema.index:
+            self.__modify__.column(table_name, modify='add', column_name='_time_update', data_type='DATETIME')
+
+        # insert data into temporary table to use for updating/merging
+        table_temp = "##"+operation+"_"+table_name
+        self.__create__.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
+        self.insert(table_temp, dataframe)
+
+        return dataframe, match_columns, table_temp
+
