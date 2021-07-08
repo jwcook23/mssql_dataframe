@@ -3,9 +3,7 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe import errors, helpers
-import mssql_dataframe.create
-import mssql_dataframe.modify
+from mssql_dataframe.core import errors, helpers, create, modify
 
 
 class write():
@@ -19,8 +17,8 @@ class write():
         '''
 
         self.__connection__ = connection
-        self.__create__ = mssql_dataframe.create.create(connection)
-        self.__modify__ = mssql_dataframe.modify.modify(connection)
+        self.__create__ = create.create(connection)
+        self.__modify__ = modify.modify(connection)
 
 
     def insert(self, table_name: str, dataframe: pd.DataFrame):
@@ -43,6 +41,10 @@ class write():
         insert(connection, 'TableName', pd.DataFrame({'ColumnA': [1, 2, 3]}))
 
         """
+
+        # write index column as it is the primary key
+        if dataframe.index.name is not None:
+            dataframe = dataframe.reset_index()
 
         # sanitize table and column names for safe sql
         table_name = helpers.safe_sql(self.__connection__, table_name)

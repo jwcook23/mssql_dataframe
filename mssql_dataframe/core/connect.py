@@ -28,16 +28,16 @@ class connect():
     --------
 
     #### local host connection using Windows account credentials and inferring the ODBC driver
-    db = connect.connect()
+    db = connect()
 
-    #### remote server using username and password
-    db = connect.connect(database_name='master', server_name='<remote>', username='<username>', password='<password>')
+    #### on-premise server using username and password
+    db = connect(database_name='master', server_name='<server>', username='<username>', password='<password>')
 
-    #### Azue SQL Server instance
-    db = connect.connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
+    #### Azue SQL database
+    db = connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
 
     #### using a specific driver
-    db = connect.connect(driver_name='ODBC Driver 17 for SQL Server')
+    db = connect(driver_name='ODBC Driver 17 for SQL Server')
 
     """
 

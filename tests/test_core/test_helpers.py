@@ -4,15 +4,15 @@ import warnings
 import pytest
 import pandas as pd
 
-from mssql_dataframe import errors, helpers, connect
-import mssql_dataframe.create
+from mssql_dataframe import connect
+from mssql_dataframe.core import errors, helpers, create, write
 
 
 class package:
     def __init__(self, connection):
         self.connection = connection
-        self.create = mssql_dataframe.create.create(connection)
-        self.write = mssql_dataframe.write.write(connection)
+        self.create = create.create(connection)
+        self.write = write.write(connection)
 
 @pytest.fixture(scope="module")
 def sql():

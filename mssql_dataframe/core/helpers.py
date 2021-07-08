@@ -5,9 +5,7 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-import mssql_dataframe.errors
-import mssql_dataframe.create
-import mssql_dataframe.write 
+from mssql_dataframe.core import errors, create, write
 
 
 def execute(connection, statement:str, args:list=None):
@@ -19,7 +17,7 @@ def execute(connection, statement:str, args:list=None):
         else:
             connection.cursor.execute(statement, *args)
     except:
-        raise mssql_dataframe.errors.GeneralError("GeneralError") from None
+        raise errors.GeneralError("GeneralError") from None
 
     return connection
 
@@ -56,7 +54,7 @@ def safe_sql(connection, inputs):
     clean = connection.cursor.fetchone()
     # values too long with return None, so raise an exception
     if len([x for x in clean if x is None])>0:
-        raise mssql_dataframe.errors.GeneralError("GeneralError") from None
+        raise errors.GeneralError("GeneralError") from None
     
     if flatten:
         # rejoin schema specification
@@ -99,7 +97,7 @@ def where_clause(connection, where: str):
     # split on comparison operator
     conditions = [re.split(comparison,x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions)==1 and len(conditions[0])==1:
-        raise mssql_dataframe.errors.InvalidSyntax("invalid syntax for where = "+where)
+        raise errors.InvalidSyntax("invalid syntax for where = "+where)
     # form dict for each colum, while handling IS NULL/IS NOT NULL split
     conditions = [[y.strip() for y in x] for x in conditions]
     conditions = {x[0]:(x[1::] if len(x[2])>0 else [x[1]]) for x in conditions}
@@ -178,7 +176,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     """
     # create temporary table
     columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
-    bld = mssql_dataframe.create.create(connection)
+    bld = create.create(connection)
     bld.table(table_name, columns)
     
     # insert subset of data into temporary table
@@ -195,7 +193,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # # treat empty like as None (NULL in SQL)
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})
     # insert subset of data then use SQL to determine SQL data type
-    wrt = mssql_dataframe.write.write(connection)
+    wrt = write.write(connection)
     wrt.insert(table_name, dataframe=subset)
 
     statement = """
@@ -312,9 +310,9 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
                 connection = execute(connection, statement, args)
             else:
-                raise mssql_dataframe.errors.GeneralError("General error reading query.")
+                raise errors.GeneralError("General error reading query.")
         except:
-            raise mssql_dataframe.errors.GeneralError("General error reading query.")
+            raise errors.GeneralError("General error reading query.")
 
     # form dataframe with column names
     dataframe = [list(x) for x in dataframe]
@@ -369,7 +367,7 @@ def get_schema(connection, table_name: str):
 
     schema = read_query(connection, statement)
     if len(schema)==0:
-         raise mssql_dataframe.errors.TableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
+         raise errors.TableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
     
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)

@@ -1,6 +1,6 @@
 from typing import Literal
 
-import mssql_dataframe.helpers
+from mssql_dataframe.core import helpers
 
 
 class modify():
@@ -86,7 +86,7 @@ class modify():
             type_column = "+' '+QUOTENAME(@ColumnType)"
             parameter_type = ", @ColumnType SYSNAME"
             value_type = ", @ColumnType=@ColumnType"
-            size, dtypes = mssql_dataframe.helpers.column_spec(data_type)
+            size, dtypes = helpers.column_spec(data_type)
             if size is None:
                 declare_size = ""
                 size_column = ""
@@ -113,7 +113,7 @@ class modify():
         )
 
         args = [x for x in args if x is not None]
-        _ = mssql_dataframe.helpers.execute(self.__connection__, statement, args)
+        _ = helpers.execute(self.__connection__, statement, args)
 
 
     def primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
@@ -176,4 +176,4 @@ class modify():
             parameter=parameter, value=value
         )
 
-        _ = mssql_dataframe.helpers.execute(self.__connection__, statement, args)
+        _ = helpers.execute(self.__connection__, statement, args)

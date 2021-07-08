@@ -3,17 +3,15 @@ import pandas as pd
 import numpy as np
 from datetime import date
 
-from mssql_dataframe import errors, connect
-import mssql_dataframe.create
-import mssql_dataframe.write
-import mssql_dataframe.read
+from mssql_dataframe import connect
+from mssql_dataframe.core import errors, create, write, read
 
 
 class package:
     def __init__(self, connection):
-        self.create = mssql_dataframe.create.create(connection)
-        self.write = mssql_dataframe.write.write(connection)
-        self.read = mssql_dataframe.read.read(connection)
+        self.create = create.create(connection)
+        self.write = write.write(connection)
+        self.read = read.read(connection)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -145,13 +143,11 @@ def test_update_one_match_column(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # update values in table, using the primary key created in SQL
+    # update values in table, using the primary key
     dataframe['ColumnC'] = [5,6]
-    pk = sql.read.select(table_name, column_names=['_pk','ColumnB'])
-    dataframe = dataframe.merge(pk.reset_index()).set_index('_pk')
     sql.write.update(table_name, dataframe[['ColumnC']])
 
     # test result

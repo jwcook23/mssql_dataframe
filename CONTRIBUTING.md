@@ -1,6 +1,8 @@
 # Contributing Guide
 
-Run all terminal commands in the top level mssql_dataframe folder. SQL Server Developer Edition can be downloaded for free [here](https://www.microsoft.com/en-us/sql-server/sql-server-downloads).
+Testing requires a local SQL Server running with the ability to connect using Windows account credentials. SQL Server Developer Edition can be downloaded for free [here](https://www.microsoft.com/en-us/sql-server/sql-server-downloads).
+
+Run all terminal commands in the top level mssql_dataframe folder. 
 
 1. Create virtual environment.
 ``` cmd

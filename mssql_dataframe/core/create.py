@@ -2,7 +2,7 @@ from typing import Literal
 
 import pandas as pd
 
-import mssql_dataframe.helpers
+from mssql_dataframe.core import helpers
 
 
 class create():
@@ -58,7 +58,7 @@ class create():
 
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0,len(column_names)))]
-        size, dtypes = mssql_dataframe.helpers.column_spec(columns.values())
+        size, dtypes = helpers.column_spec(columns.values())
         size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
 
         # develop syntax for SQL variable declaration
@@ -122,7 +122,7 @@ class create():
         args = [table_name] + args
 
         # execute statement
-        mssql_dataframe.helpers.execute(self.__connection__, statement, args)
+        helpers.execute(self.__connection__, statement, args)
 
 
     def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
@@ -181,7 +181,7 @@ class create():
         # create temp table to determine data types
         name_temp = "##table_from_dataframe_"+table_name
  
-        dtypes = mssql_dataframe.helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
+        dtypes = helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':
@@ -210,6 +210,10 @@ class create():
 
         # create final SQL table
         self.table(table_name, dtypes, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+
+        # reset index after it was set as a column for table creation
+        if primary_key=='index':
+            dataframe = dataframe.set_index(keys='_index')
         
         return dataframe
 

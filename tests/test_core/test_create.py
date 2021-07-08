@@ -3,14 +3,14 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-from mssql_dataframe import helpers, connect
-import mssql_dataframe.create
+from mssql_dataframe import connect
+from mssql_dataframe.core import helpers, create
 
 
 class package:
     def __init__(self, connection):
         self.connection = connection
-        self.create = mssql_dataframe.create.create(connection)
+        self.create = create.create(connection)
 
 @pytest.fixture(scope="module")
 def sql():

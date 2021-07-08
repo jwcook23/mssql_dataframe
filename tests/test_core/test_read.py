@@ -2,15 +2,14 @@ import pytest
 import pandas as pd
 
 from mssql_dataframe import connect
-import mssql_dataframe.create
-import mssql_dataframe.write
-import mssql_dataframe.read
+from mssql_dataframe.core import create, write, read
+
 
 class package:
     def __init__(self, connection):
-        self.create = mssql_dataframe.create.create(connection)
-        self.write = mssql_dataframe.write.write(connection)
-        self.read = mssql_dataframe.read.read(connection)
+        self.create = create.create(connection)
+        self.write = write.write(connection)
+        self.read = read.read(connection)
 
 @pytest.fixture(scope="module")
 def sql():

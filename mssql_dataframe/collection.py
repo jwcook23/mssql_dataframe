@@ -1,10 +1,5 @@
-from mssql_dataframe import(
-    connect,
-    create,
-    modify,
-    read,
-    write
-)
+from mssql_dataframe import connect
+from mssql_dataframe.core import create, modify, read, write
 
 class SQLServer():
     """

@@ -1,17 +1,14 @@
-from datetime import datetime
-
 import pytest
-import pandas as pd
 
-from mssql_dataframe import helpers, connect
-import mssql_dataframe.create
-import mssql_dataframe.modify
+from mssql_dataframe import connect
+from mssql_dataframe.core import helpers, create, modify
+
 
 class package:
     def __init__(self, connection):
         self.connection = connection
-        self.create = mssql_dataframe.create.create(connection)
-        self.modify = mssql_dataframe.modify.modify(connection)
+        self.create = create.create(connection)
+        self.modify = modify.modify(connection)
 
 @pytest.fixture(scope="module")
 def sql():

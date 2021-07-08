@@ -1,17 +1,34 @@
 # mssql_dataframe
-# TODO: provide examples for functions and validate documentation
-# TODO: create a class made up of functions
-# TODO: develop AzureSQL functionality
-# TODO: utilize pyodb curor functionality (https://github.com/mkleehammer/pyodbc/wiki/Cursor)
 
-Provides an easy & efficient interaction between Microsoft Transact-SQL and Python DataFrames. In practice this module 
-may be useful for model updating, data normalization, data engineering, and web scraping.
+Provides an easy & efficient interaction between Microsoft Transact-SQL and Python dataframes (Pandas). In practice this module 
+may be useful for model updating, data engineering, and web scraping. It provides the ability to update and merge from dataframes into SQL Server tables.
+
 
 ## Core Functionality
+
+### Initialization
+
+```python
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
+
+# connect to an on-premise database using pyodbc and Windows authentication
+db = connect(database_name='master', server_name='localhost')
+# or an Azure SQL database
+# db = connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
+
+# using a single connection, initialize the class
+sql = SQLServer(db)
+
+```
 
 ### Update SQL Table from Python dataframe
 
 Updating ...
+
+```python
+sql.write.update()
+```
 
 ### Merge into SQL Table from Python dataframe
 
