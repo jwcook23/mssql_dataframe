@@ -153,9 +153,6 @@ class create():
         if primary_key not in options:
             raise ValueError("primary_key must be one of: "+str(options))
 
-        # # assume initial default data type
-        # columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
-
         # determine primary key
         if primary_key is None:
             sql_primary_key = False
@@ -167,8 +164,6 @@ class create():
             sql_primary_key = False
             if dataframe.index.name is None:
                 dataframe.index.name = '_index'
-            # # use the max allowed size for a primary key
-            # columns[dataframe.index.name] = 'NVARCHAR(450)'
             primary_key_column = dataframe.index.name
             dataframe = dataframe.reset_index()
         elif primary_key == 'infer':
@@ -213,7 +208,7 @@ class create():
 
         # reset index after it was set as a column for table creation
         if primary_key=='index':
-            dataframe = dataframe.set_index(keys='_index')
+            dataframe = dataframe.set_index(keys=primary_key_column)
         
         return dataframe
 

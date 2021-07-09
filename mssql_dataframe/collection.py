@@ -29,6 +29,7 @@ class SQLServer():
     def __init__(self, connection: connect.connect):
     
         # initialize mssql_dataframe functionality with shared connection
+        self.connection = connection
         self.create = create.create(connection)
         self.modify = modify.modify(connection)
         self.read = read.read(connection)

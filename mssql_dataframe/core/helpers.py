@@ -34,31 +34,44 @@ def safe_sql(connection, inputs):
     Returns
     -------
 
-    clean (tuple) : santized strings
+    clean (list|str) : santized strings
 
     '''
     
+    # handle string and other collection type inputs
     flatten = False
     if isinstance(inputs, str):
-        # split schema specification
         flatten = True
-        inputs = inputs.split('.')
+        inputs = [inputs]
     elif not isinstance(inputs, list):
         inputs = list(inputs)
 
+    # check for possible schema specification
+    # # flatten each list and combine with the char(255) delimiter that will very likely never occur
+    schema = [re.findall(r'\.+',x) for x in inputs]
+    schema = [x+[chr(255)] for x in schema]
+    schema = [item for sublist in schema for item in sublist]
+    inputs = [re.split(r'\.+',x) for x in inputs]
+    inputs = [item for sublist in inputs for item in sublist]
+
+    # use SQL to construct a valid SQL delimited identifier
     statement = "SELECT {syntax}"
     syntax = ", ".join(["QUOTENAME(?)"]*len(inputs))
     statement = statement.format(syntax=syntax)
-    
     connection = execute(connection, statement, inputs)
     clean = connection.cursor.fetchone()
-    # values too long with return None, so raise an exception
+    # a value is too long and returns None, so raise an exception
     if len([x for x in clean if x is None])>0:
-        raise errors.GeneralError("GeneralError") from None
+        raise errors.InvalidLengthSQLObjectName("SQL object name is too long.") from None
     
+    # reconstruct possible schema specification
+    clean = list(zip(clean,schema))
+    clean = [item for sublist in clean for item in sublist]
+    clean = "".join(clean[0:-1]).split(chr(255))
+
+    # return string if string was input
     if flatten:
-        # rejoin schema specification
-        clean = ".".join(clean)
+        clean = clean[0]
 
     return clean
 
@@ -179,10 +192,17 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     bld = create.create(connection)
     bld.table(table_name, columns)
     
+    # select random subset of data, ensuring the maximum values are included
+    subset = dataframe.sample(n=min([row_count,len(dataframe)]))
+    strings = dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str'))]
+    datetimes = dataframe.select_dtypes('datetime').columns
+    numeric = dataframe.select_dtypes(include=np.number).columns
+    include = dataframe[list(datetimes)+list(numeric)].idxmax()
+    include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
+    include = include.drop_duplicates()
+    subset = subset.append(dataframe.loc[include[~include.isin(subset.index)]])
+
     # insert subset of data into temporary table
-    subset = dataframe.loc[0:row_count, :]
-    datetimes = subset.select_dtypes('datetime').columns
-    numeric = subset.select_dtypes(include=np.number).columns
     subset = subset.astype('str')
     for col in subset:
         subset[col] = subset[col].str.strip()
@@ -340,30 +360,38 @@ def get_schema(connection, table_name: str):
     schema (pandas.DataFrame) : schema for each column in the table
 
     '''
+    
+    # search tempdb for global temp tables
+    if table_name.startswith("#"):
+        tempdb = "tempdb."
+    else:
+        tempdb = ""
 
     table_name = safe_sql(connection, table_name)
 
     statement = """
     SELECT
-        sys.columns.name AS column_name,
+        _columns.name AS column_name,
         TYPE_NAME(SYSTEM_TYPE_ID) AS data_type, 
-        sys.columns.max_length, 
-        sys.columns.precision, 
-        sys.columns.scale, 
-        sys.columns.is_nullable, 
-        sys.columns.is_identity,
-        sys.indexes.is_primary_key
-    FROM sys.columns
-    LEFT JOIN sys.index_columns
-        ON sys.index_columns.object_id = sys.columns.object_id 
-        AND sys.index_columns.column_id = sys.columns.column_id
-    LEFT JOIN sys.indexes
-        ON sys.indexes.object_id = sys.index_columns.object_id 
-        AND sys.indexes.index_id = sys.index_columns.index_id
-    WHERE sys.columns.object_ID = OBJECT_ID('{table_name}')
+        _columns.max_length, 
+        _columns.precision, 
+        _columns.scale, 
+        _columns.is_nullable, 
+        _columns.is_identity,
+        _indexes.is_primary_key
+    FROM {tempdb}sys.columns AS _columns
+    LEFT JOIN {tempdb}sys.index_columns as _index_columns
+        ON _index_columns.object_id = _columns.object_id 
+        AND _index_columns.column_id = _columns.column_id
+    LEFT JOIN {tempdb}sys.indexes as _indexes
+        ON _indexes.object_id = _index_columns.object_id 
+        AND _indexes.index_id = _index_columns.index_id
+    WHERE _columns.object_ID = OBJECT_ID('{tempdb}sys.{table_name}')
     """
 
-    statement = statement.format(table_name=table_name)
+    statement = statement.format(tempdb=tempdb, table_name=table_name)
+
+    # connection.cursor.execute("SELECT * FROM sys.columns WHERE sys.columns.object_ID=OBJECT_ID('"+table_name+"')").fetchall()
 
     schema = read_query(connection, statement)
     if len(schema)==0:

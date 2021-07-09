@@ -3,6 +3,7 @@
 Provides an easy & efficient interaction between Microsoft Transact-SQL and Python dataframes (Pandas). In practice this module 
 may be useful for model updating, data engineering, and web scraping. It provides the ability to update and merge from dataframes into SQL Server tables.
 
+[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
 ## Core Functionality
 

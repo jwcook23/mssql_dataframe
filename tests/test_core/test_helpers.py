@@ -39,15 +39,24 @@ def test_safe_sql(sql):
     inputs = "SingleString"
     clean = helpers.safe_sql(sql.connection, inputs)
     assert isinstance(inputs, str)
-    assert clean=="[SingleString]"
 
     # dataframe columns
     dataframe = pd.DataFrame(columns=["A","B"])
     clean = helpers.safe_sql(sql.connection, dataframe.columns)
     assert len(clean)==dataframe.shape[1]
 
+    # schema specification list
+    inputs = ["test.dbo.table","tempdb..##table"]
+    clean = helpers.safe_sql(sql.connection, inputs)
+    assert len(clean)==len(inputs)
+
+    # schema specification single string
+    inputs = "test.dbo.table"
+    clean = helpers.safe_sql(sql.connection, inputs)
+    assert isinstance(clean, str)
+
     # value that is too long
-    with pytest.raises(errors.GeneralError):
+    with pytest.raises(errors.InvalidLengthSQLObjectName):
         helpers.safe_sql(sql.connection, inputs='a'*1000)
 
 
@@ -114,6 +123,21 @@ def test_infer_datatypes(sql):
     assert dtypes['_time']=="TIME"
     assert dtypes['_datetime']=="DATETIME"
 
+
+def test_infer_datatypes_small_sample(sql):
+
+    table_name = '##test_table_datatypes_small_sample'
+
+    dataframe = pd.DataFrame({
+    '_tinyint': list(range(0,5,1)),
+    '_varchar': ['aaaaa','bbbb','ccc','dd','e']
+    })
+
+    dtypes = helpers.infer_datatypes(sql.connection, table_name, dataframe, row_count=0)
+
+    assert dtypes['_tinyint']=="TINYINT"
+    assert dtypes['_varchar']=="VARCHAR(5)"
+    
 
 def test_get_schema(sql):
 

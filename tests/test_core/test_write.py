@@ -36,27 +36,6 @@ def test_prepare_values(sql):
     assert all(dataframe['Column'].values==['a','b','c',None,None])
 
 
-def test_insert_errors(sql):
-
-    table_name = '##test_insert_errors'
-    sql.create.table(table_name, columns={
-            'ColumnA': 'TINYINT',
-            'ColumnB': 'VARCHAR(1)'
-    })
-
-    with pytest.raises(errors.TableDoesNotExist):
-        sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
-
-    with pytest.raises(errors.ColumnDoesNotExist):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}))
-
-    with pytest.raises(errors.InsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
-
-    with pytest.raises(errors.InsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
-
-
 def test_insert(sql):
 
     table_name = '##test_insert'
@@ -98,9 +77,47 @@ def test_insert(sql):
     assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
 
 
-def test_update_prep_errors(sql):
+def test_insert_errors(sql):
 
-    table_name = '##test_update_prep_errors'
+    table_name = '##test_insert_errors'
+    sql.create.table(table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(1)'
+    })
+
+    with pytest.raises(errors.TableDoesNotExist):
+        sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), create_table=False)
+
+    with pytest.raises(errors.ColumnDoesNotExist):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), add_column=False)
+
+    with pytest.raises(errors.InsufficientColumnSize):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}), alter_column=False)
+
+    with pytest.raises(errors.InsufficientColumnSize):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), alter_column=False)
+
+
+def test_insert_create_table(sql):
+    pass
+    # table_name = '##test_insert_create_table'
+    # dataframe = pd.DataFrame({
+    #     "ColumnA": [1,2,3]
+    # })
+    # sql.write.insert(table_name, dataframe=dataframe, create_table=True)
+
+
+def test_insert_add_column(sql):
+    pass
+
+
+def test_insert_alter_column(sql):
+    pass
+
+
+def test__prep_update_merge(sql):
+
+    table_name = '##test__prep_update_merge'
     sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT',
             'ColumnB': 'INT'
@@ -195,7 +212,7 @@ def test_update_new_column(sql):
 
     # update values in table, using the primary key created in SQL
     dataframe['NewColumn'] = [3,4]
-    sql.write.update(table_name, dataframe[['_index','NewColumn']])
+    sql.write.update(table_name, dataframe[['NewColumn']])
 
     # test result
     result = sql.read.select(table_name)

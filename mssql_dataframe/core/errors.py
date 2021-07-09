@@ -35,3 +35,7 @@ class UndefinedSQLColumn(Exception):
 class UndefinedDataframeColumn(Exception):
     '''Exception for undefined dataframe column.'''
     pass
+
+class InvalidLengthSQLObjectName(Exception):
+    '''Exception for an SQL object name that is too long.'''
+    pass

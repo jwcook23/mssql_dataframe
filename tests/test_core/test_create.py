@@ -216,6 +216,8 @@ def test_table_from_dataframe_indexpk(sql, dataframe):
 
 def test_table_from_dataframe_inferpk(sql):
 
+    table_name = '##test_table_from_dataframe_inferpk_integer'
+
     # integer primary key
     dataframe = pd.DataFrame({
         '_varchar1': ['a','b','c','d','e'],
@@ -226,7 +228,6 @@ def test_table_from_dataframe_inferpk(sql):
         '_float1': [1.1111, 2, 3, 4, 5],
         '_float2': [1.1111, 2, 3, 4, 6]
     })
-    table_name = '##test_table_from_dataframe_inferpk_integer'
     sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
     schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_smallint','is_primary_key']

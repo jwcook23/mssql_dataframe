@@ -21,7 +21,8 @@ class write():
         self.__modify__ = modify.modify(connection)
 
 
-    def insert(self, table_name: str, dataframe: pd.DataFrame):
+    def insert(self, table_name: str, dataframe: pd.DataFrame, 
+    create_table: bool = True, add_column: bool = True, alter_column: bool = True):
         """Insert data into SQL table from a dataframe.
 
         Parameters
@@ -29,6 +30,9 @@ class write():
 
         table_name (str) : name of table to insert data into
         dataframe (pd.DataFrame): tabular data to insert
+        create_table (bool, default=True) : if table doesn't exist, create it
+        add_column (bool, default=True) : if column doesn't exist, create it
+        alter_column (bool, default=True) : if column data type and size don't allow insert, adjust it
 
         Returns
         -------
@@ -70,6 +74,10 @@ class write():
             self.__connection__.cursor.executemany(statement, values)
         except pyodbc.ProgrammingError as error:
             if 'Invalid object name' in str(error):
+            #     if create_table:
+            #         _ = self.__create__.table_from_dataframe(table_name, dataframe)
+            #         self.__connection__.cursor.executemany(statement, values)
+            #     else:
                 raise errors.TableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
             elif 'Invalid column name' in str(error):
                 raise errors.ColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
