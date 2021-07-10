@@ -1,7 +1,9 @@
+from datetime import date
+import warnings
+
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import date
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, write, read
@@ -85,26 +87,31 @@ def test_insert_errors(sql):
             'ColumnB': 'VARCHAR(1)'
     })
 
-    with pytest.raises(errors.TableDoesNotExist):
+    with pytest.raises(errors.SQLTableDoesNotExist):
         sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), create_table=False)
 
-    with pytest.raises(errors.ColumnDoesNotExist):
+    with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), add_column=False)
 
-    with pytest.raises(errors.InsufficientColumnSize):
+    with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}), alter_column=False)
 
-    with pytest.raises(errors.InsufficientColumnSize):
+    with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), alter_column=False)
 
 
 def test_insert_create_table(sql):
-    pass
-    # table_name = '##test_insert_create_table'
-    # dataframe = pd.DataFrame({
-    #     "ColumnA": [1,2,3]
-    # })
-    # sql.write.insert(table_name, dataframe=dataframe, create_table=True)
+
+    table_name = '##test_insert_create_table'
+    dataframe = pd.DataFrame({
+        "ColumnA": [1,2]
+    })
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.insert(table_name, dataframe=dataframe, create_table=True)
+        results = sql.read.select(table_name)
+        assert len(warn)==1
+        assert isinstance(warn[-1].message, errors.SQLObjectCreation)
+        assert all(results==dataframe)
 
 
 def test_insert_add_column(sql):
@@ -125,13 +132,13 @@ def test__prep_update_merge(sql):
 
     dataframe = pd.DataFrame({'ColumnA': [1]})
 
-    with pytest.raises(errors.UndefinedSQLPrimaryKey):
+    with pytest.raises(errors.SQLUndefinedPrimaryKey):
         sql.write._write__prep_update_merge(table_name, match_columns=None, dataframe=dataframe, operation='update')
 
-    with pytest.raises(errors.UndefinedSQLColumn):
+    with pytest.raises(errors.SQLUndefinedColumn):
         sql.write._write__prep_update_merge(table_name, match_columns='MissingColumn', dataframe=dataframe, operation='update')       
 
-    with pytest.raises(errors.UndefinedDataframeColumn):
+    with pytest.raises(errors.DataframeUndefinedColumn):
         sql.write._write__prep_update_merge(table_name, match_columns='ColumnB', dataframe=dataframe, operation='update')   
 
 
@@ -145,7 +152,7 @@ def test_update_no_table(sql):
         'ColumnA': [1,2]
     }).set_index(keys='_pk')
     
-    with pytest.raises(errors.TableDoesNotExist):
+    with pytest.raises(errors.SQLTableDoesNotExist):
         # attempt updating table that does not exist
         sql.write.update(table_name, dataframe)
 
@@ -225,7 +232,7 @@ def test_merge_no_table(sql):
     
     table_name = "##test_merge_no_table"
     
-    with pytest.raises(errors.TableDoesNotExist):
+    with pytest.raises(errors.SQLTableDoesNotExist):
         # attempt merge into table that doesn't exist
         dataframe = pd.DataFrame({
             '_pk': [1,2],

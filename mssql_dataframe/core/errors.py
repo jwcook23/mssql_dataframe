@@ -1,41 +1,52 @@
-'''Custom Exceptions'''
+'''Custom Exceptions and Warnings'''
 
-class GeneralError(Exception):
-    '''General error to prevent exposing SQL server specific error messages.'''
-    pass
-
-class ODBCDriverNotFound(Exception):
+class EnvironmentODBCDriverNotFound(Exception):
     '''Exception for not automatically determining ODBC driver.'''
     pass
 
-class TableDoesNotExist(Exception):
+class SQLGeneral(Exception):
+    '''General error to prevent exposing SQL server specific error messages.'''
+    pass
+
+class SQLTableDoesNotExist(Exception):
     '''Exception for SQL table that does not exist.'''
     pass
 
-class ColumnDoesNotExist(Exception):
+class SQLColumnDoesNotExist(Exception):
     '''Exception for SQL table column that does not exist.'''
     pass
 
-class InvalidSyntax(Exception):
+class SQLInvalidSyntax(Exception):
     '''Exception for invalid syntax'''
     pass
 
-class UndefinedSQLPrimaryKey(Exception):
+class SQLUndefinedPrimaryKey(Exception):
     '''Exception for undefined SQL primary key in table.'''
     pass
 
-class InsufficientColumnSize(Exception):
+class SQLInsufficientColumnSize(Exception):
     '''Exception for insufficient column size to insert a value.'''
     pass
 
-class UndefinedSQLColumn(Exception):
+class SQLUndefinedColumn(Exception):
     '''Exception for undefined SQL column.'''
     pass
 
-class UndefinedDataframeColumn(Exception):
+class SQLInvalidLengthObjectName(Exception):
+    '''Exception for an SQL object name that is too long.'''
+    pass
+
+class SQLObjectCreation(Warning):
+    '''Warning for creating an SQL object.'''
+    pass
+
+class SQLObjectModification(Warning):
+    '''Warning for modifying an SQL object'''
+    pass
+
+class DataframeUndefinedColumn(Exception):
     '''Exception for undefined dataframe column.'''
     pass
 
-class InvalidLengthSQLObjectName(Exception):
-    '''Exception for an SQL object name that is too long.'''
-    pass
+class DataframeUndefinedBestType(Warning):
+    '''Warning for undefined best data type of dataframe column given an SQL data type.'''

@@ -1,4 +1,6 @@
 from typing import Literal
+import warnings
+
 import pandas as pd
 import numpy as np
 import pyodbc
@@ -51,7 +53,7 @@ class write():
             dataframe = dataframe.reset_index()
 
         # sanitize table and column names for safe sql
-        table_name = helpers.safe_sql(self.__connection__, table_name)
+        table_clean = helpers.safe_sql(self.__connection__, table_name)
         column_names = ",\n".join(helpers.safe_sql(self.__connection__, dataframe.columns))
 
         # insert values
@@ -64,7 +66,7 @@ class write():
         )
         """
         statement = statement.format(
-            table_name=table_name, 
+            table_name=table_clean, 
             column_names=column_names,
             parameters=', '.join(['?']*len(dataframe.columns))
         )
@@ -74,21 +76,22 @@ class write():
             self.__connection__.cursor.executemany(statement, values)
         except pyodbc.ProgrammingError as error:
             if 'Invalid object name' in str(error):
-            #     if create_table:
-            #         _ = self.__create__.table_from_dataframe(table_name, dataframe)
-            #         self.__connection__.cursor.executemany(statement, values)
-            #     else:
-                raise errors.TableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
+                if create_table:
+                    warnings.warn("Attempt to insert into table that does not exist. Creating table first as parameter create_table=True", errors.SQLObjectCreation)
+                    _ = self.__create__.table_from_dataframe(table_name, dataframe)
+                    self.__connection__.cursor.executemany(statement, values)
+                else:
+                    raise errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
             elif 'Invalid column name' in str(error):
-                raise errors.ColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
+                raise errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
             elif 'String data, right truncation' in str(error):
-                raise errors.InsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
+                raise errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
             else:
-                raise errors.GeneralError("GeneralError") from None
+                raise errors.SQLGeneral("SQLGeneral") from None
         except pyodbc.DataError as error:
-            raise errors.InsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
+            raise errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
         except Exception as error:
-            raise errors.GeneralError("Generic error attempting to insert values.")
+            raise errors.SQLGeneral("Generic error attempting to insert values.")
 
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None):
@@ -375,16 +378,16 @@ class write():
         if match_columns is None:
             match_columns = list(schema[schema['is_primary_key']].index)
             if len(match_columns)==0:
-                raise errors.UndefinedSQLPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
+                raise errors.SQLUndefinedPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
         # check match_column presence is SQL table
         if sum(schema.index.isin(match_columns))!=len(match_columns):
-            raise errors.UndefinedSQLColumn('match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
+            raise errors.SQLUndefinedColumn('match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
         # check match_column presence in dataframe, use dataframe index if needed
         if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
             if len([x for x in match_columns if x==dataframe.index.name])>0:
                 dataframe = dataframe.reset_index()
             else:
-                raise errors.UndefinedDataframeColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
+                raise errors.DataframeUndefinedColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
 
         # check if new columns need to be added to SQL table
         new = dataframe.columns[~dataframe.columns.isin(schema.index)]

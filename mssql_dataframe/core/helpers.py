@@ -9,7 +9,21 @@ from mssql_dataframe.core import errors, create, write
 
 
 def execute(connection, statement:str, args:list=None):
-    '''Execute an SQL statement prevent exposing any errors.'''
+    '''Execute an SQL statement prevent exposing any errors.
+    
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    statement (str) : statement to execute
+    args (list, default=None) : optional placeholder arguments to pass when executing statement
+
+    Returns
+    -------
+
+    None
+    
+    '''
 
     try:
         if args is None:
@@ -17,10 +31,8 @@ def execute(connection, statement:str, args:list=None):
         else:
             connection.cursor.execute(statement, *args)
     except:
-        raise errors.GeneralError("GeneralError") from None
-
-    return connection
-
+        raise errors.SQLGeneral("SQLGeneral") from None
+    
 
 def safe_sql(connection, inputs):
     ''' Sanitize a list of string inputs into safe object names.
@@ -58,11 +70,11 @@ def safe_sql(connection, inputs):
     statement = "SELECT {syntax}"
     syntax = ", ".join(["QUOTENAME(?)"]*len(inputs))
     statement = statement.format(syntax=syntax)
-    connection = execute(connection, statement, inputs)
+    execute(connection, statement, inputs)
     clean = connection.cursor.fetchone()
     # a value is too long and returns None, so raise an exception
     if len([x for x in clean if x is None])>0:
-        raise errors.InvalidLengthSQLObjectName("SQL object name is too long.") from None
+        raise errors.SQLInvalidLengthObjectName("SQL object name is too long.") from None
     
     # reconstruct possible schema specification
     clean = list(zip(clean,schema))
@@ -110,7 +122,7 @@ def where_clause(connection, where: str):
     # split on comparison operator
     conditions = [re.split(comparison,x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions)==1 and len(conditions[0])==1:
-        raise errors.InvalidSyntax("invalid syntax for where = "+where)
+        raise errors.SQLInvalidSyntax("invalid syntax for where = "+where)
     # form dict for each colum, while handling IS NULL/IS NOT NULL split
     conditions = [[y.strip() for y in x] for x in conditions]
     conditions = {x[0]:(x[1::] if len(x[2])>0 else [x[1]]) for x in conditions}
@@ -197,8 +209,11 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     strings = dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str'))]
     datetimes = dataframe.select_dtypes('datetime').columns
     numeric = dataframe.select_dtypes(include=np.number).columns
-    include = dataframe[list(datetimes)+list(numeric)].idxmax()
-    include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
+    include = pd.Series(dtype='int64')
+    if len(datetimes)>0 or len(numeric)>0:
+        include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
+    if len(strings)>0:
+        include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
     include = include.drop_duplicates()
     subset = subset.append(dataframe.loc[include[~include.isin(subset.index)]])
 
@@ -282,7 +297,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     args = [table_name] + column_names
 
     # execute statement
-    connection = execute(connection, statement, args)
+    execute(connection, statement, args)
     dtypes = connection.cursor.fetchall()
     dtypes = [x[1] for x in dtypes]
     dtypes = list(zip(column_names,dtypes))
@@ -313,7 +328,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     dataframe (pandas.DataFrame) :
     '''
 
-    connection = execute(connection, statement, args)
+    execute(connection, statement, args)
 
     # return result as string if SQL ODBC data type is not defined
     undefined_type = None
@@ -328,11 +343,11 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
                 # set undefined type default conversion as str
                 default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
-                connection = execute(connection, statement, args)
+                execute(connection, statement, args)
             else:
-                raise errors.GeneralError("General error reading query.")
+                raise errors.SQLGeneral("General error reading query.")
         except:
-            raise errors.GeneralError("General error reading query.")
+            raise errors.SQLGeneral("General error reading query.")
 
     # form dataframe with column names
     dataframe = [list(x) for x in dataframe]
@@ -395,7 +410,7 @@ def get_schema(connection, table_name: str):
 
     schema = read_query(connection, statement)
     if len(schema)==0:
-         raise errors.TableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
+         raise errors.SQLTableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
     
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)
@@ -418,7 +433,7 @@ def get_schema(connection, table_name: str):
     schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
     undefined = list(schema[schema['python_type'].isna()].index)
     if len(undefined)>0:
-        warnings.warn("Undefined dataframe best data type generically inferred as strings for columns : "+str(undefined))
+        warnings.warn("Columns : "+str(undefined), errors.DataframeUndefinedBestType)
         schema['python_type'] = schema['python_type'].fillna('str')
 
     return schema

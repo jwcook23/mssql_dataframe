@@ -23,7 +23,7 @@ def sql():
 
 def test_execute(sql):
 
-    with pytest.raises(errors.GeneralError):
+    with pytest.raises(errors.SQLGeneral):
         helpers.execute(sql.connection, statement='error')
 
 
@@ -56,7 +56,7 @@ def test_safe_sql(sql):
     assert isinstance(clean, str)
 
     # value that is too long
-    with pytest.raises(errors.InvalidLengthSQLObjectName):
+    with pytest.raises(errors.SQLInvalidLengthObjectName):
         helpers.safe_sql(sql.connection, inputs='a'*1000)
 
 
@@ -73,7 +73,7 @@ def test_where_clause(sql):
     assert where_args==['4']
 
     conditions = 'no operator present'
-    with pytest.raises(errors.InvalidSyntax):
+    with pytest.raises(errors.SQLInvalidSyntax):
         helpers.where_clause(sql.connection, conditions)
 
 
@@ -158,7 +158,7 @@ def test_get_schema_errors(sql):
 
     # table does not exist
     table_name = '##test_get_schema_errors'
-    with pytest.raises(errors.TableDoesNotExist):
+    with pytest.raises(errors.SQLTableDoesNotExist):
         helpers.get_schema(sql.connection, table_name)
 
 
@@ -171,7 +171,7 @@ def test_get_schema_undefined(sql):
     with warnings.catch_warnings(record=True) as warn:
         schema = helpers.get_schema(sql.connection, table_name)
         assert len(warn)==1
-        assert issubclass(warn[-1].category, UserWarning)
+        assert isinstance(warn[-1].message, errors.DataframeUndefinedBestType)
         assert "['_geography', '_hierarchyid']" in str(warn[-1].message)
         assert all(schema['python_type']=='str')
 
@@ -185,7 +185,7 @@ def test_read_query_undefined_type(sql):
     geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
     datetimeoffset = "'12-10-25 12:32:10 +01:00'"
     statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
-    sql.connection.cursor.execute(statement.format(
+    sql.connection.connection.cursor().execute(statement.format(
         table_name=table_name,
         geography=geography,
         datetimeoffset=datetimeoffset

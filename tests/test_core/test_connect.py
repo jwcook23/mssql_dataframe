@@ -16,5 +16,5 @@ def test_connect():
         connect.connect(database_name='master', server_name='localhost', username='admin', password='')
     
     # invalid driver name
-    with pytest.raises(errors.ODBCDriverNotFound):
+    with pytest.raises(errors.EnvironmentODBCDriverNotFound):
         connect.connect(database_name='master', server_name='localhost', driver='')
