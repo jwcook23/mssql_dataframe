@@ -1,5 +1,4 @@
 from typing import Literal
-import warnings
 
 import pandas as pd
 import numpy as np
@@ -10,21 +9,23 @@ from mssql_dataframe.core import errors, helpers, create, modify
 
 class write():
 
-    def __init__(self, connection):
+    def __init__(self, connection, adjust_sql_objects):
         '''Class for writing to SQL tables.
         
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
+        adjust_sql_objects (bool) : create and modify SQL table and columns as needed if True
+
         '''
 
         self.__connection__ = connection
         self.__create__ = create.create(connection)
         self.__modify__ = modify.modify(connection)
+        self.adjust_sql_objects = adjust_sql_objects
 
 
-    def insert(self, table_name: str, dataframe: pd.DataFrame, 
-    create_table: bool = True, add_column: bool = True, alter_column: bool = True):
+    def insert(self, table_name: str, dataframe: pd.DataFrame):
         """Insert data into SQL table from a dataframe.
 
         Parameters
@@ -32,9 +33,6 @@ class write():
 
         table_name (str) : name of table to insert data into
         dataframe (pd.DataFrame): tabular data to insert
-        create_table (bool, default=True) : if table doesn't exist, create it
-        add_column (bool, default=True) : if column doesn't exist, create it
-        alter_column (bool, default=True) : if column data type and size don't allow insert, adjust it
 
         Returns
         -------
@@ -74,23 +72,10 @@ class write():
         values = dataframe.values.tolist()
         try:
             self.__connection__.cursor.executemany(statement, values)
-        except pyodbc.ProgrammingError as error:
-            if 'Invalid object name' in str(error):
-                if create_table:
-                    warnings.warn("Attempt to insert into table that does not exist. Creating table first as parameter create_table=True", errors.SQLObjectCreation)
-                    _ = self.__create__.table_from_dataframe(table_name, dataframe)
-                    self.__connection__.cursor.executemany(statement, values)
-                else:
-                    raise errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
-            elif 'Invalid column name' in str(error):
-                raise errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
-            elif 'String data, right truncation' in str(error):
-                raise errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
-            else:
-                raise errors.SQLGeneral("SQLGeneral") from None
-        except pyodbc.DataError as error:
-            raise errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
-        except Exception as error:
+        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+            helpers.write_error(self.__connection__, table_name, dataframe, error_class, self.adjust_sql_objects)
+            self.__connection__.cursor.executemany(statement, values)
+        except Exception:
             raise errors.SQLGeneral("Generic error attempting to insert values.")
 
 
@@ -342,28 +327,28 @@ class write():
         return dataframe
 
 
-    def __new_column(self, table_name: str, dataframe: pd.DataFrame, column_names: list):
-        '''Add new column(s) to table after insert failure.
+    # def __new_column(self, table_name: str, dataframe: pd.DataFrame, column_names: list):
+    #     '''Add new column(s) to table after insert failure.
         
-        Parameters
-        ----------
+    #     Parameters
+    #     ----------
 
-        table_name (str) : name of table to add column(s)
-        dataframe (pandas.DataFrame) : data containing columns(s) to add
-        column_names (list) : new column(s) to add
+    #     table_name (str) : name of table to add column(s)
+    #     dataframe (pandas.DataFrame) : data containing columns(s) to add
+    #     column_names (list) : new column(s) to add
 
-        Returns
-        -------
-        None
-        '''
+    #     Returns
+    #     -------
+    #     None
+    #     '''
 
-        table_temp = "##__new_column_"+table_name
+    #     table_temp = "##__new_column_"+table_name
 
-        dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe[column_names])
+    #     dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe[column_names])
 
-        for column, data_type in dtypes.items():
-            # SQL does not allow adding a non-null column
-            self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+    #     for column, data_type in dtypes.items():
+    #         # SQL does not allow adding a non-null column
+    #         self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
 
 
     def __prep_update_merge(self, table_name, match_columns, dataframe, operation: Literal['update','merge']):
@@ -390,9 +375,11 @@ class write():
                 raise errors.DataframeUndefinedColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
 
         # check if new columns need to be added to SQL table
-        new = dataframe.columns[~dataframe.columns.isin(schema.index)]
-        if len(new)>0:
-            self.__new_column(table_name, dataframe.reset_index(drop=True), column_names=new)
+        # new = dataframe.columns[~dataframe.columns.isin(schema.index)]
+        if any(~dataframe.columns.isin(schema.index)):
+            # self.__new_column(table_name, dataframe.reset_index(drop=True), column_names=new)
+            error_class = pyodbc.ProgrammingError('Invalid column name')
+            helpers.write_error(self.__connection__, table_name, dataframe, error_class, self.adjust_sql_objects)
             schema = helpers.get_schema(self.__connection__, table_name)
         temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
         columns, not_null, primary_key_column, _ = self.__create__._create__table_schema(temp)

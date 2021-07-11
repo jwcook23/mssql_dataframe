@@ -24,8 +24,12 @@ class SQLUndefinedPrimaryKey(Exception):
     '''Exception for undefined SQL primary key in table.'''
     pass
 
-class SQLInsufficientColumnSize(Exception):
-    '''Exception for insufficient column size to insert a value.'''
+class SQLInsufficientStringColumnSize(Exception):
+    '''Exception for insufficient column size to insert a string like value.'''
+    pass
+
+class SQLInsufficientNumericColumnSize(Exception):
+    '''Exception for insufficient column size to insert a numeric like value.'''
     pass
 
 class SQLUndefinedColumn(Exception):
@@ -36,12 +40,8 @@ class SQLInvalidLengthObjectName(Exception):
     '''Exception for an SQL object name that is too long.'''
     pass
 
-class SQLObjectCreation(Warning):
-    '''Warning for creating an SQL object.'''
-    pass
-
-class SQLObjectModification(Warning):
-    '''Warning for modifying an SQL object'''
+class SQLObjectAdjustment(Warning):
+    '''Warning for creating of modifying an SQL object'''
     pass
 
 class DataframeUndefinedColumn(Exception):

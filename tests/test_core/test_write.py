@@ -6,20 +6,27 @@ import pandas as pd
 import numpy as np
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, write, read
+from mssql_dataframe.collection import SQLServer
+from mssql_dataframe.core import errors #, create, write, read
 
 
-class package:
-    def __init__(self, connection):
-        self.create = create.create(connection)
-        self.write = write.write(connection)
-        self.read = read.read(connection)
+# class package:
+#     def __init__(self, connection):
+#         self.create = create.create(connection)
+#         self.write = write.write(connection)
+#         self.read = read.read(connection)
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
-    yield package(db)
-    db.connection.close()
+    connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
+    yield SQLServer(connection, adjust_sql_objects=False)
+    connection.connection.close()
+
+@pytest.fixture(scope="module")
+def sql_adjustable():
+    connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
+    yield SQLServer(connection, adjust_sql_objects=True)
+    connection.connection.close()
 
 
 def test_prepare_values(sql):
@@ -88,34 +95,47 @@ def test_insert_errors(sql):
     })
 
     with pytest.raises(errors.SQLTableDoesNotExist):
-        sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), create_table=False)
+        sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), add_column=False)
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}))
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}), alter_column=False)
+    with pytest.raises(errors.SQLInsufficientStringColumnSize):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), alter_column=False)
+    with pytest.raises(errors.SQLInsufficientNumericColumnSize):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
 
 
-def test_insert_create_table(sql):
+def test_insert_create_table(sql_adjustable):
 
     table_name = '##test_insert_create_table'
     dataframe = pd.DataFrame({
         "ColumnA": [1,2]
     })
     with warnings.catch_warnings(record=True) as warn:
-        sql.write.insert(table_name, dataframe=dataframe, create_table=True)
-        results = sql.read.select(table_name)
+        sql_adjustable.write.insert(table_name, dataframe=dataframe)
+        results = sql_adjustable.read.select(table_name)
         assert len(warn)==1
-        assert isinstance(warn[-1].message, errors.SQLObjectCreation)
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
         assert all(results==dataframe)
 
 
-def test_insert_add_column(sql):
-    pass
+def test_insert_add_column(sql_adjustable):
+
+    table_name = '##test_insert_add_column'
+    sql_adjustable.create.table(table_name, columns={
+            'ColumnA': 'TINYINT'
+    })
+
+    dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [2]})
+
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.write.insert(table_name, dataframe=dataframe)
+        results = sql_adjustable.read.select(table_name)
+        assert len(warn)==1
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert all(results==dataframe)
 
 
 def test_insert_alter_column(sql):

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe.core import errors, create, write
+from mssql_dataframe.core import errors, create, write, modify
 
 
 def execute(connection, statement:str, args:list=None):
@@ -33,6 +33,55 @@ def execute(connection, statement:str, args:list=None):
     except:
         raise errors.SQLGeneral("SQLGeneral") from None
     
+
+def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
+    ''' Read SQL query and return results in a dataframe. Skip errors due to undefined ODBC SQL data types.
+
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    statement (str) : statement to execute
+    args (list, default=None) : arguments to pass to execute
+
+    Returns
+    -------
+    
+    dataframe (pandas.DataFrame) :
+    '''
+
+    execute(connection, statement, args)
+
+    # return result as string if SQL ODBC data type is not defined
+    undefined_type = None
+    default_index = []
+    while undefined_type is None or len(undefined_type)>0:
+        try:
+            dataframe = connection.cursor.fetchall()
+            undefined_type = []
+        except pyodbc.ProgrammingError as error:
+            undefined_type = re.findall(r'ODBC SQL type (-?\d+) is not yet supported.*',error.args[0])
+            if len(undefined_type)>0:
+                # set undefined type default conversion as str
+                default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
+                connection.connection.add_output_converter(int(undefined_type[0]), str)
+                execute(connection, statement, args)
+            else:
+                raise errors.SQLGeneral("General error reading query.")
+        except:
+            raise errors.SQLGeneral("General error reading query.")
+
+    # form dataframe with column names
+    dataframe = [list(x) for x in dataframe]
+    columns = [col[0] for col in connection.cursor.description]
+    dataframe = pd.DataFrame(dataframe, columns=columns)
+
+    # issue warning for undefined SQL ODBC data types
+    if len(default_index)>0:
+        warnings.warn("Undefined Python data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
+
+    return dataframe
+
 
 def safe_sql(connection, inputs):
     ''' Sanitize a list of string inputs into safe object names.
@@ -228,7 +277,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # # treat empty like as None (NULL in SQL)
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})
     # insert subset of data then use SQL to determine SQL data type
-    wrt = write.write(connection)
+    wrt = write.write(connection, adjust_sql_objects=False)
     wrt.insert(table_name, dataframe=subset)
 
     statement = """
@@ -312,55 +361,6 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     return dtypes
 
 
-def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
-    ''' Read SQL query and return results in a dataframe. Skip errors due to undefined ODBC SQL data types.
-
-    Parameters
-    ----------
-
-    connection (mssql_dataframe.connect) : connection for executing statement
-    statement (str) : statement to execute
-    args (list, default=None) : arguments to pass to execute
-
-    Returns
-    -------
-    
-    dataframe (pandas.DataFrame) :
-    '''
-
-    execute(connection, statement, args)
-
-    # return result as string if SQL ODBC data type is not defined
-    undefined_type = None
-    default_index = []
-    while undefined_type is None or len(undefined_type)>0:
-        try:
-            dataframe = connection.cursor.fetchall()
-            undefined_type = []
-        except pyodbc.ProgrammingError as error:
-            undefined_type = re.findall(r'ODBC SQL type (-?\d+) is not yet supported.*',error.args[0])
-            if len(undefined_type)>0:
-                # set undefined type default conversion as str
-                default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
-                connection.connection.add_output_converter(int(undefined_type[0]), str)
-                execute(connection, statement, args)
-            else:
-                raise errors.SQLGeneral("General error reading query.")
-        except:
-            raise errors.SQLGeneral("General error reading query.")
-
-    # form dataframe with column names
-    dataframe = [list(x) for x in dataframe]
-    columns = [col[0] for col in connection.cursor.description]
-    dataframe = pd.DataFrame(dataframe, columns=columns)
-
-    # issue warning for undefined SQL ODBC data types
-    if len(default_index)>0:
-        warnings.warn("Undefined Python data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
-
-    return dataframe
-
-
 def get_schema(connection, table_name: str):
     ''' Get SQL schema of a table.
 
@@ -437,3 +437,89 @@ def get_schema(connection, table_name: str):
         schema['python_type'] = schema['python_type'].fillna('str')
 
     return schema
+
+
+def write_error(connection, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error, adjust_sql_objects: bool):
+    ''' Handle an SQL write error by rasing an appropriate exeception or adjusting the SQL table. If adjust_sql==True,
+    the table may be created or columns may be added or modified.
+
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    table_name (str) : name of table to adjust
+    dataframe (pandas.DataFrame) : tabular data to compare against SQL table
+    error_class (pyodbc.Error) : a pyodbc error
+    adjust_sql_objects (bool) : if False raise an error, otherwise make SQL adjustments
+
+    Returns
+    -------
+    None
+
+    '''
+
+    # determine class of error
+    if 'Invalid object name' in str(error_class):
+        error_message =  errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name))
+    elif 'Invalid column name' in str(error_class):
+        error_message =  errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name))
+    elif 'String data, right truncation' in str(error_class):
+        error_message = errors.SQLInsufficientStringColumnSize("A string column in {table_name} has insuffcient size.".format(table_name=table_name))
+    elif 'Numeric value out of range' in str(error_class):
+        error_message = errors.SQLInsufficientNumericColumnSize("A numeric column in {table_name} has insuffcient size.".format(table_name=table_name))
+    else:
+        error_message = errors.SQLGeneral("Generic write execption.")
+    
+    # raise or handle error
+    if not adjust_sql_objects:
+        raise error_message from None
+    else:
+        if isinstance(error_message, errors.SQLTableDoesNotExist):
+            warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
+            bld = create.create(connection)
+            bld.table_from_dataframe(table_name, dataframe)
+        else:
+            schema = get_schema(connection, table_name)
+            mdy = modify.modify(connection)
+            if isinstance(error_message, errors.SQLColumnDoesNotExist):
+                table_temp = "##__new_column_"+table_name
+                new = dataframe.columns[~dataframe.columns.isin(schema.index)]
+                dtypes = infer_datatypes(connection, table_temp, dataframe[new])
+                for column, data_type in dtypes.items():
+                    warnings.warn('Creating column {} in table {}'.format(column, table_name), errors.SQLObjectAdjustment)
+                    mdy.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+
+
+    # if 'Invalid object name' in str(error_class):
+    #     if adjust:
+    #         warnings.warn("Creating table {} as adjust_sql=True".format(table_name), errors.SQLObjectAdjustment)
+    #         helpers.adjust_sql(, table_name, dataframe, error_class=errors.SQLTableDoesNotExist)
+    #     else:
+    #         raise errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
+    # elif 'Invalid column name' in str(error):
+    #     if adjust_sql:
+    #         warnings.warn("Insert attempt into nonexistant column. Creating column then inserting as adjust_sql=True", errors.SQLObjectAdjustment)
+    #         helpers.adjust_sql(self.__connection__, table_name, dataframe, error_class=errors.SQLColumnDoesNotExist)
+    #     else:
+    #         raise errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
+    # elif 'String data, right truncation' in str(error):
+    #     if adjust_sql:
+    #         warnings.warn("Insert attempt into string column with insufficient size. Adjusting column then inserting as adjust_sql=True", errors.SQLInsufficientColumnSize)
+    #         helpers.adjust_sql(self.__connection__, table_name, dataframe, error_class=errors.SQLInsufficientColumnSize)
+    #     else:
+    #         raise errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
+    # else:
+    #     raise errors.SQLGeneral("SQLGeneral") from None
+
+    # raise errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
+
+    # # determine action that needs to be taken
+    # try:
+    #     schema = get_schema(connection, table_name)
+    # except errors.SQLTableDoesNotExist:
+    #     schema = None
+
+    # if schema is None:
+    #     # table doesn't exist, create it
+    #     bld = create.create(connection)
+    #     bld.table_from_dataframe(table_name, dataframe)
