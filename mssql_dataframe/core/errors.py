@@ -24,12 +24,8 @@ class SQLUndefinedPrimaryKey(Exception):
     '''Exception for undefined SQL primary key in table.'''
     pass
 
-class SQLInsufficientStringColumnSize(Exception):
-    '''Exception for insufficient column size to insert a string like value.'''
-    pass
-
-class SQLInsufficientNumericColumnSize(Exception):
-    '''Exception for insufficient column size to insert a numeric like value.'''
+class SQLInsufficientColumnSize(Exception):
+    '''Exception for insufficient column size to insert a numeric or string.'''
     pass
 
 class SQLUndefinedColumn(Exception):

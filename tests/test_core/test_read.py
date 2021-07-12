@@ -8,7 +8,7 @@ from mssql_dataframe.core import create, write, read
 class package:
     def __init__(self, connection):
         self.create = create.create(connection)
-        self.write = write.write(connection)
+        self.write = write.write(connection, adjust_sql_objects=False)
         self.read = read.read(connection)
 
 @pytest.fixture(scope="module")

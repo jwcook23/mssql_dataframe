@@ -34,27 +34,6 @@ def dataframe():
     return dataframe
 
 
-def test__table_schema(sql):
-
-    schema = pd.DataFrame.from_dict(
-        {
-        '_index': ['bit', 1, 1, 0, False, False, True],
-        'ColumnA': ['tinyint', 1, 3, 0, False, False, False],
-        'ColumnB': ['varchar', 1, 0, 0, False, False, False],
-        'ColumnC': ['decimal', 5, 5, 2, False, False, False]
-        }, orient='index', columns = ['data_type','max_length','precision','scale','is_nullable','is_identity','is_primary_key']
-    )
-    schema.index.name = 'column_name'
-
-    columns, not_null, primary_key_column, sql_primary_key = sql.create._create__table_schema(schema)
-
-    
-    assert columns=={'_index': 'bit', 'ColumnA': 'tinyint', 'ColumnB': 'varchar(1)', 'ColumnC': 'decimal(5,2)'}
-    assert not_null==['_index', 'ColumnA', 'ColumnB', 'ColumnC']
-    assert primary_key_column=='_index'
-    assert sql_primary_key==False
-
-
 def test_table_column(sql):
 
     table_name = '##test_table_column'

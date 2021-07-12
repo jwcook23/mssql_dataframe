@@ -288,17 +288,17 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
         SELECT ColumnName,
         (CASE 
             WHEN count(try_convert(BIT, _Column)) = count(_Column) 
-                AND MAX(_Column)=1 AND count(_Column)>2 THEN ''BIT''
-            WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''TINYINT''
-            WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''SMALLINT''
-            WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''INT''
-            WHEN count(try_convert(BIGINT, _Column)) = count(_Column) THEN ''BIGINT''
+                AND MAX(_Column)=1 AND count(_Column)>2 THEN ''bit''
+            WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''tinyint''
+            WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''smallint''
+            WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''int''
+            WHEN count(try_convert(BIGINT, _Column)) = count(_Column) THEN ''bigint''
             WHEN count(try_convert(TIME, _Column)) = count(_Column) 
                 AND SUM(CASE WHEN try_convert(DATE, _Column) = ''1900-01-01'' THEN 0 ELSE 1 END) = 0
-                THEN ''TIME''
-            WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''DATETIME''
-            WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''FLOAT''
-            ELSE ''VARCHAR''
+                THEN ''time''
+            WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''datetime''
+            WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''float''
+            ELSE ''varchar''
         END) AS type
         FROM '+QUOTENAME(@TableName)+'
         CROSS APPLY (VALUES
@@ -353,9 +353,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     dtypes = {x[0]:x[1] for x in dtypes}
 
     # determine length of VARCHAR columns
-    length = [k for k,v in dtypes.items() if v=="VARCHAR"]
+    length = [k for k,v in dtypes.items() if v=="varchar"]
     length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
-    length = {k:"VARCHAR("+str(v)+")" for k,v in length.items()}
+    length = {k:"varchar("+str(v)+")" for k,v in length.items()}
     dtypes.update(length)
 
     return dtypes
@@ -439,87 +439,51 @@ def get_schema(connection, table_name: str):
     return schema
 
 
-def write_error(connection, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error, adjust_sql_objects: bool):
-    ''' Handle an SQL write error by rasing an appropriate exeception or adjusting the SQL table. If adjust_sql==True,
-    the table may be created or columns may be added or modified.
-
+def flatten_schema(schema): 
+    '''Convert dataframe to a flatoutput from helpers.get_schema to inputs for table function.'''
+    '''Flatten dataframe output of get_schema function into simple outputs
+    
     Parameters
     ----------
 
-    connection (mssql_dataframe.connect) : connection for executing statement
-    table_name (str) : name of table to adjust
-    dataframe (pandas.DataFrame) : tabular data to compare against SQL table
-    error_class (pyodbc.Error) : a pyodbc error
-    adjust_sql_objects (bool) : if False raise an error, otherwise make SQL adjustments
+    schema (pandas.DataFrame) : output from get_schema function
 
     Returns
     -------
-    None
+
+    columns (dict) : keys = column names, values = data types and optionally size/precision
+    not_null (list) : list of columns to set as not null, or an empty list
+    primary_key_column (str, default=None) : column that is the primary key, or None
+    sql_primary_key (bool) : if the primary key is an SQL identity column
 
     '''
-
-    # determine class of error
-    if 'Invalid object name' in str(error_class):
-        error_message =  errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name))
-    elif 'Invalid column name' in str(error_class):
-        error_message =  errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name))
-    elif 'String data, right truncation' in str(error_class):
-        error_message = errors.SQLInsufficientStringColumnSize("A string column in {table_name} has insuffcient size.".format(table_name=table_name))
-    elif 'Numeric value out of range' in str(error_class):
-        error_message = errors.SQLInsufficientNumericColumnSize("A numeric column in {table_name} has insuffcient size.".format(table_name=table_name))
-    else:
-        error_message = errors.SQLGeneral("Generic write execption.")
     
-    # raise or handle error
-    if not adjust_sql_objects:
-        raise error_message from None
-    else:
-        if isinstance(error_message, errors.SQLTableDoesNotExist):
-            warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
-            bld = create.create(connection)
-            bld.table_from_dataframe(table_name, dataframe)
-        else:
-            schema = get_schema(connection, table_name)
-            mdy = modify.modify(connection)
-            if isinstance(error_message, errors.SQLColumnDoesNotExist):
-                table_temp = "##__new_column_"+table_name
-                new = dataframe.columns[~dataframe.columns.isin(schema.index)]
-                dtypes = infer_datatypes(connection, table_temp, dataframe[new])
-                for column, data_type in dtypes.items():
-                    warnings.warn('Creating column {} in table {}'.format(column, table_name), errors.SQLObjectAdjustment)
-                    mdy.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+    schema = schema.copy()
 
+    # determine column's value
+    schema[['max_length','precision','scale']] = schema[['max_length','precision','scale']].astype('str')
+    schema['value'] = schema['data_type']
+    # length
+    dtypes = ['varchar','nvarchar']
+    idx = schema['data_type'].isin(dtypes)
+    schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'max_length']+')'
+    # precision & scale
+    dtypes = ['decimal','numeric']
+    idx = schema['data_type'].isin(dtypes)
+    schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'precision']+','+schema.loc[idx,'scale']+')'
 
-    # if 'Invalid object name' in str(error_class):
-    #     if adjust:
-    #         warnings.warn("Creating table {} as adjust_sql=True".format(table_name), errors.SQLObjectAdjustment)
-    #         helpers.adjust_sql(, table_name, dataframe, error_class=errors.SQLTableDoesNotExist)
-    #     else:
-    #         raise errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name)) from None
-    # elif 'Invalid column name' in str(error):
-    #     if adjust_sql:
-    #         warnings.warn("Insert attempt into nonexistant column. Creating column then inserting as adjust_sql=True", errors.SQLObjectAdjustment)
-    #         helpers.adjust_sql(self.__connection__, table_name, dataframe, error_class=errors.SQLColumnDoesNotExist)
-    #     else:
-    #         raise errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name)) from None
-    # elif 'String data, right truncation' in str(error):
-    #     if adjust_sql:
-    #         warnings.warn("Insert attempt into string column with insufficient size. Adjusting column then inserting as adjust_sql=True", errors.SQLInsufficientColumnSize)
-    #         helpers.adjust_sql(self.__connection__, table_name, dataframe, error_class=errors.SQLInsufficientColumnSize)
-    #     else:
-    #         raise errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
-    # else:
-    #     raise errors.SQLGeneral("SQLGeneral") from None
+    columns = schema['value'].to_dict()
+    
+    
+    # non-null columns
+    not_null = list(schema[~schema['is_nullable']].index)
 
-    # raise errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size to insert values.".format(table_name=table_name)) from None
+    # primary_key_column/sql_primary_key
+    primary_key_column = None
+    sql_primary_key = False
+    if sum(schema['is_identity'] & schema['is_primary_key'])==1:
+        sql_primary_key = True
+    elif sum(schema['is_primary_key'])==1:
+        primary_key_column = schema[schema['is_primary_key']].index[0]
 
-    # # determine action that needs to be taken
-    # try:
-    #     schema = get_schema(connection, table_name)
-    # except errors.SQLTableDoesNotExist:
-    #     schema = None
-
-    # if schema is None:
-    #     # table doesn't exist, create it
-    #     bld = create.create(connection)
-    #     bld.table_from_dataframe(table_name, dataframe)
+    return columns, not_null, primary_key_column, sql_primary_key

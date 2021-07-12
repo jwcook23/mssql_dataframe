@@ -7,25 +7,13 @@ import numpy as np
 
 from mssql_dataframe import connect
 from mssql_dataframe.collection import SQLServer
-from mssql_dataframe.core import errors #, create, write, read
+from mssql_dataframe.core import errors, helpers
 
-
-# class package:
-#     def __init__(self, connection):
-#         self.create = create.create(connection)
-#         self.write = write.write(connection)
-#         self.read = read.read(connection)
 
 @pytest.fixture(scope="module")
 def sql():
     connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
     yield SQLServer(connection, adjust_sql_objects=False)
-    connection.connection.close()
-
-@pytest.fixture(scope="module")
-def sql_adjustable():
-    connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
-    yield SQLServer(connection, adjust_sql_objects=True)
     connection.connection.close()
 
 
@@ -100,46 +88,11 @@ def test_insert_errors(sql):
     with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}))
 
-    with pytest.raises(errors.SQLInsufficientStringColumnSize):
+    with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}))
 
-    with pytest.raises(errors.SQLInsufficientNumericColumnSize):
+    with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}))
-
-
-def test_insert_create_table(sql_adjustable):
-
-    table_name = '##test_insert_create_table'
-    dataframe = pd.DataFrame({
-        "ColumnA": [1,2]
-    })
-    with warnings.catch_warnings(record=True) as warn:
-        sql_adjustable.write.insert(table_name, dataframe=dataframe)
-        results = sql_adjustable.read.select(table_name)
-        assert len(warn)==1
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
-        assert all(results==dataframe)
-
-
-def test_insert_add_column(sql_adjustable):
-
-    table_name = '##test_insert_add_column'
-    sql_adjustable.create.table(table_name, columns={
-            'ColumnA': 'TINYINT'
-    })
-
-    dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [2]})
-
-    with warnings.catch_warnings(record=True) as warn:
-        sql_adjustable.write.insert(table_name, dataframe=dataframe)
-        results = sql_adjustable.read.select(table_name)
-        assert len(warn)==1
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
-        assert all(results==dataframe)
-
-
-def test_insert_alter_column(sql):
-    pass
 
 
 def test__prep_update_merge(sql):
@@ -223,28 +176,6 @@ def test_update_two_match_columns(sql):
     result = sql.read.select(table_name)
     expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
     assert (expected.values==result[['ColumnA','ColumnB','ColumnC']].values).all()
-    assert (result['_time_update'].notna()).all()
-
-
-def test_update_new_column(sql):
-    
-    table_name = '##test_update_new_column'
-
-    # create table to update
-    dataframe = pd.DataFrame({
-        'ColumnA': [1,2]
-    })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
-    sql.write.insert(table_name, dataframe)
-
-    # update values in table, using the primary key created in SQL
-    dataframe['NewColumn'] = [3,4]
-    sql.write.update(table_name, dataframe[['NewColumn']])
-
-    # test result
-    result = sql.read.select(table_name)
-    expected = pd.DataFrame({'ColumnA': [1,2], 'NewColumn': [3,4]})
-    assert (expected.values==result[['ColumnA','NewColumn']].values).all()
     assert (result['_time_update'].notna()).all()
 
 
