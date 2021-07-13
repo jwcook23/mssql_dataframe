@@ -26,8 +26,7 @@ def test_prepare_values(sql):
     assert all(dataframe['Column'].values==None)
 
     dataframe = pd.DataFrame({
-        'Column': ['a  ','  b  ','c','','   '],
-        
+        'Column': ['a  ','  b  ','c','','   ']
     })
     dataframe = sql.write._write__prepare_values(dataframe)
     assert all(dataframe['Column'].values==['a','b','c',None,None])
@@ -65,7 +64,6 @@ def test_insert(sql):
     sql.write.insert(table_name, dataframe)
 
     # test all insertions
-    # get = mssql_dataframe.read.read(connection)
     results = sql.read.select(table_name)
     assert all(results.loc[results['ColumnA'].notna(),'ColumnA']==pd.Series([1,5,7], index=[0,4,6]))
     assert all(results.loc[results['ColumnB'].notna(),'ColumnB']==pd.Series([2,3,4,5,6], index=[1,2,3,4,5]))
@@ -115,26 +113,27 @@ def test__prep_update_merge(sql):
         sql.write._write__prep_update_merge(table_name, match_columns='ColumnB', dataframe=dataframe, operation='update')   
 
 
-def test_update_no_table(sql):
+def test_update_errors(sql):
 
-    table_name = '##test_update_no_table'
-
-    # create table to update
-    dataframe = pd.DataFrame({
-        '_pk': [0,1],
-        'ColumnA': [1,2]
-    }).set_index(keys='_pk')
-    
+    table_name = '##test_update_errors'
+    sql.create.table(table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(1)'
+    })
+ 
     with pytest.raises(errors.SQLTableDoesNotExist):
-        # attempt updating table that does not exist
-        sql.write.update(table_name, dataframe)
+        sql.write.update('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
+
+    with pytest.raises(errors.SQLColumnDoesNotExist):
+        sql.write.update(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
+
+    with pytest.raises(errors.SQLInsufficientColumnSize):
+        sql.write.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
 
 
 def test_update_one_match_column(sql):
 
     table_name = '##test_update_one_match_column'
-
-    # create table to update
     dataframe = pd.DataFrame({
         'ColumnA': [1,2],
         'ColumnB': ['a','b'],
@@ -143,22 +142,17 @@ def test_update_one_match_column(sql):
     dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # update values in table, using the primary key
+    # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe['ColumnC'] = [5,6]
     sql.write.update(table_name, dataframe[['ColumnC']])
-
-    # test result
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
-    assert (expected.values==result[['ColumnA','ColumnB','ColumnC']].values).all()
-    assert (result['_time_update'].notna()).all()
+    assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
+    assert all(result['_time_update'].notna())
 
 
 def test_update_two_match_columns(sql):
 
     table_name = '##test_update_two_match_columns'
-
-    # create table to update
     dataframe = pd.DataFrame({
         'ColumnA': [1,2],
         'ColumnB': ['a','b'],
@@ -171,50 +165,45 @@ def test_update_two_match_columns(sql):
     dataframe = sql.read.select(table_name)
     dataframe['ColumnC'] = [5,6]
     sql.write.update(table_name, dataframe, match_columns=['_pk','ColumnA'])
-
-    # test result
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({'ColumnA': [1,2], 'ColumnB': ['a','b'], 'ColumnC': [5,6]})
-    assert (expected.values==result[['ColumnA','ColumnB','ColumnC']].values).all()
-    assert (result['_time_update'].notna()).all()
+    assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
+    assert all(result['_time_update'].notna())
 
 
-def test_merge_no_table(sql):
+def test_merge_errors(sql):
     
-    table_name = "##test_merge_no_table"
-    
+    table_name = "##test_merge_errors"
+    sql.create.table(table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(1)'
+    })
+ 
     with pytest.raises(errors.SQLTableDoesNotExist):
-        # attempt merge into table that doesn't exist
-        dataframe = pd.DataFrame({
-            '_pk': [1,2],
-            'ColumnA': [5,6]
-        })
-        sql.write.merge(table_name, dataframe, match_columns=['_pk'])
+        sql.write.merge('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
+
+    with pytest.raises(errors.SQLColumnDoesNotExist):
+        sql.write.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
+
+    with pytest.raises(errors.SQLInsufficientColumnSize):
+        sql.write.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
 
 
 def test_merge_one_match_column(sql):
     
     table_name = "##test_merge_one_match_column"
-
-    # create table to merge into
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
     dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # perform merge
-    dataframe = pd.DataFrame({
-        '_index': [1,2],
-        'ColumnA': [5,6]
-    })
+    # merge values into table, using the SQL primary key that came from the dataframe's index
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    dataframe = dataframe.append(pd.Series([6], index=['ColumnA'], name=2))
     sql.write.merge(table_name, dataframe)
-
-    # test result
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({'ColumnA': [5,6]}, index=[1,2])
-    expected.index.name='_index'
-    assert (expected.values==result[['ColumnA']].values).all()
+    assert all(result[['ColumnA']]==dataframe['ColumnA'])
     assert all(result.loc[1,['_time_update']].notna())
     assert all(result.loc[1,['_time_insert']].isna())
     assert all(result.loc[2,['_time_insert']].notna())
@@ -222,106 +211,88 @@ def test_merge_one_match_column(sql):
 
 
 def test_merge_two_match_columns(sql):
-    table_name = "##test_merge_two_match_columns"
 
-    # create table to merge into
+    table_name = "##test_merge_two_match_columns"
     dataframe = pd.DataFrame({
-        '_pk': [0,1],
         'State': ['A','B'],
         'ColumnA': [3,4],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # perform merge
-    dataframe = pd.DataFrame({
-        '_pk': [1,2],
-        'State': ['B','C'],
-        'ColumnA': [5,6],
-        'ColumnB': ['c','d']
-    })
-    sql.write.merge(table_name, dataframe, match_columns=['_pk','State'])
-
-    # test result
+    # merge values into table, using the primary key that came from the dataframe's index and ColumnA
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    dataframe = dataframe.append(pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[2]))
+    dataframe.index.name = '_index'
+    sql.write.merge(table_name, dataframe, match_columns=['_index','State'])
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({'_pk': [1,2], 'State':['B','C'], 'ColumnA': [5,6], 'ColumnB': ['c','d']})
-    assert (expected.values==result[['_pk','State','ColumnA','ColumnB']].values).all()
-    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
-    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==2,'_time_insert'].notna())
-    assert all(result.loc[result['_pk']==2,'_time_update'].isna())
+    assert all(result[['State','ColumnA','ColumnB']]==dataframe[['State','ColumnA','ColumnB']])
+    assert all(result.loc[result.index==1,'_time_update'].notna())
+    assert all(result.loc[result.index==1,'_time_insert'].isna())
+    assert all(result.loc[result.index==2,'_time_insert'].notna())
+    assert all(result.loc[result.index==2,'_time_update'].isna())
 
 
 def test_merge_one_subset_column(sql):
     
     table_name = "##test_merge_one_subset_column"
-
-    # create table to merge into
     dataframe = pd.DataFrame({
-        '_pk': [0,1,2],
         'State': ['A','B','B'],
         'ColumnA': [3,4,4],
         'ColumnB': ['a','b','b']
-    })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    }, index=[0,1,2])
+    dataframe.index.name='_pk'
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # perform merge
-    dataframe = pd.DataFrame({
-        '_pk': [1,3],
-        'State': ['B','C'],
-        'ColumnA': [5,6],
-        'ColumnB': ['c','d']
-    })
+    # merge values into table, using the primary key that came from the dataframe's index
+    # also require a subset match on State to prevent a record from being deleted
+    dataframe = dataframe[dataframe.index==1]
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    dataframe.loc[dataframe.index==1,'ColumnB'] = 'c'
+    dataframe = dataframe.append(pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[3]))
+    dataframe.index.name = '_pk'
     sql.write.merge(table_name, dataframe, match_columns=['_pk'], subset_columns=['State'])
-
-    # test result
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({'_pk': [0,1,3], 'State':['A','B','C'], 'ColumnA': [3,5,6], 'ColumnB': ['a','c','d']})
-    assert (expected.values==result[['_pk','State','ColumnA','ColumnB']].values).all()
-    assert all(result.loc[result['_pk']==0,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==0,'_time_update'].isna())
-    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
-    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==3,'_time_insert'].notna())
-    assert all(result.loc[result['_pk']==3,'_time_update'].isna())
+    assert all(result.loc[[1,3],['State','ColumnA','ColumnB']]==dataframe)
+    assert all(result.loc[0,['State','ColumnA','ColumnB']]==pd.Series(['A',3,'a'], index=['State','ColumnA','ColumnB']))
+    assert all(result.loc[result.index==0,'_time_insert'].isna())
+    assert all(result.loc[result.index==0,'_time_update'].isna())
+    assert all(result.loc[result.index==1,'_time_update'].notna())
+    assert all(result.loc[result.index==1,'_time_insert'].isna())
+    assert all(result.loc[result.index==3,'_time_insert'].notna())
+    assert all(result.loc[result.index==3,'_time_update'].isna())
 
 
 def test_merge_two_subset_columns(sql):
 
     table_name = "##test_merge_two_subset_columns"
-
-    # create table to merge into
     dataframe = pd.DataFrame({
-        '_pk': [0,1,2],
         'State1': ['A','B','B'],
         'State2': ['X','Y','Z'],
         'ColumnA': [3,4,4],
         'ColumnB': ['a','b','b']
-    })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    }, index=[0,1,2])
+    dataframe.index.name = '_pk'
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe)
 
-    # perform merge
-    dataframe = pd.DataFrame({
-        '_pk': [1,3],
-        'State1': ['B','C'],
-        'State2': ['Y','Z'],
-        'ColumnA': [5,6],
-        'ColumnB': ['c','d']
-    })
+    # merge values into table, using the primary key that came from the dataframe's index
+    # also require a subset match on State1 and State2 to prevent a record from being deleted
+    dataframe = dataframe[dataframe.index==1]
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    dataframe.loc[dataframe.index==1,'ColumnB'] = 'c'
+    dataframe = dataframe.append(pd.DataFrame({'State1': ['C'], 'State2': ['Z'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[3]))
+    dataframe.index.name = '_pk'
     sql.write.merge(table_name, dataframe, match_columns=['_pk'], subset_columns=['State1','State2'])
-
-    # test result
     result = sql.read.select(table_name)
-    expected = pd.DataFrame({
-        '_pk': [0,1,3], 'State1':['A','B','C'], 'State2':['X','Y','Z'], 'ColumnA': [3,5,6], 'ColumnB': ['a','c','d']
-    })
-    assert (expected.values==result[['_pk','State1','State2','ColumnA','ColumnB']].values).all()
-    assert all(result.loc[result['_pk']==0,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==0,'_time_update'].isna())
-    assert all(result.loc[result['_pk']==1,'_time_update'].notna())
-    assert all(result.loc[result['_pk']==1,'_time_insert'].isna())
-    assert all(result.loc[result['_pk']==3,'_time_insert'].notna())
-    assert all(result.loc[result['_pk']==3,'_time_update'].isna())
+    assert all(result.loc[[1,3],['State1','State2','ColumnA','ColumnB']]==dataframe)
+    assert all(result.loc[0,['State1','State2','ColumnA','ColumnB']]==pd.Series(['A','X',3,'a'], index=['State1','State2','ColumnA','ColumnB']))
+    assert all(result.loc[result.index==0,'_time_insert'].isna())
+    assert all(result.loc[result.index==0,'_time_update'].isna())
+    assert all(result.loc[result.index==1,'_time_update'].notna())
+    assert all(result.loc[result.index==1,'_time_insert'].isna())
+    assert all(result.loc[result.index==3,'_time_insert'].notna())
+    assert all(result.loc[result.index==3,'_time_update'].isna())

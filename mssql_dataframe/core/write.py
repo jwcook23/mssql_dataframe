@@ -74,7 +74,7 @@ class write():
         try:
             self.__connection__.cursor.executemany(statement, args)
         except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-            self.handle_error(table_name, dataframe, error_class)
+            self.__handle_error(table_name, dataframe, error_class)
             self.__connection__.cursor.executemany(statement, args)
         except Exception:
             raise errors.SQLGeneral("Generic error attempting to insert values.")
@@ -112,8 +112,14 @@ class write():
 
         """
 
-        # perform common pre-update/merge steps
-        dataframe, match_columns, table_temp = self.__prep_update_merge(table_name, match_columns, dataframe, operation='update')
+        # perform pre-update steps
+        try:
+            dataframe, match_columns, table_temp = self.__prep_update_merge(table_name, match_columns, dataframe, operation='update')
+        except errors.SQLTableDoesNotExist:
+            msg = 'Attempt to update {} which does not exist.'.format(table_name)
+            if self.adjust_sql_objects:
+                msg += ' Parameter adjust_sql_objects=True does not apply when attempting to update a non-existant table.'
+            raise errors.SQLTableDoesNotExist(msg)
 
         # develop basic update syntax
         statement = """
@@ -179,7 +185,13 @@ class write():
 
         # perform update
         args = [table_name, table_temp]+match_columns+update_columns
-        helpers.execute(self.__connection__, statement, args)
+        try:
+            self.__connection__.cursor.execute(statement, args)
+        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+            self.__handle_error(table_name, dataframe, error_class)
+            self.__connection__.cursor.execute(statement, args)
+        except Exception:
+            raise errors.SQLGeneral("Generic error attempting to insert values.")
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None):
@@ -200,8 +212,14 @@ class write():
 
         '''
 
-        # perform common pre-update/merge steps
-        dataframe, match_columns, table_temp = self.__prep_update_merge(table_name, match_columns, dataframe, operation='merge')
+        # perform pre-merge steps
+        try:
+            dataframe, match_columns, table_temp = self.__prep_update_merge(table_name, match_columns, dataframe, operation='merge')
+        except errors.SQLTableDoesNotExist:
+            error_class = pyodbc.ProgrammingError('Invalid object name')
+            self.__handle_error(table_name, dataframe, error_class)
+            self.insert(table_name, dataframe)
+            return None
 
         # develop basic merge syntax
         statement = """
@@ -300,7 +318,7 @@ class write():
         helpers.execute(self.__connection__, statement, args)
 
 
-    def handle_error(self, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error):
+    def __handle_error(self, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error):
         ''' Handle an SQL write error by rasing an appropriate exeception or adjusting the SQL table. If adjust_sql_objects==True,
         the table may be created or columns may be added or modified.
 
@@ -318,19 +336,21 @@ class write():
         '''
 
         # determine class of error
-        if 'Invalid object name' in str(error_class):
+        error_string = str(error_class)
+        if 'Invalid object name' in error_string:
             error_message =  errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name))
-        elif 'Invalid column name' in str(error_class):
+        elif 'Invalid column name' in error_string:
             error_message =  errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name))
-        elif 'String data, right truncation' in str(error_class):
+        elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
             error_message = errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size.".format(table_name=table_name))
-        elif 'Numeric value out of range' in str(error_class):
+        elif 'Numeric value out of range' in error_string:
             error_message = errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size.".format(table_name=table_name))
         else:
             error_message = errors.SQLGeneral("Generic write execption.")
         
         # raise or handle error
         if not self.adjust_sql_objects:
+            warnings.warn('Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.', errors.SQLObjectAdjustment)
             raise error_message from None
         else:
             if isinstance(error_message, errors.SQLTableDoesNotExist):
@@ -354,6 +374,8 @@ class write():
                         warnings.warn('Altering column {} in table {} to {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
                         is_nullable = column in not_null
                         self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
+                else:
+                    raise error_message from None
 
 
     def __prepare_values(self, dataframe):
@@ -398,7 +420,7 @@ class write():
                 raise errors.SQLUndefinedPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
         # check match_column presence is SQL table
         if sum(schema.index.isin(match_columns))!=len(match_columns):
-            raise errors.SQLUndefinedColumn('match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
+            raise errors.SQLUndefinedColumn('one of match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
         # check match_column presence in dataframe, use dataframe index if needed
         if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
             if len([x for x in match_columns if x==dataframe.index.name])>0:
@@ -409,10 +431,8 @@ class write():
         # check if new columns need to be added to SQL table
         if any(~dataframe.columns.isin(schema.index)):
             error_class = pyodbc.ProgrammingError('Invalid column name')
-            self.handle_error(table_name, dataframe, error_class)
+            self.__handle_error(table_name, dataframe, error_class)
             schema = helpers.get_schema(self.__connection__, table_name)
-        temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
-        columns, not_null, primary_key_column, _ = helpers.flatten_schema(temp)
 
         # add interal tracking columns if needed
         if operation=='merge' and '_time_insert' not in schema.index:
@@ -422,6 +442,8 @@ class write():
 
         # insert data into temporary table to use for updating/merging
         table_temp = "##"+operation+"_"+table_name
+        temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
+        columns, not_null, primary_key_column, _ = helpers.flatten_schema(temp)
         self.__create__.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
         self.insert(table_temp, dataframe)
 
