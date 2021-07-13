@@ -10,7 +10,7 @@ from mssql_dataframe.core import errors, helpers, create, modify
 
 class write():
 
-    def __init__(self, connection, adjust_sql_objects):
+    def __init__(self, connection, adjust_sql_objects: bool = False):
         '''Class for writing to SQL tables.
         
         Parameters
@@ -77,7 +77,7 @@ class write():
             self.__handle_error(table_name, dataframe, error_class)
             self.__connection__.cursor.executemany(statement, args)
         except Exception:
-            raise errors.SQLGeneral("Generic error attempting to insert values.")
+            raise errors.SQLGeneral("Generic SQL error in write.insert") from None
 
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None):
@@ -191,7 +191,7 @@ class write():
             self.__handle_error(table_name, dataframe, error_class)
             self.__connection__.cursor.execute(statement, args)
         except Exception:
-            raise errors.SQLGeneral("Generic error attempting to insert values.")
+            raise errors.SQLGeneral("Generic SQL error in write.update") from None
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None):
@@ -315,7 +315,13 @@ class write():
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns
         else:
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
-        helpers.execute(self.__connection__, statement, args)
+        try:
+            self.__connection__.cursor.execute(statement, args)
+        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+            self.__handle_error(table_name, dataframe, error_class)
+            self.__connection__.cursor.execute(statement, args)
+        except Exception:
+            raise errors.SQLGeneral("General SQL error in write.merge") from None
 
 
     def __handle_error(self, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error):
@@ -343,14 +349,14 @@ class write():
             error_message =  errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name))
         elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
             error_message = errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size.".format(table_name=table_name))
-        elif 'Numeric value out of range' in error_string:
+        elif 'Numeric value out of range' in error_string or 'Arithmetic overflow error' in error_string:
             error_message = errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size.".format(table_name=table_name))
         else:
-            error_message = errors.SQLGeneral("Generic write execption.")
+            error_message = errors.SQLGeneral("Generic SQL error in write.__handle_error")
         
         # raise or handle error
         if not self.adjust_sql_objects:
-            warnings.warn('Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.', errors.SQLObjectAdjustment)
+            error_message.args = (error_message.args[0],'Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.')
             raise error_message from None
         else:
             if isinstance(error_message, errors.SQLTableDoesNotExist):

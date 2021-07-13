@@ -13,9 +13,12 @@ from mssql_dataframe.core import errors, helpers
 @pytest.fixture(scope="module")
 def sql():
     connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
-    yield SQLServer(connection, adjust_sql_objects=True)
-    connection.connection.close()
-
+    with warnings.catch_warnings(record=True) as warn:
+        yield SQLServer(connection, adjust_sql_objects=True)
+        connection.connection.close()
+        assert len(warn)==1
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert 'SQL objects will be created/modified as needed' in str(warn[-1].message)
 
 def test_insert_create_table(sql):
 
@@ -189,4 +192,31 @@ def test_merge_add_column(sql):
 
 
 def test_merge_alter_column(sql):
-    pass
+
+    table_name = '##test_merge_alter_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b']
+    })
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe)
+
+    # merge using the SQL primary key that came from the dataframe's index
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe.loc[1,'ColumnA'] = 10000
+    dataframe.loc[1,'ColumnB'] = 'bbbbb'
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.merge(table_name, dataframe)
+
+        assert len(warn)==4
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnA' in str(warn[0].message)
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[1].message)
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnA' in str(warn[2].message)
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[3].message)
+        results = sql.read.select(table_name)
+        assert all(results[['ColumnA','ColumnB']]==dataframe[['ColumnA','ColumnB']])
+        assert all(results['_time_update'].notna())

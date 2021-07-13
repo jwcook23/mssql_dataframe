@@ -31,7 +31,7 @@ def execute(connection, statement:str, args:list=None):
         else:
             connection.cursor.execute(statement, *args)
     except:
-        raise errors.SQLGeneral("SQLGeneral") from None
+        raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
 
 def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
@@ -50,6 +50,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     dataframe (pandas.DataFrame) :
     '''
 
+    # execute the statement before getting results
     execute(connection, statement, args)
 
     # return result as string if SQL ODBC data type is not defined
@@ -67,9 +68,9 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
                 execute(connection, statement, args)
             else:
-                raise errors.SQLGeneral("General error reading query.")
+                raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
         except:
-            raise errors.SQLGeneral("General error reading query.")
+            raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
 
     # form dataframe with column names
     dataframe = [list(x) for x in dataframe]

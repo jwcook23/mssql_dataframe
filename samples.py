@@ -1,3 +1,18 @@
+# Initialization
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
+
+# connect to an on-premise database using pyodbc and Windows authentication
+db = connect(database_name='master', server_name='localhost')
+# # or an Azure SQL database
+# db = connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
+
+# using a single connection, initialize the class
+sql = SQLServer(db)
+# # or initialize the class with the ability to modify SQL objects as needed
+#sql = SQLServer(db, adjust_sql_objects=True)
+ 
+
 import pandas as pd
 import time
 

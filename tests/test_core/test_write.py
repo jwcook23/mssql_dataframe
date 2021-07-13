@@ -203,7 +203,7 @@ def test_merge_one_match_column(sql):
     dataframe = dataframe.append(pd.Series([6], index=['ColumnA'], name=2))
     sql.write.merge(table_name, dataframe)
     result = sql.read.select(table_name)
-    assert all(result[['ColumnA']]==dataframe['ColumnA'])
+    assert all(result[['ColumnA']]==dataframe[['ColumnA']])
     assert all(result.loc[1,['_time_update']].notna())
     assert all(result.loc[1,['_time_insert']].isna())
     assert all(result.loc[2,['_time_insert']].notna())

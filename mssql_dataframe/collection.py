@@ -11,7 +11,7 @@ class SQLServer():
     ----------
 
     connection (mssql_dataframe.connect) : connection for executing statements
-    adjust_sql_objects (bool) : create and modify SQL table and columns as needed if True
+    adjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
 
     Properties
     ----------
@@ -29,7 +29,7 @@ class SQLServer():
     """
 
 
-    def __init__(self, connection: connect.connect, adjust_sql_objects: bool):
+    def __init__(self, connection: connect.connect, adjust_sql_objects: bool = False):
     
         # initialize mssql_dataframe functionality with shared connection
         self.connection = connection
