@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, helpers, create, write
+from mssql_dataframe.core import errors, helpers, create, write, modify
 
 
 class package:
@@ -13,6 +13,7 @@ class package:
         self.connection = connection
         self.create = create.create(connection)
         self.write = write.write(connection, adjust_sql_objects=False)
+        self.modify = modify.modify(connection)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -218,3 +219,30 @@ def test_flatten_schema():
     assert not_null==['_index', 'ColumnA', 'ColumnB', 'ColumnC']
     assert primary_key_column=='_index'
     assert sql_primary_key==False
+
+
+def test_get_pk_details(sql):
+
+    table_name = "##test_get_pk_details"
+    columns = {"_pk": "TINYINT", "A": 'VARCHAR(1)'}
+    primary_key_column = "_pk"
+    sql.create.table(table_name, columns, primary_key_column = primary_key_column)
+    primary_key_name, primary_key_column = helpers.get_pk_details(sql.connection, table_name)
+    assert isinstance(primary_key_name, str)
+    assert primary_key_column=='_pk'
+
+    table_name = "##test_get_pk_name_two_columns"
+    columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
+    sql.create.table(table_name, columns, not_null=["A","B"])
+    pk_columns = ['A','B']
+    pk_name= '_pk_1'
+    sql.modify.primary_key(table_name, modify='add', columns=pk_columns, primary_key_name = pk_name)
+    primary_key_name, primary_key_column = helpers.get_pk_details(sql.connection, table_name)
+    assert primary_key_name==pk_name
+    assert primary_key_column==pk_columns
+
+    table_name = "##test_get_pk_error"
+    columns = {"A": "INT"}
+    sql.create.table(table_name, columns)
+    with pytest.raises(errors.SQLUndefinedPrimaryKey):
+        _ = helpers.get_pk_details(sql.connection, table_name)

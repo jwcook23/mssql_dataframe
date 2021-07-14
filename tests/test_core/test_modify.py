@@ -119,3 +119,20 @@ def test_primary_key_two_columns(sql):
     assert schema.at['A','is_primary_key']==False
     assert schema.at['B','is_primary_key']==False
     assert sum(schema['is_primary_key'])==0
+
+
+def test_alter_primary_key_column(sql):
+
+    table_name = "##test_alter_primary_key_column"
+    columns = {"_pk": "TINYINT", "A": 'VARCHAR(1)'}
+    sql.create.table(table_name, columns, primary_key_column = "_pk")
+
+    primary_key_name, primary_key_column = helpers.get_pk_details(sql.connection, table_name)
+
+    sql.modify.primary_key(table_name, modify='drop', columns=primary_key_column, primary_key_name=primary_key_name)
+    sql.modify.column(table_name, modify='alter', column_name=primary_key_column, data_type='INT', not_null=True)
+    sql.modify.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
+
+    schema = helpers.get_schema(sql.connection, table_name)
+    assert schema.at['_pk','data_type']=='int'
+    assert schema.at['_pk','is_primary_key']==True

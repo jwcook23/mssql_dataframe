@@ -69,13 +69,24 @@ class write():
             column_names=column_names,
             parameters=', '.join(['?']*len(dataframe.columns))
         )
+
+        # perform insert
         dataframe = self.__prepare_values(dataframe)
         args = dataframe.values.tolist()
+
+        # catch exceptions to add/alter columns if alter_sql_objects==True
         try:
             self.__connection__.cursor.executemany(statement, args)
         except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
             self.__handle_error(table_name, dataframe, error_class)
-            self.__connection__.cursor.executemany(statement, args)
+            # catch again in case columns need to be added and others need altered
+            try:
+                self.__connection__.cursor.executemany(statement, args)
+            except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+                self.__handle_error(table_name, dataframe, error_class)
+                self.__connection__.cursor.executemany(statement, args)
+            except Exception:
+                raise errors.SQLGeneral("Generic SQL error in write.insert") from None
         except Exception:
             raise errors.SQLGeneral("Generic SQL error in write.insert") from None
 
@@ -185,11 +196,20 @@ class write():
 
         # perform update
         args = [table_name, table_temp]+match_columns+update_columns
+
+        # catch exceptions to add/alter columns if alter_sql_objects==True
         try:
             self.__connection__.cursor.execute(statement, args)
         except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
             self.__handle_error(table_name, dataframe, error_class)
-            self.__connection__.cursor.execute(statement, args)
+            # catch again in case columns need to be added and others need altered
+            try:
+                self.__connection__.cursor.execute(statement, args)
+            except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+                self.__handle_error(table_name, dataframe, error_class)
+                self.__connection__.cursor.execute(statement, args)
+            except Exception:
+                raise errors.SQLGeneral("Generic SQL error in write.update") from None
         except Exception:
             raise errors.SQLGeneral("Generic SQL error in write.update") from None
 
@@ -315,13 +335,22 @@ class write():
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns
         else:
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
+
+        # catch exceptions to add/alter columns if alter_sql_objects==True
         try:
             self.__connection__.cursor.execute(statement, args)
         except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
             self.__handle_error(table_name, dataframe, error_class)
-            self.__connection__.cursor.execute(statement, args)
+            # catch again in case columns need to be added and others need altered
+            try:
+                self.__connection__.cursor.execute(statement, args)
+            except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
+                self.__handle_error(table_name, dataframe, error_class)
+                self.__connection__.cursor.execute(statement, args)
+            except Exception:
+                raise errors.SQLGeneral("Generic SQL error in merge.update") from None
         except Exception:
-            raise errors.SQLGeneral("General SQL error in write.merge") from None
+            raise errors.SQLGeneral("Generic SQL error in merge.update") from None
 
 
     def __handle_error(self, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error):
@@ -374,12 +403,20 @@ class write():
                 elif isinstance(error_message, errors.SQLInsufficientColumnSize):
                     table_temp = "##__alter_column_"+table_name
                     dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe)
-                    columns, not_null, _,_ = helpers.flatten_schema(schema)
+                    columns, not_null, primary_key_column, _ = helpers.flatten_schema(schema)
                     adjust = {k:v for k,v in dtypes.items() if v!=columns[k]}
                     for column, data_type in adjust.items():
                         warnings.warn('Altering column {} in table {} to {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
                         is_nullable = column in not_null
-                        self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
+                        if column==primary_key_column:
+                            # get primary key name, drop primary key constraint, alter column, then add primary key constraint
+                            primary_key_name, primary_key_column = helpers.get_pk_details(self.__connection__, table_name)
+                            self.__modify__.primary_key(table_name, modify='drop', columns=primary_key_column, primary_key_name=primary_key_name)
+                            self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=True)
+                            self.__modify__.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
+                        else:
+                            self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
+                        
                 else:
                     raise error_message from None
 

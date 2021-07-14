@@ -16,7 +16,7 @@ class modify():
         self.__connection__ = connection
 
 
-    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null=False):
+    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null: bool = False):
         """Add, alter, or drop a column in an existing SQL table.
 
         Parameters
@@ -124,7 +124,7 @@ class modify():
 
         table_name (str) : name of the table to add/drop the primary key
         key_name (str) : name of the primary key to add/drop
-        colums (list|str) : name of the column(s) to add/drop as the primary key
+        columns (list|str) : name of the column(s) to add/drop as the primary key
         modify (str) : specification to either add or drop the primary key
         primary_key_name (str) : name of the primary key
 

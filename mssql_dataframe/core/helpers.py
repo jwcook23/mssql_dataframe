@@ -377,7 +377,7 @@ def get_schema(connection, table_name: str):
 
     '''
     
-    # search tempdb for global temp tables
+    # search tempdb for temp tables
     if table_name.startswith("#"):
         tempdb = "tempdb."
     else:
@@ -488,3 +488,57 @@ def flatten_schema(schema):
         primary_key_column = schema[schema['is_primary_key']].index[0]
 
     return columns, not_null, primary_key_column, sql_primary_key
+
+
+def get_pk_details(connection, table_name: str):
+    ''' Get the primary key name and columns of a table.
+
+    Parameters
+    ----------
+
+    connection (mssql_dataframe.connect) : connection for executing statement
+    table_name (str) : name of table to retrieve primary key name
+
+    Returns
+    -------
+
+    primary_key_name (str) : name of the primary key
+    primary_key_column (str|list) : name of the primary key column(s)
+
+    '''
+
+     # search tempdb for temp tables
+    if table_name.startswith("#"):
+        tempdb = "tempdb."
+    else:
+        tempdb = ""   
+
+    table_name = safe_sql(connection, table_name)
+
+    statement = """
+    SELECT  
+        _index.name AS PrimaryKeyName,
+        COL_NAME(_index_columns.OBJECT_ID,_index_columns.column_id) AS PrimaryKeyColumn
+    FROM
+        {tempdb}sys.indexes AS _index
+    INNER JOIN {tempdb}sys.index_columns AS _index_columns
+        ON _index.OBJECT_ID = _index_columns.OBJECT_ID
+        AND _index.index_id = _index_columns.index_id
+    WHERE
+        _index.is_primary_key = 1
+        AND _index_columns.OBJECT_ID = OBJECT_ID('{tempdb}sys.{table_name}')
+    """.format(tempdb=tempdb, table_name=table_name)
+
+    results = read_query(connection, statement)
+
+    if len(results)==0:
+        raise errors.SQLUndefinedPrimaryKey("Table {} does not contain a primary key.".format(table_name))
+    else:
+        results = results.groupby(by='PrimaryKeyName')
+        results = results.agg(list)
+        primary_key_name = results.index[0]
+        primary_key_column = results.at[primary_key_name,'PrimaryKeyColumn']
+        if len(primary_key_column)==1:
+            primary_key_column = primary_key_column[0]
+
+    return primary_key_name, primary_key_column

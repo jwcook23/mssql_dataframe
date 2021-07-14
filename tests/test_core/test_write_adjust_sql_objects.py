@@ -20,6 +20,7 @@ def sql():
         assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
         assert 'SQL objects will be created/modified as needed' in str(warn[-1].message)
 
+
 def test_insert_create_table(sql):
 
     table_name = '##test_insert_create_table'
@@ -81,6 +82,28 @@ def test_insert_alter_column(sql):
     schema = helpers.get_schema(sql.connection, table_name)
     columns,_,_,_ = helpers.flatten_schema(schema)
     assert columns=={'ColumnA': 'tinyint', 'ColumnB': 'varchar(3)', 'ColumnC': 'int'}
+
+
+def test_insert_add_and_alter_column(sql):
+
+    table_name = '##test_insert_add_and_alter_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [0,1,2,3],
+        'ColumnB': [0,1,2,3]
+    })
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
+
+    dataframe['ColumnB'] = [256,257,258,259]
+    dataframe['ColumnC'] = [0,1,2,3]
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.insert(table_name, dataframe)
+        assert len(warn)==2
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Creating column ColumnC' in str(warn[0].message)
+        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[-1].message)        
+        results = sql.read.select(table_name)
+        assert all(results==dataframe)
 
 
 def test_update_create_table(sql):
@@ -152,6 +175,33 @@ def test_update_alter_column(sql):
     assert columns=={'ColumnA': 'tinyint', 'ColumnB': 'varchar(3)', 'ColumnC': 'smallint', '_time_update': 'datetime'}
 
 
+def test_update_add_and_alter_column(sql):
+
+    table_name = '##test_update_add_and_alter_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b']
+    })
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe)
+
+    # update using the SQL primary key that came from the dataframe's index
+    dataframe['ColumnB'] = ['aaa','bbb']
+    dataframe['NewColumn'] = [3,4]
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.update(table_name, dataframe[['ColumnB', 'NewColumn']])
+        assert len(warn)==3
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Creating column NewColumn' in str(warn[0].message)
+        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[1].message)
+        assert isinstance(warn[2].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[2].message)
+        result = sql.read.select(table_name)
+        assert all(result[['ColumnA','ColumnB','NewColumn']]==dataframe)
+        assert (result['_time_update'].notna()).all()
+
+
 def test_merge_create_table(sql):
 
     table_name = "##test_merge_create_table"
@@ -207,16 +257,44 @@ def test_merge_alter_column(sql):
     dataframe.loc[1,'ColumnB'] = 'bbbbb'
     with warnings.catch_warnings(record=True) as warn:
         sql.write.merge(table_name, dataframe)
-
         assert len(warn)==4
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Altering column ColumnA' in str(warn[0].message)
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
         assert 'Altering column ColumnB' in str(warn[1].message)
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[2].message, errors.SQLObjectAdjustment)
         assert 'Altering column ColumnA' in str(warn[2].message)
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[3].message, errors.SQLObjectAdjustment)
         assert 'Altering column ColumnB' in str(warn[3].message)
         results = sql.read.select(table_name)
         assert all(results[['ColumnA','ColumnB']]==dataframe[['ColumnA','ColumnB']])
+        assert all(results['_time_update'].notna())
+
+
+def test_merge_add_and_alter_column(sql):
+
+    table_name = '##test_merge_add_and_alter_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b']
+    })
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe)
+
+    # merge using the SQL primary key that came from the dataframe's index
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe.loc[1,'ColumnA'] = 3
+    dataframe.loc[1,'ColumnB'] = 'bbbbb'
+    dataframe['NewColumn'] = 0
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.merge(table_name, dataframe)
+        assert len(warn)==3
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Creating column NewColumn' in str(warn[0].message)
+        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[1].message)
+        assert isinstance(warn[2].message, errors.SQLObjectAdjustment)
+        assert 'Altering column ColumnB' in str(warn[2].message)        
+        results = sql.read.select(table_name)
+        assert all(results[['ColumnA','ColumnB','NewColumn']]==dataframe[['ColumnA','ColumnB','NewColumn']])
         assert all(results['_time_update'].notna())
