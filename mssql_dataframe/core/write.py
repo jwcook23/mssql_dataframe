@@ -1,5 +1,6 @@
 from typing import Literal
 import warnings
+import re
 
 import pandas as pd
 import numpy as np
@@ -26,7 +27,8 @@ class write():
         self.adjust_sql_objects = adjust_sql_objects
 
 
-    def insert(self, table_name: str, dataframe: pd.DataFrame):
+    def insert(self, table_name: str, dataframe: pd.DataFrame,
+    include_timestamps: bool = True):
         """Insert data into SQL table from a dataframe.
 
         Parameters
@@ -34,6 +36,7 @@ class write():
 
         table_name (str) : name of table to insert data into
         dataframe (pd.DataFrame): tabular data to insert
+        include_timestamps (bool, default=True) : include _time_insert column which is in server time
 
         Returns
         -------
@@ -55,6 +58,13 @@ class write():
         table_clean = helpers.safe_sql(self.__connection__, table_name)
         column_names = ",\n".join(helpers.safe_sql(self.__connection__, dataframe.columns))
 
+        # optionally add server insert time
+        if include_timestamps:
+            column_names = "_time_insert,\n"+column_names
+            parameters = "GETDATE(), "+", ".join(["?"]*len(dataframe.columns))
+        else:
+            parameters = ", ".join(["?"]*len(dataframe.columns))
+
         # insert values
         statement = """
         INSERT INTO
@@ -67,31 +77,19 @@ class write():
         statement = statement.format(
             table_name=table_clean, 
             column_names=column_names,
-            parameters=', '.join(['?']*len(dataframe.columns))
+            parameters=parameters
         )
 
         # perform insert
         dataframe = self.__prepare_values(dataframe)
         args = dataframe.values.tolist()
 
-        # catch exceptions to add/alter columns if alter_sql_objects==True
-        try:
-            self.__connection__.cursor.executemany(statement, args)
-        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-            self.__handle_error(table_name, dataframe, error_class)
-            # catch again in case columns need to be added and others need altered
-            try:
-                self.__connection__.cursor.executemany(statement, args)
-            except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-                self.__handle_error(table_name, dataframe, error_class)
-                self.__connection__.cursor.executemany(statement, args)
-            except Exception:
-                raise errors.SQLGeneral("Generic SQL error in write.insert") from None
-        except Exception:
-            raise errors.SQLGeneral("Generic SQL error in write.insert") from None
+        # execute statement, and potentially handle errors
+        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.executemany, statement, args)
 
 
-    def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None):
+    def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None,
+    include_timestamps: bool = True):
         """Update column(s) in an SQL table using a dataframe.
 
         Parameters
@@ -100,6 +98,7 @@ class write():
         table_name (str) : name of table to insert data into
         dataframe (pd.DataFrame): tabular data to insert
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
+        include_timestamps (bool, default=True) : include _time_update column which is in server time
 
         Returns
         -------
@@ -143,7 +142,7 @@ class write():
                 N'UPDATE '+
                     QUOTENAME(@TableName)+
                 ' SET '+ 
-                    '_time_update=GETDATE(),'+{update_syntax}+
+                    {update_syntax}+
                 ' FROM '+
                     QUOTENAME(@TableName)+' AS _target '+
                 ' INNER JOIN '+
@@ -174,6 +173,8 @@ class write():
         # form update syntax
         update_syntax = ["QUOTENAME(@Update_"+x+")" for x in alias_update]
         update_syntax = "+','+".join([x+"+'=_source.'+"+x for x in update_syntax])
+        if include_timestamps:
+            update_syntax = "'_time_update=GETDATE(),'+"+update_syntax
 
         # parameters for sp_executesql
         parameters = ["@Match_"+x+" SYSNAME" for x in alias_match]
@@ -197,24 +198,12 @@ class write():
         # perform update
         args = [table_name, table_temp]+match_columns+update_columns
 
-        # catch exceptions to add/alter columns if alter_sql_objects==True
-        try:
-            self.__connection__.cursor.execute(statement, args)
-        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-            self.__handle_error(table_name, dataframe, error_class)
-            # catch again in case columns need to be added and others need altered
-            try:
-                self.__connection__.cursor.execute(statement, args)
-            except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-                self.__handle_error(table_name, dataframe, error_class)
-                self.__connection__.cursor.execute(statement, args)
-            except Exception:
-                raise errors.SQLGeneral("Generic SQL error in write.update") from None
-        except Exception:
-            raise errors.SQLGeneral("Generic SQL error in write.update") from None
+        # execute statement, and potentially handle errors
+        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
 
 
-    def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None):
+    def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None,
+    include_timestamps: bool = True):
         ''' Merge a dataframe into an SQL table by updating, deleting, and inserting rows using Transact-SQL MERGE.
 
         Parameters
@@ -224,6 +213,7 @@ class write():
         dataframe (pd.DataFrame): tabular data to merge into SQL table
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
         subset_columns (list, default=None) : prevents deleting non-matching columns during incremental loading
+        include_timestamps (bool, default=True) : include _time_insert and _time_update columns that are in server time
 
         Returns
         -------
@@ -252,9 +242,9 @@ class write():
             N' MERGE '+QUOTENAME(@TableName)+' AS _target '
             +' USING '+QUOTENAME(@TableTemp)+' AS _source '
             +' ON ('+{match_syntax}+') '
-            +' WHEN MATCHED THEN UPDATE SET _time_update=GETDATE(), '+{update_syntax}
-            +' WHEN NOT MATCHED THEN INSERT (_time_insert, '+{insert_syntax}+')'
-            +' VALUES (GETDATE(), '+{insert_values}+')'
+            +' WHEN MATCHED THEN UPDATE SET '+{update_syntax}
+            +' WHEN NOT MATCHED THEN INSERT ('+{insert_syntax}+')'
+            +' VALUES ('+{insert_values}+')'
             +' WHEN NOT MATCHED BY SOURCE '+{subset_syntax}+' THEN DELETE;'
 
             EXEC sp_executesql
@@ -292,10 +282,15 @@ class write():
         # form when matched then update syntax
         update_syntax = ["QUOTENAME(@Update_"+x+")" for x in alias_update]
         update_syntax = "+','+".join([x+"+'=_source.'+"+x for x in update_syntax])
+        if include_timestamps:
+            update_syntax = "+'_time_update=GETDATE(), '+"+update_syntax
 
         # form when not matched then insert
         insert_syntax = "+','+".join(["QUOTENAME(@Insert_"+x+")" for x in alias_insert])
         insert_values = "+','+".join(["'_source.'+QUOTENAME(@Insert_"+x+")" for x in alias_insert])
+        if include_timestamps:
+            insert_syntax = "+'_time_insert, '+"+insert_syntax
+            insert_values = "+'GETDATE(), '+"+insert_values
 
         # form when not matched by source then delete condition syntax
         if subset_columns is None:
@@ -336,21 +331,42 @@ class write():
         else:
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
 
-        # catch exceptions to add/alter columns if alter_sql_objects==True
-        try:
-            self.__connection__.cursor.execute(statement, args)
-        except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-            self.__handle_error(table_name, dataframe, error_class)
-            # catch again in case columns need to be added and others need altered
+        # execute statement, and potentially handle errors
+        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+
+
+    def __attempt_write(self, table_name, dataframe, cursor_method, statement, args):
+        '''Execute a statement using a pyodbc.cursor method until all built in methods to handle errors have been exhausted.
+        
+        Parameters
+        ----------
+
+        table_name (str) : name of the SQL table
+        dataframe (pd.DataFrame): tabular data that is being written to an SQL table
+        cursor_method (pyodbc.connection.cursor.execute|pyodbc.connection.cursor.executemany) : cursor method used to write data
+        statement (str) : statement to execute
+        args (list) : arguments to pass to cursor_method when executing statement
+
+        Returns
+        -------
+
+        None
+
+        '''
+
+        # make a maximum of 3 attempts in case all of these situations an encountered
+        # # 0: include_timestamp columns need to be added
+        # # 1: other columns need added
+        # # 2: other columns need modified
+        for attempt in range(0,4,1):
             try:
-                self.__connection__.cursor.execute(statement, args)
+                cursor_method(statement, args)
+                break
             except (pyodbc.ProgrammingError, pyodbc.DataError) as error_class:
-                self.__handle_error(table_name, dataframe, error_class)
-                self.__connection__.cursor.execute(statement, args)
-            except Exception:
-                raise errors.SQLGeneral("Generic SQL error in merge.update") from None
-        except Exception:
-            raise errors.SQLGeneral("Generic SQL error in merge.update") from None
+                if attempt==3:
+                    raise errors.SQLGeneral("Generic SQL error in write.__attempt_write") from None
+                else:
+                    self.__handle_error(table_name, dataframe, error_class)
 
 
     def __handle_error(self, table_name: str, dataframe: pd.DataFrame, error_class: pyodbc.Error):
@@ -372,21 +388,29 @@ class write():
 
         # determine class of error
         error_string = str(error_class)
+        missing_columns = re.findall(r"Invalid column name '(.+?)'", error_string)
         if 'Invalid object name' in error_string:
-            error_message =  errors.SQLTableDoesNotExist("{table_name} does not exist".format(table_name=table_name))
+            error_message =  errors.SQLTableDoesNotExist("{} does not exist".format(table_name))
         elif 'Invalid column name' in error_string:
-            error_message =  errors.SQLColumnDoesNotExist("Column does not exist in {table_name}".format(table_name=table_name))
+            error_message =  errors.SQLColumnDoesNotExist("Columns {} do not exist in {}".format(missing_columns, table_name))
         elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
-            error_message = errors.SQLInsufficientColumnSize("A string column in {table_name} has insuffcient size.".format(table_name=table_name))
+            error_message = errors.SQLInsufficientColumnSize("A string column in {} has insuffcient size.".format(table_name))
         elif 'Numeric value out of range' in error_string or 'Arithmetic overflow error' in error_string:
-            error_message = errors.SQLInsufficientColumnSize("A numeric column in {table_name} has insuffcient size.".format(table_name=table_name))
+            error_message = errors.SQLInsufficientColumnSize("A numeric column in {} has insuffcient size.".format(table_name))
         else:
             error_message = errors.SQLGeneral("Generic SQL error in write.__handle_error")
-        
-        # raise or handle error
-        if not self.adjust_sql_objects:
+
+        # always add include_timestamps columns, even if adjust_sql_objects==True
+        include_timestamps = [x for x in missing_columns if x in ['_time_update', '_time_insert']]
+        if len(include_timestamps)>0:
+            for column in include_timestamps:
+                warnings.warn('Creating column {} in table {} with data type DATETIME.'.format(column, table_name), errors.SQLObjectAdjustment)
+                self.__modify__.column(table_name, modify='add', column_name=column, data_type='DATETIME')
+        # raise error since adjust_sql_objects==False
+        elif not self.adjust_sql_objects:
             error_message.args = (error_message.args[0],'Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.')
             raise error_message from None
+        # handle error since adjust_sql_objects==True
         else:
             if isinstance(error_message, errors.SQLTableDoesNotExist):
                 warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
@@ -477,18 +501,12 @@ class write():
             self.__handle_error(table_name, dataframe, error_class)
             schema = helpers.get_schema(self.__connection__, table_name)
 
-        # add interal tracking columns if needed
-        if operation=='merge' and '_time_insert' not in schema.index:
-            self.__modify__.column(table_name, modify='add', column_name='_time_insert', data_type='DATETIME')
-        if '_time_update' not in schema.index:
-            self.__modify__.column(table_name, modify='add', column_name='_time_update', data_type='DATETIME')
-
         # insert data into temporary table to use for updating/merging
         table_temp = "##"+operation+"_"+table_name
         temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
         columns, not_null, primary_key_column, _ = helpers.flatten_schema(temp)
         self.__create__.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
-        self.insert(table_temp, dataframe)
+        self.insert(table_temp, dataframe, include_timestamps=False)
 
         return dataframe, match_columns, table_temp
 

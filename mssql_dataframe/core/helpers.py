@@ -261,7 +261,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     numeric = dataframe.select_dtypes(include=np.number).columns
     include = pd.Series(dtype='int64')
     if len(datetimes)>0 or len(numeric)>0:
-        include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
+        include = include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
     if len(strings)>0:
         include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
     include = include.drop_duplicates()
@@ -279,7 +279,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})
     # insert subset of data then use SQL to determine SQL data type
     wrt = write.write(connection, adjust_sql_objects=False)
-    wrt.insert(table_name, dataframe=subset)
+    wrt.insert(table_name, dataframe=subset, include_timestamps=False)
 
     statement = """
     DECLARE @SQLStatement AS NVARCHAR(MAX);

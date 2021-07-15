@@ -56,7 +56,7 @@ def test_select(sql):
     })
     input['ColumnB'] = input['ColumnB'].astype('Int64')
     input['ColumnD'] = pd.to_datetime(input['ColumnD'])
-    sql.write.insert(table_name, input)
+    sql.write.insert(table_name, input, include_timestamps=False)
 
     # all columns and rows
     dataframe = sql.read.select(table_name)

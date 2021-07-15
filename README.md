@@ -1,7 +1,10 @@
 # mssql_dataframe
 
-Provides an easy & efficient interaction between Microsoft Transact-SQL and Python dataframes (Pandas). In practice this module 
-may be useful for model updating, data engineering, and web scraping. It provides the ability to update and merge from dataframes into SQL Server tables.
+Provides efficient mechanisms for updating and merging data into Transact-SQL tables from Python dataframes. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into an SQL temporary table, and then updating/merging into a target SQL table from that temporary table. The current built-in methods for writing a dataframe to an existing SQL table allows only for the table to be replaced or records to be appended.
+
+In practice this module may be useful for updating models, web scraping, or general data engineering tasks.
+
+A similiar project is https://github.com/ThibTrip/pangres, but doesn't include SQL Server / Transact-SQL. The primary motivation for creating a new project is differences in Transact-SQL syntax, specifically MERGE in T-SQL vs UPSERT in other SQL flavors.
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
