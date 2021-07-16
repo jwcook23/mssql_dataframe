@@ -30,7 +30,7 @@ def execute(connection, statement:str, args:list=None):
             connection.cursor.execute(statement)
         else:
             connection.cursor.execute(statement, *args)
-    except:
+    except Exception as error:
         raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
 
@@ -264,10 +264,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
         include = include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
     if len(strings)>0:
         include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
-    include = include.drop_duplicates()
     subset = subset.append(dataframe.loc[include[~include.isin(subset.index)]])
 
-    # insert subset of data into temporary table
+    # insert subset of data into temporary table as strings since SQL will determine final datatype
     subset = subset.astype('str')
     for col in subset:
         subset[col] = subset[col].str.strip()
@@ -286,7 +285,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     DECLARE @TableName SYSNAME = ?;
     {declare}
     SET @SQLStatement = N'
-        SELECT ColumnName,
+        SELECT ColumnIndex,
         (CASE 
             WHEN count(try_convert(BIT, _Column)) = count(_Column) 
                 AND MAX(_Column)=1 AND count(_Column)>2 THEN ''bit''
@@ -304,9 +303,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
         FROM '+QUOTENAME(@TableName)+'
         CROSS APPLY (VALUES
             {syntax}
-        ) v(ColumnName, _Column)
+        ) v(ColumnIndex, _Column)
         WHERE _Column IS NOT NULL
-        GROUP BY ColumnName;'
+        GROUP BY ColumnIndex;'
     EXEC sp_executesql 
     @SQLStatement,
     N'@TableName SYSNAME, {parameters}',
@@ -324,7 +323,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
 
     # develop syntax for determine data types
     syntax = list(zip(
-        ["''Column"+x+"''" for x in alias_names],
+        ["''_"+x+"''" for x in alias_names],
         ["+QUOTENAME(@ColumnName_"+x+")+" for x in alias_names]
     ))
     syntax = ",\n".join(["\t("+x[0]+", '"+x[1]+"')" for x in syntax])
@@ -346,12 +345,11 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # create variables for execute method
     args = [table_name] + column_names
 
-    # execute statement
-    execute(connection, statement, args)
-    dtypes = connection.cursor.fetchall()
-    dtypes = [x[1] for x in dtypes]
-    dtypes = list(zip(column_names,dtypes))
-    dtypes = {x[0]:x[1] for x in dtypes}
+    # execute statement, then transformat back to actual column name
+    dtypes = read_query(connection, statement, args)
+    dtypes['ColumnIndex'] = dtypes['ColumnIndex'].str[1::].astype('int')
+    dtypes = {x[0]:x[1] for x in dtypes.values}
+    dtypes = {column_names[k]:v for k,v in dtypes.items()}
 
     # determine length of VARCHAR columns
     length = [k for k,v in dtypes.items() if v=="varchar"]

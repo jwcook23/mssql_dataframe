@@ -200,6 +200,7 @@ class write():
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None,
@@ -333,6 +334,7 @@ class write():
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 
     def __attempt_write(self, table_name, dataframe, cursor_method, statement, args):
@@ -418,19 +420,23 @@ class write():
             else:
                 schema = helpers.get_schema(self.__connection__, table_name)
                 if isinstance(error_message, errors.SQLColumnDoesNotExist):
-                    table_temp = "##__new_column_"+table_name
+                    table_temp = "##write_new_column_"+table_name
                     new = dataframe.columns[~dataframe.columns.isin(schema.index)]
                     dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe[new])
                     for column, data_type in dtypes.items():
-                        warnings.warn('Creating column {} in table {} with data type {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
+                        # warn if not a global temporary table for update/merge operations
+                        if not table_name.startswith("##__update") and not table_name.startswith("##__merge"):
+                            warnings.warn('Creating column {} in table {} with data type {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
                         self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
                 elif isinstance(error_message, errors.SQLInsufficientColumnSize):
-                    table_temp = "##__alter_column_"+table_name
+                    table_temp = "##write_alter_column_"+table_name
                     dtypes = helpers.infer_datatypes(self.__connection__, table_temp, dataframe)
                     columns, not_null, primary_key_column, _ = helpers.flatten_schema(schema)
                     adjust = {k:v for k,v in dtypes.items() if v!=columns[k]}
                     for column, data_type in adjust.items():
-                        warnings.warn('Altering column {} in table {} to {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
+                        # warn if not a global temporary table for update/merge operations
+                        if not table_name.startswith("##__update") and not table_name.startswith("##__merge"):
+                            warnings.warn('Altering column {} in table {} from data type {} to {}.'.format(column, table_name, columns[column], data_type), errors.SQLObjectAdjustment)
                         is_nullable = column in not_null
                         if column==primary_key_column:
                             # get primary key name, drop primary key constraint, alter column, then add primary key constraint
@@ -493,7 +499,7 @@ class write():
             if len([x for x in match_columns if x==dataframe.index.name])>0:
                 dataframe = dataframe.reset_index()
             else:
-                raise errors.DataframeUndefinedColumn('match_columns {} is not found in the input dataframe'.format(match_columns))
+                raise errors.DataframeUndefinedColumn('one of match_columns {} is not found in the input dataframe'.format(match_columns))
 
         # check if new columns need to be added to SQL table
         if any(~dataframe.columns.isin(schema.index)):
@@ -502,7 +508,7 @@ class write():
             schema = helpers.get_schema(self.__connection__, table_name)
 
         # insert data into temporary table to use for updating/merging
-        table_temp = "##"+operation+"_"+table_name
+        table_temp = "##__"+operation+"_"+table_name
         temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
         columns, not_null, primary_key_column, _ = helpers.flatten_schema(temp)
         self.__create__.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)

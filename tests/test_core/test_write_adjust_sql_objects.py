@@ -163,13 +163,11 @@ def test_update_alter_column(sql):
     dataframe['ColumnC'] = [256, 256]
     with warnings.catch_warnings(record=True) as warn:
         sql.write.update(table_name, dataframe, match_columns=['ColumnA'])
-        assert len(warn)==5
+        assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-        assert 'Altering column ColumnB in table ##update_'+table_name in str(warn[0].message)
-        assert 'Altering column ColumnC in table ##update_'+table_name in str(warn[1].message)
-        assert 'Creating column _time_update in table '+table_name in str(warn[2].message)
-        assert 'Altering column ColumnB in table '+table_name in str(warn[3].message)
-        assert 'Altering column ColumnC in table '+table_name in str(warn[4].message)
+        assert 'Creating column _time_update in table '+table_name in str(warn[0].message)
+        assert 'Altering column ColumnB in table '+table_name in str(warn[1].message)
+        assert 'Altering column ColumnC in table '+table_name in str(warn[2].message)
         results = sql.read.select(table_name)
         assert all(results[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
         assert all(results['_time_update'].notna())
@@ -194,12 +192,11 @@ def test_update_add_and_alter_column(sql):
     dataframe['NewColumn'] = [3,4]
     with warnings.catch_warnings(record=True) as warn:
         sql.write.update(table_name, dataframe[['ColumnB', 'NewColumn']])
-        assert len(warn)==4
+        assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating column NewColumn in table '+table_name in str(warn[0].message)
-        assert 'Altering column ColumnB in table ##update_'+table_name in str(warn[1].message)
-        assert 'Creating column _time_update in table '+table_name in str(warn[2].message)
-        assert 'Altering column ColumnB in table '+table_name in str(warn[3].message)
+        assert 'Creating column _time_update in table '+table_name in str(warn[1].message)
+        assert 'Altering column ColumnB in table '+table_name in str(warn[2].message)
         result = sql.read.select(table_name)
         assert all(result[['ColumnA','ColumnB','NewColumn']]==dataframe)
         assert (result['_time_update'].notna()).all()
@@ -265,14 +262,12 @@ def test_merge_alter_column(sql):
     dataframe.loc[1,'ColumnB'] = 'bbbbb'
     with warnings.catch_warnings(record=True) as warn:
         sql.write.merge(table_name, dataframe)
-        assert len(warn)==6
+        assert len(warn)==4
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-        assert 'Altering column ColumnA in table ##merge_'+table_name in str(warn[0].message)
-        assert 'Altering column ColumnB in table ##merge_'+table_name in str(warn[1].message)
-        assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)
-        assert 'Creating column _time_update in table '+table_name in str(warn[3].message)
-        assert 'Altering column ColumnA in table '+table_name in str(warn[4].message)
-        assert 'Altering column ColumnB in table '+table_name in str(warn[5].message)
+        assert 'Creating column _time_insert in table '+table_name in str(warn[0].message)
+        assert 'Creating column _time_update in table '+table_name in str(warn[1].message)
+        assert 'Altering column ColumnA in table '+table_name in str(warn[2].message)
+        assert 'Altering column ColumnB in table '+table_name in str(warn[3].message)
         results = sql.read.select(table_name)
         assert all(results[['ColumnA','ColumnB']]==dataframe[['ColumnA','ColumnB']])
         assert all(results['_time_insert'].isna())
@@ -296,13 +291,12 @@ def test_merge_add_and_alter_column(sql):
     dataframe['NewColumn'] = 0
     with warnings.catch_warnings(record=True) as warn:
         sql.write.merge(table_name, dataframe)
-        assert len(warn)==5
+        assert len(warn)==4
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating column NewColumn in table '+table_name in str(warn[0].message)
-        assert 'Altering column ColumnB in table ##merge_'+table_name in str(warn[1].message)
-        assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)
-        assert 'Creating column _time_update in table '+table_name in str(warn[3].message)
-        assert 'Altering column ColumnB in table '+table_name in str(warn[4].message)        
+        assert 'Creating column _time_insert in table '+table_name in str(warn[1].message)
+        assert 'Creating column _time_update in table '+table_name in str(warn[2].message)
+        assert 'Altering column ColumnB in table '+table_name in str(warn[3].message)        
         results = sql.read.select(table_name)
         assert all(results[['ColumnA','ColumnB','NewColumn']]==dataframe[['ColumnA','ColumnB','NewColumn']])
         assert all(results['_time_insert'].isna())
