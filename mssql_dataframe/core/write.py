@@ -203,17 +203,19 @@ class write():
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 
-    def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, subset_columns: list = None,
-    include_timestamps: bool = True):
-        ''' Merge a dataframe into an SQL table by updating, deleting, and inserting rows using Transact-SQL MERGE.
+    def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, 
+    delete_unmatched: bool = True, delete_conditions: list = None, include_timestamps: bool = True):
+        ''' Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
+        With delete_unmatched==False, this effectively becomes an upsert action.
 
         Parameters
         ----------
 
         table_name (str) : name of the SQL table
         dataframe (pd.DataFrame): tabular data to merge into SQL table
-        match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
-        subset_columns (list, default=None) : prevents deleting non-matching columns during incremental loading
+        match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used
+        delete_unmatched (bool, default=True) : delete records if they do not match
+        delete_conditions (list, default=None) : additional criteria that needs to match to prevent records from being deleted
         include_timestamps (bool, default=True) : include _time_insert and _time_update columns that are in server time
 
         Returns
@@ -221,7 +223,13 @@ class write():
         
         None
 
+        Examples
+        --------
+
         '''
+
+        if delete_conditions is not None and delete_unmatched==False:
+            raise ValueError('delete_conditions can only be specified if delete_unmatched=True')
 
         # perform pre-merge steps
         try:
@@ -246,7 +254,7 @@ class write():
             +' WHEN MATCHED THEN UPDATE SET '+{update_syntax}
             +' WHEN NOT MATCHED THEN INSERT ('+{insert_syntax}+')'
             +' VALUES ('+{insert_values}+')'
-            +' WHEN NOT MATCHED BY SOURCE '+{subset_syntax}+' THEN DELETE;'
+            +{delete_syntax}+';'
 
             EXEC sp_executesql
                 @SQLStatement,
@@ -264,16 +272,16 @@ class write():
         alias_match = [str(x) for x in list(range(0,len(match_columns)))]
         alias_update = [str(x) for x in list(range(0,len(update_columns)))]
         alias_insert = [str(x) for x in list(range(0,len(insert_columns)))]
-        if subset_columns is None:
-            alias_subset = []
+        if delete_conditions is None:
+            alias_conditions = []
         else:
-            alias_subset = [str(x) for x in list(range(0,len(subset_columns)))]
+            alias_conditions = [str(x) for x in list(range(0,len(delete_conditions)))]
 
         # declare SQL variables
         declare = ["DECLARE @Match_"+x+" SYSNAME = ?;" for x in alias_match]
         declare += ["DECLARE @Update_"+x+" SYSNAME = ?;" for x in alias_update]
         declare += ["DECLARE @Insert_"+x+" SYSNAME = ?;" for x in alias_insert]
-        declare += ["DECLARE @Subset_"+x+" SYSNAME = ?;" for x in alias_subset]
+        declare += ["DECLARE @Subset_"+x+" SYSNAME = ?;" for x in alias_conditions]
         declare = "\n".join(declare)
 
         # form match on syntax
@@ -294,24 +302,26 @@ class write():
             insert_values = "+'GETDATE(), '+"+insert_values
 
         # form when not matched by source then delete condition syntax
-        if subset_columns is None:
-            subset_syntax = "''"
+        if delete_unmatched:
+            delete_syntax = "' WHEN NOT MATCHED BY SOURCE '+{conditions_syntax}+' THEN DELETE'"
+            conditions_syntax = ["'AND _target.'+QUOTENAME(@Subset_"+x+")+' IN (SELECT '+QUOTENAME(@Subset_"+x+")+' FROM '+QUOTENAME(@TableTemp)+')'" for x in alias_conditions]
+            conditions_syntax = " + ".join(conditions_syntax)
+            delete_syntax = delete_syntax.format(conditions_syntax=conditions_syntax)
         else:
-            subset_syntax = ["'AND _target.'+QUOTENAME(@Subset_"+x+")+' IN (SELECT '+QUOTENAME(@Subset_"+x+")+' FROM '+QUOTENAME(@TableTemp)+')'" for x in alias_subset]
-            subset_syntax = " + ".join(subset_syntax)
+            delete_syntax = "''"
 
         # parameters for sp_executesql
         parameters = ["@Match_"+x+" SYSNAME" for x in alias_match]
         parameters += ["@Update_"+x+" SYSNAME" for x in alias_update]
         parameters += ["@Insert_"+x+" SYSNAME" for x in alias_insert]
-        parameters += ["@Subset_"+x+" SYSNAME" for x in alias_subset]
+        parameters += ["@Subset_"+x+" SYSNAME" for x in alias_conditions]
         parameters =  ", ".join(parameters)
 
         # values for sp_executesql
         values = ["@Match_"+x+"=@Match_"+x for x in alias_match]
         values += ["@Update_"+x+"=@Update_"+x for x in alias_update]
         values += ["@Insert_"+x+"=@Insert_"+x for x in alias_insert]
-        values += ["@Subset_"+x+"=@Subset_"+x for x in alias_subset]
+        values += ["@Subset_"+x+"=@Subset_"+x for x in alias_conditions]
         values =  ", ".join(values)
 
         # set final SQL string
@@ -321,16 +331,16 @@ class write():
             update_syntax=update_syntax,
             insert_syntax=insert_syntax,
             insert_values=insert_values,
-            subset_syntax=subset_syntax,
+            delete_syntax=delete_syntax,
             parameters=parameters,
             values=values
         )
 
         # perform merge
-        if subset_columns is None:
+        if delete_conditions is None:
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns
         else:
-            args = [table_name, table_temp]+match_columns+update_columns+insert_columns+subset_columns
+            args = [table_name, table_temp]+match_columns+update_columns+insert_columns+delete_conditions
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)

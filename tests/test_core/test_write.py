@@ -235,6 +235,35 @@ def test_merge_errors(sql):
         sql.write.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
 
 
+def test_merge_keep_unmatched(sql):
+    
+    table_name = "##test_merge_keep_unmatched"
+    dataframe = pd.DataFrame({
+        'ColumnA': [3,4]
+    })
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe, include_timestamps=False)
+
+    # merge values into table, using the SQL primary key that came from the dataframe's index
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    dataframe = dataframe.append(pd.Series([6], index=['ColumnA'], name=2))
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.merge(table_name, dataframe, delete_unmatched=False)
+        assert len(warn)==2
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Creating column _time_insert' in str(warn[0].message)
+        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
+        assert 'Creating column _time_update' in str(warn[1].message)
+    result = sql.read.select(table_name)
+    assert all(result[['ColumnA']]==pd.DataFrame({'ColumnA': [3,5,6]}, index=[0,1,2]))
+    assert all(result.loc[0,['_time_insert']].isna())
+    assert all(result.loc[0,['_time_update']].isna())
+    assert all(result.loc[1,['_time_insert']].isna())
+    assert all(result.loc[1,['_time_update']].notna())
+    assert all(result.loc[2,['_time_insert']].notna())
+    assert all(result.loc[2,['_time_update']].isna())
+
 def test_merge_one_match_column(sql):
     
     table_name = "##test_merge_one_match_column"
@@ -294,9 +323,9 @@ def test_merge_two_match_columns(sql):
     assert all(result.loc[result.index==2,'_time_update'].isna())
 
 
-def test_merge_one_subset_column(sql):
+def test_merge_one_delete_condition(sql):
     
-    table_name = "##test_merge_one_subset_column"
+    table_name = "##test_merge_one_delete_condition"
     dataframe = pd.DataFrame({
         'State': ['A','B','B'],
         'ColumnA': [3,4,4],
@@ -307,14 +336,14 @@ def test_merge_one_subset_column(sql):
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
-    # also require a subset match on State to prevent a record from being deleted
+    # also require a match on State to prevent a record from being deleted
     dataframe = dataframe[dataframe.index==1]
     dataframe.loc[dataframe.index==1,'ColumnA'] = 5
     dataframe.loc[dataframe.index==1,'ColumnB'] = 'c'
     dataframe = dataframe.append(pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[3]))
     dataframe.index.name = '_pk'
     with warnings.catch_warnings(record=True) as warn:
-        sql.write.merge(table_name, dataframe, match_columns=['_pk'], subset_columns=['State'])
+        sql.write.merge(table_name, dataframe, match_columns=['_pk'], delete_conditions=['State'])
         assert len(warn)==2
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Creating column _time_insert' in str(warn[0].message)
@@ -331,9 +360,9 @@ def test_merge_one_subset_column(sql):
     assert all(result.loc[result.index==3,'_time_update'].isna())
 
 
-def test_merge_two_subset_columns(sql):
+def test_merge_two_delete_conditions(sql):
 
-    table_name = "##test_merge_two_subset_columns"
+    table_name = "##test_merge_two_delete_conditions"
     dataframe = pd.DataFrame({
         'State1': ['A','B','B'],
         'State2': ['X','Y','Z'],
@@ -345,14 +374,14 @@ def test_merge_two_subset_columns(sql):
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
-    # also require a subset match on State1 and State2 to prevent a record from being deleted
+    # also require a match on State1 and State2 to prevent a record from being deleted
     dataframe = dataframe[dataframe.index==1]
     dataframe.loc[dataframe.index==1,'ColumnA'] = 5
     dataframe.loc[dataframe.index==1,'ColumnB'] = 'c'
     dataframe = dataframe.append(pd.DataFrame({'State1': ['C'], 'State2': ['Z'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[3]))
     dataframe.index.name = '_pk'
     with warnings.catch_warnings(record=True) as warn:
-        sql.write.merge(table_name, dataframe, match_columns=['_pk'], subset_columns=['State1','State2'])
+        sql.write.merge(table_name, dataframe, match_columns=['_pk'], delete_conditions=['State1','State2'])
         assert len(warn)==2
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Creating column _time_insert' in str(warn[0].message)
