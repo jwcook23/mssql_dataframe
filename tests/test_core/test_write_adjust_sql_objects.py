@@ -95,7 +95,7 @@ def test_insert_add_and_alter_column(sql):
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
 
     dataframe['ColumnB'] = [256,257,258,259]
     dataframe['ColumnC'] = [0,1,2,3]
@@ -131,7 +131,7 @@ def test_update_add_column(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [1,2]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using the SQL primary key that came from the dataframe's index
@@ -155,7 +155,7 @@ def test_update_alter_column(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [0,0]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using ColumnA
@@ -184,7 +184,7 @@ def test_update_add_and_alter_column(sql):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using the SQL primary key that came from the dataframe's index
@@ -227,7 +227,7 @@ def test_merge_add_column(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [1,2]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -253,7 +253,7 @@ def test_merge_alter_column(sql):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -281,7 +281,7 @@ def test_merge_add_and_alter_column(sql):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index

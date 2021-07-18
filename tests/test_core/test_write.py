@@ -156,7 +156,7 @@ def test_update_one_match_column(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -180,7 +180,7 @@ def test_update_two_match_columns(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -205,7 +205,7 @@ def test_update_exclude_timestamps(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -241,7 +241,7 @@ def test_merge_keep_unmatched(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
@@ -264,13 +264,14 @@ def test_merge_keep_unmatched(sql):
     assert all(result.loc[2,['_time_insert']].notna())
     assert all(result.loc[2,['_time_update']].isna())
 
+
 def test_merge_one_match_column(sql):
     
     table_name = "##test_merge_one_match_column"
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
@@ -300,7 +301,7 @@ def test_merge_two_match_columns(sql):
         'ColumnA': [3,4],
         'ColumnB': ['a','b']
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index and ColumnA
@@ -332,7 +333,7 @@ def test_merge_one_delete_condition(sql):
         'ColumnB': ['a','b','b']
     }, index=[0,1,2])
     dataframe.index.name='_pk'
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
@@ -370,7 +371,7 @@ def test_merge_two_delete_conditions(sql):
         'ColumnB': ['a','b','b']
     }, index=[0,1,2])
     dataframe.index.name = '_pk'
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
@@ -404,7 +405,7 @@ def test_merge_exclude_timestamps(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index

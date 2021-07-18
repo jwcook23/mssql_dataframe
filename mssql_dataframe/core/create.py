@@ -145,7 +145,7 @@ class create():
         Returns
         -------
 
-        dataframe (pandas.DataFrame) : data prepared for inserting into SQL table
+        None
 
         """
 
