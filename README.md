@@ -12,6 +12,12 @@ In practice this module may be useful for updating models, web scraping, or gene
 
 [pyodbc](https://docs.microsoft.com/en-us/sql/connect/python/pyodbc/python-sql-driver-pyodbc?view=sql-server-ver15): The ODBC driver used for Transact-SQL statements.
 
+## Installation
+
+```cmd
+pip install mssql-dataframe
+```
+
 ## Core Functionality
 
 ### Initialization
@@ -56,7 +62,9 @@ df = pd.DataFrame({
 })
 df.index.name = 'PK_Column'
 # create the table with the index as the SQL primary key
-sql.create.table_from_dataframe(table_name='##sample_update', dataframe=df, primary_key='index')
+sql.create.table_from_dataframe(table_name='##sample_update', dataframe=df,
+    primary_key='index'
+)
 ```
 
 ### Insert from Dataframe
@@ -115,7 +123,9 @@ Any size dataframe can be used to update matching records in SQL. Here match_col
 df_small = pd.DataFrame({'ColumnB': [0], 'ColumnA': [-1]})
 time_start = time.time()
 # update the target table using columns
-sql.write.update('##sample_update', df_small[['ColumnB','ColumnA']], match_columns = ['ColumnB'])
+sql.write.update('##sample_update', df_small[['ColumnB','ColumnA']],
+    match_columns = ['ColumnB']
+)
 print('Updated ? records in {} seconds'.format(round(time.time()-time_start,2)))
 ```
 
@@ -132,7 +142,9 @@ df_merge = pd.DataFrame({
     'ColumnB': ['a','b']
 }, index=[0,1])
 df_merge.index.name = 'PK_Column'
-sql.create.table_from_dataframe(table_name='##sample_merge', dataframe=df_merge, primary_key='index')
+sql.create.table_from_dataframe(table_name='##sample_merge', dataframe=df_merge,
+    primary_key='index'
+)
 sql.write.insert(table_name='##sample_merge', dataframe=df_merge, include_timestamps=True)
 result = sql.read.select('##sample_merge', limit=5)
 result
@@ -160,8 +172,9 @@ Performing the merge, note:
 4. a new record has been inserted for State=C
 
 ``` python
-sql.write.merge(table_name='##sample_merge', dataframe=df_source, match_columns=['PK_Column','State'],
-    include_timestamps=True)
+sql.write.merge(table_name='##sample_merge', dataframe=df_source, 
+    match_columns=['PK_Column','State'], include_timestamps=True
+)
 result = sql.read.select('##sample_merge', limit=5)
 result
 ```
@@ -184,7 +197,9 @@ df_condition = pd.DataFrame({
     'ColumnB': ['a','b','b']
 }, index=[0,1,2])
 df_condition.index.name='_pk'
-sql.create.table_from_dataframe("##sample_merge_delete_condition", df_condition, primary_key='index')
+sql.create.table_from_dataframe("##sample_merge_delete_condition", df_condition, 
+    primary_key='index'
+)
 sql.write.insert("##sample_merge_delete_condition", df_condition, include_timestamps=True)
 
 # simulate deleted records
@@ -193,12 +208,15 @@ df_condition = df_condition[df_condition.index==1]
 df_condition.loc[df_condition.index==1,'ColumnA'] = 5
 df_condition.loc[df_condition.index==1,'ColumnB'] = 'c'
 # simulate new record
-df_condition = df_condition.append(pd.DataFrame({'State':['C'], 'ColumnA':[6], 'ColumnB':['d']}, index=[3]))
+df_condition = df_condition.append(
+    pd.DataFrame({'State':['C'],'ColumnA':[6],'ColumnB':['d']},index=[3])
+)
 df_condition.index.name = '_pk'
 
 # perform merge
 sql.write.merge('##sample_merge_delete_condition', df_condition, match_columns=['_pk'], 
-    delete_conditions=['State'])
+    delete_conditions=['State']
+)
 result = sql.read.select('##sample_merge_delete_condition', limit=5)
 result
 ```
@@ -253,7 +271,9 @@ result = sql.read.select('##sample_modify')
 schema[['data_type','python_type','is_nullable']]
 result
 # manually change the SQL data type
-sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT', not_null=False)
+sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT', 
+    not_null=False
+)
 schema = get_schema(sql.connection, '##sample_modify')
 result = sql.read.select('##sample_modify')
 schema[['data_type','python_type','is_nullable']]
