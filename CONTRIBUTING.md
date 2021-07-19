@@ -1,30 +1,35 @@
 # Contributing Guide
 
-Testing requires a local SQL Server running with the ability to connect using Windows account credentials. SQL Server Developer Edition can be downloaded for free [here](https://www.microsoft.com/en-us/sql-server/sql-server-downloads).
+Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition](https://www.microsoft.com/en-us/sql-server/sql-server-downloads)can be downloaded for free.
 
-Run all terminal commands in the top level mssql_dataframe folder. 
+Run all terminal commands in the top level mssql_dataframe folder.
 
-1. Create virtual environment.
-``` cmd
-python -m venv env
-```
+1. Create virtual environment
 
-2. Activate virtual environment.
-``` cmd
-.\env\Scripts\activate
-```
+    ``` cmd
+    python -m venv env
+    ```
 
-3. Install required packages.
-``` cmd
-pip install -r requirements.txt
-```
+2. Activate virtual environment
 
-4. Install mssql_dataframe in editable mode.
-``` cmd
-pip install -e .
-```
+    ``` cmd
+    .\env\Scripts\activate
+    ```
 
-5. Run tests and view coverage report.
-``` cmd
-pytest --cov-report html --cov=mssql_dataframe
-```
+3. Install required packages
+
+    ``` cmd
+    pip install -r requirements.txt
+    ```
+
+4. Install mssql_dataframe in editable mode
+
+    ``` cmd
+    pip install -e .
+    ```
+
+5. Run tests and view coverage report
+
+    ``` cmd
+    pytest --cov-report html --cov=mssql_dataframe
+    ```

@@ -23,8 +23,9 @@ def test_column_input_error(sql):
     columns = {"A": "VARCHAR", "B": "VARCHAR"}
     sql.create.table(table_name, columns)
     
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as error:
         sql.modify.column(table_name, modify='delete', column_name='B')
+    assert 'modify must be one of: ' in str(error)
 
 
 def test_column_drop(sql):

@@ -30,7 +30,7 @@ def execute(connection, statement:str, args:list=None):
             connection.cursor.execute(statement)
         else:
             connection.cursor.execute(statement, *args)
-    except Exception as error:
+    except Exception:
         raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
 
@@ -47,7 +47,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     Returns
     -------
     
-    dataframe (pandas.DataFrame) :
+    dataframe (pandas.DataFrame) : tabular data with assigned column names and a best python data type
     '''
 
     # execute the statement before getting results
@@ -85,7 +85,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
 
 
 def safe_sql(connection, inputs):
-    ''' Sanitize a list of string inputs into safe object names.
+    ''' Sanitize a list of string inputs into safe object names by first passing them through T-SQL QUOTENAME.
 
     Parameters
     ----------
@@ -153,13 +153,6 @@ def where_clause(connection, where: str):
     where_statement (str) : where statement containing parameters such as "...WHERE [username] = ?"
     where_args (list) : parameter values
 
-    Example
-    -------
-
-    where_statement, where_args = where_clause(connection, 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL')
-    where_statement == 'WHERE [ColumnA] > ? AND [ColumnB] = ? and [ColumnANDC] IS NOT NULL'
-    where_args == ['5','2']
-
     '''
 
     # regular expressions to parse where statement
@@ -208,9 +201,9 @@ def column_spec(columns: list):
     Returns
     -------
 
-    size (list|str)
+    size (list|str) : size of the SQL column
 
-    dtypes (list|str)
+    dtypes (list|str) : data type of the SQL column
 
     '''
 
@@ -439,8 +432,7 @@ def get_schema(connection, table_name: str):
 
 
 def flatten_schema(schema): 
-    '''Convert dataframe to a flatoutput from helpers.get_schema to inputs for table function.'''
-    '''Flatten dataframe output of get_schema function into simple outputs
+    '''Flatten dataframe output of get_schema function into simple python objects.
     
     Parameters
     ----------

@@ -8,7 +8,7 @@ class SQLServer():
     Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
     If adjust_sql_objects is True, SQL objects may be modified. The exepection is internal tracking columns 
-    _time_insert and _time_update which will always be created if needed.
+    _time_insert and _time_update which will always be created if include_timestamps=True for write methods.
 
     Parameters
     ----------
@@ -23,11 +23,6 @@ class SQLServer():
     modify (mssql_dataframe.modify.modify) : methods for modifying tables columns
     read (mssql_dataframe.read.read) : methods for reading from SQL tables
     write (mssql_dataframe.write.write) : methods for inserting, updating, and merge records
-
-
-    Examples
-    --------
-
 
     """
 

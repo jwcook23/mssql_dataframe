@@ -17,7 +17,7 @@ class write():
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
-        adjust_sql_objects (bool) : create and modify SQL table and columns as needed if True
+        adjust_sql_objects (bool) : create and modify SQL tables and columns as needed if True
 
         '''
 
@@ -35,7 +35,7 @@ class write():
         ----------
 
         table_name (str) : name of table to insert data into
-        dataframe (pd.DataFrame): tabular data to insert
+        dataframe (pandas.DataFrame): tabular data to insert
         include_timestamps (bool, default=True) : include _time_insert column which is in server time
 
         Returns
@@ -46,7 +46,11 @@ class write():
         Examples
         --------
 
-        insert(connection, 'TableName', pd.DataFrame({'ColumnA': [1, 2, 3]}))
+        #### include _time_insert by default
+        write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
+
+        #### do not include an insert time
+        write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}), include_timestamps=False)
 
         """
 
@@ -96,7 +100,7 @@ class write():
         ----------
 
         table_name (str) : name of table to insert data into
-        dataframe (pd.DataFrame): tabular data to insert
+        dataframe (pandas.DataFrame): tabular data to insert
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
         include_timestamps (bool, default=True) : include _time_update column which is in server time
 
@@ -108,17 +112,14 @@ class write():
         Examples
         --------
 
-        table_name = "##test_update_performance"
+        #### update ColumnA only using the dataframe index & SQL primary key
+        write.update('SomeTable', dataframe[['ColumnA']])
 
-        dataframe = pd.DataFrame({
-            'ColumnA': [0]*100000
-        })
-        create.table_from_dataframe(connection, table_name, dataframe, primary_key='index', row_count=len(dataframe))
-
-        # update values in table
-        dataframe['ColumnA'] = list(range(0,100000,1))
-        write.update(connection, table_name, dataframe[['ColumnA']])
+        #### update ColumnA and do not include a _time_update column value
+        write.update('SomeTable', dataframe[['ColumnA']], include_timestamps=False)
         
+        #### update Column A based on ColumnB and ColumnC, that do not have to be the SQL primary key
+        write.update('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnB','ColumnC'])
 
         """
 
@@ -206,13 +207,13 @@ class write():
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, 
     delete_unmatched: bool = True, delete_conditions: list = None, include_timestamps: bool = True):
         ''' Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
-        With delete_unmatched==False, this effectively becomes an upsert action.
+        With delete_unmatched=False, this effectively becomes an UPSERT action.
 
         Parameters
         ----------
 
         table_name (str) : name of the SQL table
-        dataframe (pd.DataFrame): tabular data to merge into SQL table
+        dataframe (pandas.DataFrame): tabular data to merge into SQL table
         match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used
         delete_unmatched (bool, default=True) : delete records if they do not match
         delete_conditions (list, default=None) : additional criteria that needs to match to prevent records from being deleted
@@ -225,6 +226,18 @@ class write():
 
         Examples
         --------
+
+        #### merge ColumnA and ColumnB values based on the SQL primary key / index of the dataframe
+
+        sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
+
+        #### for incrementally merging from a dataframe, require ColumnC also matches to prevent a record from being deleted
+
+        sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_conditions=['ColumnC'])
+
+        #### perform an UPSERT (if exists update, otherwise update) workflow
+
+        sql.write.merge('SomeTable', dataframe[['ColumnA']], delete_unmatched=False)
 
         '''
 
@@ -354,7 +367,7 @@ class write():
         ----------
 
         table_name (str) : name of the SQL table
-        dataframe (pd.DataFrame): tabular data that is being written to an SQL table
+        dataframe (pandas.DataFrame): tabular data that is being written to an SQL table
         cursor_method (pyodbc.connection.cursor.execute|pyodbc.connection.cursor.executemany) : cursor method used to write data
         statement (str) : statement to execute
         args (list) : arguments to pass to cursor_method when executing statement

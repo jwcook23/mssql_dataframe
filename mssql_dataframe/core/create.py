@@ -8,7 +8,7 @@ from mssql_dataframe.core import helpers
 class create():
 
     def __init__(self, connection):
-        '''Class for creating SQL tables.
+        '''Class for creating SQL tables manually or automatically from a dataframe.
         
         Parameters
         ----------
@@ -27,7 +27,7 @@ class create():
 
         table_name (str) : name of table to create
         columns (dict) : keys = column names, values = data types and optionally size/precision
-        not_null (list, default=[]) : list of columns to set as not null
+        not_null (list|str, default=[]) : list of columns to set as not null or a single column
         primary_key_column (str, default=None) : column to set as the primary key
         sql_primary_key (bool, default=False) : create an INT SQL identity column as the primary key named _pk
 
@@ -36,10 +36,17 @@ class create():
 
         None
 
-        Example
+        Examples
         -------
         
-        create_table(table_name='##SingleColumnTable', columns={"A": "VARCHAR(100)"})
+        #### simple table without primary key
+        create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
+
+        #### table with a primary key and another not null column
+        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_null="B", primary_key_column="A")
+
+        #### table with an SQL identity primary key
+        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_null="B", sql_primary_key=True)
 
         """
         
@@ -72,6 +79,8 @@ class create():
         # develop syntax for SQL table creation
         if sql_primary_key and primary_key_column is not None:
             raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
+        if isinstance(not_null, str):
+            not_null = [not_null]
         syntax = list(zip(
             ["QUOTENAME(@ColumnName_"+x+")" for x in alias_names],
             ["QUOTENAME(@ColumnType_"+x+")" for x in alias_names],
@@ -146,6 +155,25 @@ class create():
         -------
 
         None
+
+        Examples
+        --------
+
+        #### create table without a primary key
+
+        create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
+
+        #### create table with the dataframe's index as the primary key
+
+        create.table_from_dataframe('##DFIndexPK', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
+
+        #### create an SQL identity primary key
+
+        create.table_from_dataframe('##DFIdentityPK', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
+
+        #### attempt to automatically find a primary key in the dataframe
+
+        create.table_from_dataframe('##DFInferPK', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
 
         """
 

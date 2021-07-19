@@ -6,7 +6,7 @@ from mssql_dataframe.core import helpers
 class modify():
 
     def __init__(self, connection):
-        '''Class for modifying SQL table properties.
+        '''Class for modifying SQL table columns.
         
         Parameters
         ----------
@@ -40,7 +40,17 @@ class modify():
         Example
         -------
         
-        TODO: add example
+        #### add a column
+
+        modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
+
+        #### alter a column
+
+        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', not_null=True)
+
+        #### drop a column
+
+        modify.column('SomeTable', modify='drop', column_name='B')
 
         """
 
@@ -132,6 +142,18 @@ class modify():
         -------
 
         None
+
+        Examples
+        --------
+
+        #### add a primary key
+
+        modify.primary_key('SomeTable', modify='add', columns='A', primary_key_name = '_pk_1')
+
+        #### drop a primary key
+
+        sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
+
         '''
 
         options = ['add','drop']

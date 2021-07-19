@@ -234,6 +234,9 @@ def test_merge_errors(sql):
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
 
+    with pytest.raises(ValueError):
+        sql.write.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), delete_unmatched=False, delete_conditions=["ColumnB"])
+
 
 def test_merge_keep_unmatched(sql):
     

@@ -88,6 +88,29 @@ def test_insert_alter_column(sql):
     assert columns=={'ColumnA': 'tinyint', 'ColumnB': 'varchar(3)', 'ColumnC': 'int', '_time_insert': 'datetime'}
 
 
+def test_insert_alter_primary_key(sql):
+
+    table_name = '##test_insert_alter_primary_key'
+    dataframe = pd.DataFrame({
+        'ColumnA': [0,1,2,3],
+        'ColumnB': [0,1,2,3]
+    }).set_index(keys='ColumnA')
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe, include_timestamps=False)
+
+    new = pd.DataFrame({
+        'ColumnA': [256,257,258,259],
+        'ColumnB': [4,5,6,7]
+    }).set_index(keys='ColumnA')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.write.insert(table_name, new, include_timestamps=False)
+        assert len(warn)==1
+        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert 'Altering column ColumnA in table '+table_name in str(warn[0].message)        
+        results = sql.read.select(table_name)
+        assert all(results==dataframe.append(new))
+
+
 def test_insert_add_and_alter_column(sql):
 
     table_name = '##test_insert_add_and_alter_column'

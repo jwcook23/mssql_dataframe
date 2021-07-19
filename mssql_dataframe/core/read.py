@@ -35,14 +35,19 @@ class read():
         Returns
         -------
 
-        dataframe (pd.DataFrame): tabular data from select statement
+        dataframe (pandas.DataFrame): tabular data from select statement
         
         None
 
         Examples
         --------
 
+        #### select entire table
 
+        read.select('SomeTable')
+
+        #### specify select criteria
+        read.select('SomeTable', column_names=['ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
 
         """
 
