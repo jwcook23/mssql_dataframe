@@ -209,6 +209,4 @@ class create():
         # reset index after it was set as a column for table creation
         if primary_key=='index':
             dataframe = dataframe.set_index(keys=primary_key_column)
-        
-        return dataframe
     

@@ -1,14 +1,13 @@
 # mssql_dataframe
 
-Version 1.0
-
-Provides efficient mechanisms for updating and merging data into Transact-SQL tables from Python dataframes. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into an SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
+Provides efficient mechanisms for updating and merging data into Transact-SQL tables from Python dataframes. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
 In practice this module may be useful for updating models, web scraping, or general data engineering tasks.
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
 ## Dependancies
+
 [pandas](https://pandas.pydata.org/): The Python DataFrame.
 
 [pyodbc](https://docs.microsoft.com/en-us/sql/connect/python/pyodbc/python-sql-driver-pyodbc?view=sql-server-ver15): The ODBC driver used for Transact-SQL statements.
@@ -20,8 +19,9 @@ In practice this module may be useful for updating models, web scraping, or gene
 Connect to an on-premise database using pyodbc. Connection to an Azure SQL database is also possible by passing a server_name in the format `server_name='<server>.database.windows.net'`along with a username and password.
 
 If `adjust_sql_objects=True` (default is False):
+
 1. columns will be created if they do not exist
-2. column size will will increase is needed, for example from TINYINT to INT 
+2. column size will increase if needed, for example from TINYINT to INT
 3. an SQL table will be created if it does not exist
 
 ```python
@@ -39,16 +39,17 @@ sql = SQLServer(db, adjust_sql_objects=True)
 
 ### Creating SQL Tables
 
-SQL tables can be simply created from a dataframe object. 
+SQL tables can be simply created from a dataframe object.
 
-Notes:
+Note:
+
 1. a "best fit" SQL data type is determined in SQL
-2. `primary_key='index'` creates a primary key based on the dataframe's index
+2. `primary_key='index'` creates an SQL primary key based on the dataframe's index
 
 Here a global temporary is created, but in practice a user table would be created so it persists in the database after the database connection is closed.
 
-
 ``` python
+# create a large sample dataframe of 100,000 records
 df = pd.DataFrame({
     'ColumnA': list(range(0,100000,1)),
     'ColumnB': [0]*100000 
@@ -60,9 +61,10 @@ sql.create.table_from_dataframe(table_name='##sample_update', dataframe=df, prim
 
 ### Insert from Dataframe
 
-100,000 records are inserted in approximately 2 seconds in a localhost database by utilizing the fast_executatemany functionality of pyodbc.
+100,000 records are inserted in approximately 2 seconds in a localhost database.
 
-Note.
+Note:
+
 1. since `include_timestamps=True` a new column named _time_insert is created automatically.
 
 ``` python
@@ -75,7 +77,8 @@ print('Inserted {} records in {} seconds'.format(len(df), round(time.time()-time
 
 Reading data from an SQL table into a dataframe is straight-forward and allows for a limit, order, and where conditions.
 
-Notes:
+Note:
+
 1. SQL primary key column "PK_Column" has been placed as the dataframe's index.
 
 ``` python
@@ -87,10 +90,11 @@ result
 
 100,000 records are updated in approximately 3 seconds in a localhost database.
 
-Notes:
-1. a new _time_update column since `include_timestamps=True`
-2. ColumnC is created with data type VARCHAR(4)
-3. ColumnB is changed from data type TINYINT to INT
+Note:
+
+1. a new _time_update column is created since `include_timestamps=True`
+2. ColumnC is created with data type VARCHAR(4) since that is ColumnC's max length
+3. ColumnB is changed from data type TINYINT to INT to fit the updated values
 4. since `match_columns=None`, the SQL primary key / dataframe index is used to perform the update
 
 ``` python
@@ -148,7 +152,7 @@ df_append.index.name = 'PK_Column'
 df_source = df_source.append(df_append)
 ```
 
-Performing the merge, note that:
+Performing the merge, note:
 
 1. a new _time_update column since `include_timestamps=True`
 2. the record where State=A has been deleted
@@ -156,20 +160,21 @@ Performing the merge, note that:
 4. a new record has been inserted for State=C
 
 ``` python
-sql.write.merge(table_name='##sample_merge', dataframe=df_source, match_columns=['PK_Column','State'], include_timestamps=True)
+sql.write.merge(table_name='##sample_merge', dataframe=df_source, match_columns=['PK_Column','State'],
+    include_timestamps=True)
 result = sql.read.select('##sample_merge', limit=5)
 result
 ```
 
-It's possible to specify additional critera for record deletion. This is useful in case records are incrementally being merged from a dataframe.
+It's possible to specify additional critera for record deletion. This is useful in case records are incrementally being merged from a dataframe. Use cases for incremental loading may be long running web scraping or model training tasks.
 
-# merge values into table, using the primary key that came from the dataframe's index
-# also require a match on State to prevent a record from being deleted
-
-Note that:
+Note:
 
 1. a match on State is also required for a record to be deleted
-2. after the merge, the record where State=A remains in the table since the delete condition was not met
+2. the record where State=A remains in the table since the delete condition was not met
+3. one of the records for State=B is updated (since _pk=1 is in the dataframe)
+4. one of the records for State=B is deleted (since _pk=2 is not in the dataframe)
+5. a record for State=C has been inserted
 
 ``` python
 # create a sample table and insert sample records
@@ -188,18 +193,20 @@ df_condition = df_condition[df_condition.index==1]
 df_condition.loc[df_condition.index==1,'ColumnA'] = 5
 df_condition.loc[df_condition.index==1,'ColumnB'] = 'c'
 # simulate new record
-df_condition = df_condition.append(pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[3]))
+df_condition = df_condition.append(pd.DataFrame({'State':['C'], 'ColumnA':[6], 'ColumnB':['d']}, index=[3]))
 df_condition.index.name = '_pk'
 
 # perform merge
-sql.write.merge('##sample_merge_delete_condition', df_condition, match_columns=['_pk'], delete_conditions=['State'])
+sql.write.merge('##sample_merge_delete_condition', df_condition, match_columns=['_pk'], 
+    delete_conditions=['State'])
 result = sql.read.select('##sample_merge_delete_condition', limit=5)
 result
 ```
 
 Performing an upsert action (if exists update, otherwise insert) is possible by passing in the parameter `delete_unmatched=False`.
 
-Note that:
+Note:
+
 1. the record where State=A remains after the merge
 
 ``` python
@@ -223,11 +230,41 @@ result = sql.read.select('##sample_merge_delete_condition', limit=5)
 result
 ```
 
-### Dynamic SQL Table & Column Interaction
+## Additional Functionality
 
-Table and column names are passed through the stored procedure sp_executesql to prevent any dynamic strings from being directly executed.
+### Altering SQL Objects Manually
 
-For example, a column is added to a table using:
+If this module creates/alters an SQL object in an undesired manner, the underlying modify methods can be manually used to correct them.
+
+Note:
+
+1. Column1 was initially inferred to be a BIT/BOOLEAN as it consisted of only 1s and 0s.
+
+```python
+# import function to get SQL schema
+from mssql_dataframe.core.helpers import get_schema
+# create a sample SQL table
+df_modify = pd.DataFrame({'Column1': [0,1,0,1]})
+sql.create.table_from_dataframe('##sample_modify', df_modify)
+sql.write.insert('##sample_modify', df_modify)
+# get SQL schema and records
+schema = get_schema(sql.connection, '##sample_modify')
+result = sql.read.select('##sample_modify')
+schema[['data_type','python_type','is_nullable']]
+result
+# manually change the SQL data type
+sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT', not_null=False)
+schema = get_schema(sql.connection, '##sample_modify')
+result = sql.read.select('##sample_modify')
+schema[['data_type','python_type','is_nullable']]
+result
+```
+
+### Dynamic SQL
+
+Table and column names are passed through the stored procedure sp_executesql and/or use the T-SQL function QUOTENAME to prevent any dynamic strings from being directly executed.
+
+For example, a column is added to a table using the pattern:
 
 ```python
 statement = '''
@@ -254,7 +291,6 @@ cursor.execute(statment, *args)
 
 See CONTRIBUTING.md
 
-
 ## See Also
 
-A similiar project is https://github.com/ThibTrip/pangres, but doesn't include SQL Server / Transact-SQL. The primary motivation for creating a new project is differences in Transact-SQL syntax, specifically MERGE in T-SQL vs UPSERT in other SQL flavors.
+A similiar project is [pangres](https://github.com/ThibTrip/pangres), but doesn't include SQL Server / Transact-SQL. The primary motivation for creating a new project is differences in Transact-SQL syntax, specifically MERGE in T-SQL vs UPSERT in other SQL flavors.

@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe.core import errors, create, write, modify
+from mssql_dataframe.core import errors, create, write
 
 
 def execute(connection, statement:str, args:list=None):
