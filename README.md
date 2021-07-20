@@ -1,5 +1,9 @@
 # mssql_dataframe
 
+![Tests Status](./reports/tests.svg?dummy=8484744)
+![Coverage Status](./reports/coverage.svg?dummy=8484744)
+![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
+
 Provides efficient mechanisms for updating and merging data into Transact-SQL tables from Python dataframes. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
 In practice this module may be useful for updating models, web scraping, or general data engineering tasks.

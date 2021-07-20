@@ -3,3 +3,4 @@ pytest
 pytest-cov
 pyodbc
 pandas
+genbadge[tests,coverage]

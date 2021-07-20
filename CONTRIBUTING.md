@@ -33,7 +33,14 @@ Run all terminal commands in the top level mssql_dataframe folder.
 5. Add additional tests, run existing tests, and view coverage report
 
     ``` cmd
-    pytest --cov-report html --cov=mssql_dataframe
+    pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml
+    ```
+
+6. Generate coverage and test badges.
+
+    ```cmd
+    genbadge tests -i reports/test.xml -o reports/tests.svg
+    genbadge coverage -i reports/coverage.xml -o reports/coverage.svg
     ```
 
 ## Python Package Index (PyPI)
