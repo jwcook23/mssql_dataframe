@@ -18,10 +18,10 @@ Run all terminal commands in the top level mssql_dataframe folder.
     .\env\Scripts\activate
     ```
 
-3. Install required packages
+3. Install/update required testing and coverage packages
 
     ``` cmd
-    pip install -r requirements.txt
+    pip install --upgrade pytest pytest-cov genbadge[tests,coverage]
     ```
 
 4. Install mssql_dataframe in editable mode
@@ -55,11 +55,10 @@ Run all terminal commands in the top level mssql_dataframe folder.
     C: patch version (bug fixes)
     ```
 
-2. Install Building & Uploading Packages
+2. Install/update Building & Uploading Packages
 
     ``` cmd
-    pip install twine
-    pip install wheel
+    pip install --upgrade twine setuptools wheel
     ```
 
 3. Remove Old Build Files

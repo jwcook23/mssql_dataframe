@@ -8,6 +8,21 @@ Provides efficient mechanisms for updating and merging data into Transact-SQL ta
 
 In practice this module may be useful for updating models, web scraping, or general data engineering tasks.
 
+Quick sample (continue reading for full examples):
+
+``` python
+# update SQL table using dataframe's index and the SQL primary key
+write.update('SomeTable', dataframe[['ColumnA']])
+# update SQL table using other columns
+write.update('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnB','ColumnC'])
+# merge (insert,update,delete) into SQL table using dataframe's index and the SQL primary key
+sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
+# merge into SQL table using other columns
+sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnC'])
+# upsert (if exists update, otherwise insert)
+sql.write.merge('SomeTable', dataframe[['ColumnA']], delete_unmatched=False)
+```
+
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
 ## Dependancies
