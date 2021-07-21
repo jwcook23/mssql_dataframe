@@ -229,15 +229,15 @@ class write():
 
         #### merge ColumnA and ColumnB values based on the SQL primary key / index of the dataframe
 
-        sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
+        write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
 
         #### for incrementally merging from a dataframe, require ColumnC also matches to prevent a record from being deleted
 
-        sql.write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_conditions=['ColumnC'])
+        write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_conditions=['ColumnC'])
 
         #### perform an UPSERT (if exists update, otherwise update) workflow
 
-        sql.write.merge('SomeTable', dataframe[['ColumnA']], delete_unmatched=False)
+        write.merge('SomeTable', dataframe[['ColumnA']], delete_unmatched=False)
 
         '''
 
