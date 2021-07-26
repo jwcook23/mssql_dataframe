@@ -249,7 +249,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     
     # select random subset of data, ensuring the maximum values are included
     subset = dataframe.sample(n=min([row_count,len(dataframe)]))
-    strings = dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str'))]
+    strings = dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str')) & dataframe.any()]
     datetimes = dataframe.select_dtypes('datetime').columns
     numeric = dataframe.select_dtypes(include=np.number).columns
     include = pd.Series(dtype='int64')
@@ -257,6 +257,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
         include = include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
     if len(strings)>0:
         include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
+    # handle columns of only na
+    include = include.fillna(0).astype('int')
+    # add maximum values
     subset = subset.append(dataframe.loc[include[~include.isin(subset.index)]])
 
     # insert subset of data into temporary table as strings since SQL will determine final datatype
@@ -338,7 +341,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # create variables for execute method
     args = [table_name] + column_names
 
-    # execute statement, then transformat back to actual column name
+    # execute statement, then transformat back to actual column name`
     dtypes = read_query(connection, statement, args)
     dtypes['ColumnIndex'] = dtypes['ColumnIndex'].str[1::].astype('int')
     dtypes = {x[0]:x[1] for x in dtypes.values}
@@ -349,6 +352,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
     length = {k:"varchar("+str(v)+")" for k,v in length.items()}
     dtypes.update(length)
+
+    # assume default for columns of only na values
+    dtypes = {**dtypes, **{k:'varchar(1)' for k in columns.keys() if k not in dtypes}}
 
     return dtypes
 

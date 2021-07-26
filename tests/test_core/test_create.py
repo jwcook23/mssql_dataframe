@@ -20,7 +20,7 @@ def sql():
 
 
 @pytest.fixture(scope="module")
-def dataframe():
+def sample():
     dataframe = pd.DataFrame({
         '_varchar': [None,'b','c','4','e'],
         '_tinyint': [None,2,3,4,5],
@@ -29,7 +29,8 @@ def dataframe():
         '_bigint': [2147483648,2,3,None,5],
         '_float': [1.111111,2,3,4,5],
         '_time': [datetime.now().time()]*5,
-        '_datetime': [datetime.now()]*4+[pd.NaT]
+        '_datetime': [datetime.now()]*4+[pd.NaT],
+        '_empty': [None]*5
     })
     return dataframe
 
@@ -118,79 +119,79 @@ def test_table_from_dataframe_simple(sql):
     assert all(schema['python_type']=='Int8')
 
 
-def test_table_from_dataframe_errorpk(sql):
+def test_table_from_dataframe_errorpk(sql, sample):
 
     with pytest.raises(ValueError):
         table_name = '##test_table_from_dataframe_nopk'
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="ColumnName")
+        sql.create.table_from_dataframe(table_name, sample, primary_key="ColumnName")
 
 
-def test_table_from_dataframe_nopk(sql, dataframe):
+def test_table_from_dataframe_nopk(sql, sample):
 
     table_name = '##test_table_from_dataframe_nopk'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    sql.create.table_from_dataframe(table_name, sample, primary_key=None)
     schema = helpers.get_schema(sql.connection, table_name)
 
-    assert len(schema)==8
-    assert all(schema.index==['_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
-    assert all(schema['data_type']==['varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime'])
-    assert all(schema['max_length']==[1, 1, 2, 4, 8, 8, 5, 8])
-    assert all(schema['precision']==[0, 3, 5, 10, 19, 53, 16, 23])
-    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 7, 3])
-    assert all(schema['is_nullable']==[True, True, False, False, True, False, False, True])
+    assert len(schema)==9
+    assert all(schema.index==['_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime','_empty'])
+    assert all(schema['data_type']==['varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime','varchar'])
+    assert all(schema['max_length']==[1, 1, 2, 4, 8, 8, 5, 8, 1])
+    assert all(schema['precision']==[0, 3, 5, 10, 19, 53, 16, 23, 0])
+    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 7, 3, 0])
+    assert all(schema['is_nullable']==[True, True, False, False, True, False, False, True, True])
     assert all(schema['is_identity']==False)
     assert all(schema['is_primary_key']==False)
 
 
-def test_table_from_dataframe_sqlpk(sql, dataframe):
+def test_table_from_dataframe_sqlpk(sql, sample):
 
     table_name = '##test_table_from_dataframe_sqlpk'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+    sql.create.table_from_dataframe(table_name, sample, primary_key='sql')
     schema = helpers.get_schema(sql.connection, table_name)
 
-    assert len(schema)==9
-    assert all(schema.index==['_pk','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
-    assert all(schema['data_type']==['int','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime'])
-    assert all(schema['max_length']==[4, 1, 1, 2, 4, 8, 8, 5, 8])
-    assert all(schema['precision']==[10, 0, 3, 5, 10, 19, 53, 16, 23])
-    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3])
-    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True])
-    assert all(schema['is_identity']==[True, False, False, False, False, False, False, False, False])
-    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False])
+    assert len(schema)==10
+    assert all(schema.index==['_pk','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
+    assert all(schema['data_type']==['int','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
+    assert all(schema['max_length']==[4, 1, 1, 2, 4, 8, 8, 5, 8, 1])
+    assert all(schema['precision']==[10, 0, 3, 5, 10, 19, 53, 16, 23, 0])
+    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3, 0])
+    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True, True])
+    assert all(schema['is_identity']==[True, False, False, False, False, False, False, False, False, False])
+    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False, False])
 
 
-def test_table_from_dataframe_indexpk(sql, dataframe):
+def test_table_from_dataframe_indexpk(sql, sample):
 
     # unamed dataframe index
     table_name = '##test_table_from_dataframe_indexpk'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.create.table_from_dataframe(table_name, sample, primary_key='index')
     schema = helpers.get_schema(sql.connection, table_name)
 
-    assert len(schema)==9
-    assert all(schema.index==['_index','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
-    assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime'])
-    assert all(schema['max_length']==[1, 1, 1, 2, 4, 8, 8, 5, 8])
-    assert all(schema['precision']==[3, 0, 3, 5, 10, 19, 53, 16, 23])
-    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3])
-    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True])
+    assert len(schema)==10
+    assert all(schema.index==['_index','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
+    assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
+    assert all(schema['max_length']==[1, 1, 1, 2, 4, 8, 8, 5, 8, 1])
+    assert all(schema['precision']==[3, 0, 3, 5, 10, 19, 53, 16, 23, 0])
+    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3, 0])
+    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True, True])
     assert all(schema['is_identity']==False)
-    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False])
+    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False, False])
 
     # named dataframe index
     table_name = '##DataFrameIndexPKNamed'
-    dataframe.index.name = 'NamedIndex'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sample.index.name = 'NamedIndex'
+    sql.create.table_from_dataframe(table_name, sample, primary_key='index')
     schema = helpers.get_schema(sql.connection, table_name)
 
-    assert len(schema)==9
-    assert all(schema.index==['NamedIndex','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime'])
-    assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime'])
-    assert all(schema['max_length']==[1, 1, 1, 2, 4, 8, 8, 5, 8])
-    assert all(schema['precision']==[3, 0, 3, 5, 10, 19, 53, 16, 23])
-    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3])
-    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True])
+    assert len(schema)==10
+    assert all(schema.index==['NamedIndex','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
+    assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
+    assert all(schema['max_length']==[1, 1, 1, 2, 4, 8, 8, 5, 8, 1])
+    assert all(schema['precision']==[3, 0, 3, 5, 10, 19, 53, 16, 23, 0])
+    assert all(schema['scale']==[0, 0, 0, 0, 0, 0, 0, 7, 3, 0])
+    assert all(schema['is_nullable']==[False, True, True, False, False, True, False, False, True, True])
     assert all(schema['is_identity']==False)
-    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False])
+    assert all(schema['is_primary_key']==[True, False, False, False, False, False, False, False, False, False])
 
 
 def test_table_from_dataframe_inferpk(sql):

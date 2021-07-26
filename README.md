@@ -28,7 +28,7 @@ write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
 write.merge('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], 
     match_columns=['ColumnC']
 )
-# upsert (if exists update, otherwise insert)
+##upsert (if exists update, otherwise insert)
 write.merge('SomeTable', dataframe[['ColumnA']], delete_unmatched=False)
 ```
 
