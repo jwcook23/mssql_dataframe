@@ -11,20 +11,21 @@ from mssql_dataframe.core import errors, helpers, create, modify
 
 class write():
 
-    def __init__(self, connection, adjust_sql_objects: bool = False):
+    def __init__(self, connection, adjust_sql_objects: bool = False, adjust_sql_attempts: int = 10):
         '''Class for writing to SQL tables.
         
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
         adjust_sql_objects (bool) : create and modify SQL tables and columns as needed if True
-
+        adjust_sql_attempts (int) : maximum attempts at adjusting_sql_objects after write failure
         '''
 
         self.__connection__ = connection
         self.__create__ = create.create(connection)
         self.__modify__ = modify.modify(connection)
         self.adjust_sql_objects = adjust_sql_objects
+        self.adjust_sql_attempts = adjust_sql_attempts
 
 
     def insert(self, table_name: str, dataframe: pd.DataFrame,
@@ -86,10 +87,9 @@ class write():
 
         # perform insert
         dataframe = self.__prepare_values(dataframe)
-        args = dataframe.values.tolist()
 
         # execute statement, and potentially handle errors
-        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.executemany, statement, args)
+        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.executemany, statement)
 
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None,
@@ -248,9 +248,8 @@ class write():
         try:
             dataframe, match_columns, table_temp = self.__prep_update_merge(table_name, match_columns, dataframe, operation='merge')
         # check for no table instead of relying on _attempt_write to prevent attempt to create a temp table
-        except errors.SQLTableDoesNotExist as error_class:
-            dataframe = self.__handle_error(table_name, dataframe, error_class, undefined_columns=[])
-            self.insert(table_name, dataframe)
+        except errors.SQLTableDoesNotExist:
+            self.insert(table_name, dataframe, include_timestamps)
             return None
 
         # develop basic merge syntax
@@ -360,7 +359,7 @@ class write():
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 
-    def __attempt_write(self, table_name, dataframe, cursor_method, statement, args):
+    def __attempt_write(self, table_name, dataframe, cursor_method, statement, args: list = None):
         '''Execute a statement using a pyodbc.cursor method until all built in methods to handle errors have been exhausted.
         
         Parameters
@@ -370,32 +369,36 @@ class write():
         dataframe (pandas.DataFrame): tabular data that is being written to an SQL table
         cursor_method (pyodbc.connection.cursor.execute|pyodbc.connection.cursor.executemany) : cursor method used to write data
         statement (str) : statement to execute
-        args (list, default=None) : arguments to pass to cursor_method when executing statement
+        args (list|None) : arguments to pass to cursor_method when executing statement, if None build from dataframe values
 
         Returns
         -------
         None
 
         '''
+        # derive args from dataframe values
+        derive = False
+        if args is None:
+            derive = True
 
-        # make a maximum of 3 attempts in case all of these situations an encountered
-        # # 0: include_timestamp columns need to be added
-        # # 1: other columns need added
-        # # 2: other columns need modified
-
-        error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
-        for attempt in range(0,4,1):
+        for _ in range(0,self.adjust_sql_attempts,1):
+            error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
             try:
+                # derive each loop incase handling error adjusted dataframe contents
+                if derive:
+                    args = dataframe.values.tolist()
+                # cursor.execute/cursor.executemany
                 cursor_method(statement, args)
+                error_class = None
                 break
-            except (pyodbc.ProgrammingError, pyodbc.DataError, pyodbc.Error) as odbc_error:
-                if attempt==3:
-                    raise error_class from None
-                else:
-                    error_class, undefined_columns = self.__classify_error(table_name, odbc_error)
-                    self.__handle_error(table_name, dataframe, error_class, undefined_columns)
+            except (pyodbc.ProgrammingError, pyodbc.DataError) as odbc_error:
+                error_class, undefined_columns = self.__classify_error(table_name, odbc_error)
+                dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
             except:
-                raise error_class
+                raise error_class from None
+        # raise unhandled errors or max adjust_sql_attempts reached
+        if error_class is not None:
+            raise error_class from None
 
 
     def __classify_error(self, table_name: str, odbc_error: pyodbc.Error):
@@ -447,19 +450,21 @@ class write():
 
         Returns
         -------
-        None
+        dataframe (pandas.DataFrame) : data that may have been modified if table was created
+        error_class (mssql_dataframe.core.errors|None) : None if error was handled
 
         '''
 
         # always add include_timestamps columns
         include_timestamps = [x for x in undefined_columns if x in ['_time_update', '_time_insert']]
         if include_timestamps:
+            error_class = None
             for column in include_timestamps:
                 warnings.warn('Creating column {} in table {} with data type DATETIME.'.format(column, table_name), errors.SQLObjectAdjustment)
                 self.__modify__.column(table_name, modify='add', column_name=column, data_type='DATETIME')
 
         # raise error since adjust_sql_objects==False
-        elif not self.adjust_sql_objects:
+        elif not isinstance(error_class, errors.SQLGeneral) and not self.adjust_sql_objects:
             error_class.args = (error_class.args[0],'Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.')
             raise error_class from None
 
@@ -468,11 +473,13 @@ class write():
 
             # SQLTableDoesNotExist
             if isinstance(error_class, errors.SQLTableDoesNotExist):
+                error_class = None
                 warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
                 dataframe = self.__create__.table_from_dataframe(table_name, dataframe)
 
             # SQLColumnDoesNotExist
             elif isinstance(error_class, errors.SQLColumnDoesNotExist):
+                error_class = None
                 schema = helpers.get_schema(self.__connection__, table_name)
                 table_temp = "##write_new_column_"+table_name
                 new = dataframe.columns[~dataframe.columns.isin(schema.index)]
@@ -485,6 +492,7 @@ class write():
 
             # SQLInsufficientColumnSize
             elif isinstance(error_class, errors.SQLInsufficientColumnSize):
+                error_class = None
                 schema = helpers.get_schema(self.__connection__, table_name)
                 table_temp = "##write_alter_column_"+table_name
                 dtypes_sql = helpers.infer_datatypes(self.__connection__, table_temp, dataframe)
@@ -506,11 +514,8 @@ class write():
                         self.__modify__.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
                     else:
                         self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
-                    
-            else:
-                raise error_class from None
 
-        return dataframe
+        return dataframe, error_class
 
 
     def __prepare_values(self, dataframe):
@@ -547,6 +552,11 @@ class write():
         # any kind of missing values to be NULL in SQL
         dataframe = dataframe.fillna(np.nan).replace([np.nan], [None])
 
+        # datetimes: convert dataframe of single datetime column
+        # # otherwise dataframe.values.tolist() will then be composed of Python int's instead of Python Timestamps
+        if dataframe.shape[1]==1 and dataframe.select_dtypes('datetime').shape[1]==1:
+            dataframe = dataframe.astype(object)
+
         return dataframe
 
 
@@ -577,7 +587,7 @@ class write():
         undefined_columns = list(dataframe.columns[~dataframe.columns.isin(schema.index)])
         if any(undefined_columns):
             error_class = errors.SQLColumnDoesNotExist(f'Invalid column name: {undefined_columns}')
-            dataframe = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
+            dataframe,_ = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
             schema = helpers.get_schema(self.__connection__, table_name)
 
         # insert data into temporary table to use for updating/merging

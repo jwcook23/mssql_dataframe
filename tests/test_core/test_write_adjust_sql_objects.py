@@ -23,9 +23,11 @@ def test_insert_create_table(sql):
 
     table_name = '##test_insert_create_table'
 
+    # SQL will infer '06/22/2021' as a date but not allow for insertion
+    # # insure internally value is first created to datetime which will work
     dataframe = pd.DataFrame({
-        "ColumnA": [1,2],
-        # "ColumnB": ['06/22/2021','06-22-2021']
+        "ColumnA": [1,2,3],
+        "ColumnB": ['06/22/2021','06-22-2021','2023-08-31']
     })
 
     with warnings.catch_warnings(record=True) as warn:
@@ -229,7 +231,8 @@ def test_merge_create_table(sql):
     table_name = "##test_merge_create_table"
     dataframe = pd.DataFrame({
             '_pk': [1,2],
-            'ColumnA': [5,6]
+            'ColumnA': [5,6],
+            'ColumnB': ['06/22/2021','2023-08-31']
         })
 
     with warnings.catch_warnings(record=True) as warn:
@@ -239,9 +242,9 @@ def test_merge_create_table(sql):
         assert 'Creating table '+table_name in str(warn[0].message)
         assert 'Creating column _time_insert in table '+table_name in str(warn[1].message)
         results = sql.read.select(table_name)
-        assert all(results[['_pk','ColumnA']]==dataframe)
+        assert all(results[['_pk','ColumnA','ColumnB']]==dataframe)
         assert all(results['_time_insert'].notna())
-
+        
 
 def test_merge_add_column(sql):
 

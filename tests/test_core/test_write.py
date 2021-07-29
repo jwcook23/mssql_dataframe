@@ -17,6 +17,22 @@ def sql():
     connection.connection.close()
 
 
+def test_attempt_write_failure(sql):
+
+    table_name = '##test_attempt_write_failure'
+    sql.create.table(table_name, columns={'ColumnA': 'TINYINT'}, primary_key_column='ColumnA')
+
+    dataframe = pd.DataFrame({'ColumnA': [1,1]})
+    cursor_method = sql.connection.cursor.executemany
+    statement = f'INSERT INTO {table_name} VALUES(?)'
+    args = dataframe.values.tolist()
+
+    # pyodb IntegrityError raised from duplicate primary key value
+    # mask the error since it is unhandled
+    with pytest.raises(errors.SQLGeneral):
+        sql.write._write__attempt_write(table_name, dataframe, cursor_method, statement, args)
+
+
 def test_prepare_values(sql):
 
     dataframe = pd.DataFrame({
@@ -35,6 +51,13 @@ def test_prepare_values(sql):
     assert all(dataframe['ColumnA'].values==['a','b','c',None,None])
     assert all(dataframe['ColumnB'].values==['01:00:00.1234567']*5)
     assert all(dataframe['ColumnC'].values==['00:00:00.123400']*5)
+
+    with pytest.raises(ValueError):
+        sql.write._write__prepare_values(pd.DataFrame({'Column': [pd.Timedelta(days=1)]}))
+
+    with pytest.raises(ValueError):
+        sql.write._write__prepare_values(pd.DataFrame({'Column': [pd.Timedelta(days=-1)]}))
+
 
 def test_insert_errors(sql):
 
@@ -59,9 +82,6 @@ def test_insert_errors(sql):
 
     with pytest.raises(errors.SQLInvalidInsertFormat):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': ['06/22/2021']}), include_timestamps=False)
-
-    with pytest.raises(errors.SQLInvalidInsertFormat):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': [1]}), include_timestamps=False)
 
 
 def test_insert(sql):
@@ -99,12 +119,16 @@ def test_insert(sql):
     dataframe['ColumnD'] = pd.to_datetime(dataframe['ColumnD'])
     sql.write.insert(table_name, dataframe)
 
+    # single column of dates
+    dataframe = pd.DataFrame({'ColumnD': ['06-22-2021','06-22-2021']}, dtype='datetime64[ns]')
+    sql.write.insert(table_name, dataframe)
+
     # test all insertions
     results = sql.read.select(table_name)
     assert all(results.loc[results['ColumnA'].notna(),'ColumnA']==pd.Series([1,5,7], index=[0,4,6]))
     assert all(results.loc[results['ColumnB'].notna(),'ColumnB']==pd.Series([2,3,4,5,6], index=[1,2,3,4,5]))
     assert all(results.loc[results['ColumnC'].notna(),'ColumnC']==pd.Series([6,7], index=[5,6]))
-    assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22), date(2021,6,22)], index=[4,5]))
+    assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22)]*4, index=[4,5,7,8]))
     assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
     assert all(results['_time_insert'].notna())
 
