@@ -1,9 +1,7 @@
-from datetime import date
 import warnings
 
 import pytest
 import pandas as pd
-import numpy as np
 
 from mssql_dataframe import connect
 from mssql_dataframe.collection import SQLServer
@@ -26,7 +24,8 @@ def test_insert_create_table(sql):
     table_name = '##test_insert_create_table'
 
     dataframe = pd.DataFrame({
-        "ColumnA": [1,2]
+        "ColumnA": [1,2],
+        # "ColumnB": ['06/22/2021','06-22-2021']
     })
 
     with warnings.catch_warnings(record=True) as warn:

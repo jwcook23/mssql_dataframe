@@ -111,15 +111,15 @@ class read():
         else:
             dataframe = helpers.read_query(self.__connection__, statement, where_args)
 
-        # change to best datatype
-        dtypes = schema['python_type'].reset_index().values
-        dtypes = {x[0]:x[1] for x in dtypes if x[0] in dataframe.columns}
-        dataframe = dataframe.astype(dtypes)
+        # change to optimal python datatype
+        dtypes_sql = schema['data_type'].to_dict()
+        dataframe = helpers.dtype_py(dataframe, dtypes_sql)
 
         # set dataframe index as primary key
         if len(primary_key)>0:
+            dtype_pk = dataframe.dtypes[primary_key[0]]
             dataframe = dataframe.set_index(keys=primary_key)
             # use lowercase version, which represents non-nullable datatype for example, int64 for Int64
-            dataframe.index = dataframe.index.astype(dtypes[primary_key[0]].lower())
+            dataframe.index = dataframe.index.astype(dtype_pk.name.lower())
 
         return dataframe

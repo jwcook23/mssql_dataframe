@@ -96,7 +96,7 @@ class modify():
             type_column = "+' '+QUOTENAME(@ColumnType)"
             parameter_type = ", @ColumnType SYSNAME"
             value_type = ", @ColumnType=@ColumnType"
-            size, dtypes = helpers.column_spec(data_type)
+            size, dtypes_sql = helpers.column_spec(data_type)
             if size is None:
                 declare_size = ""
                 size_column = ""
@@ -112,7 +112,7 @@ class modify():
             else:
                 null_column = ""
             
-            args += [dtypes, size]
+            args += [dtypes_sql, size]
 
         statement = statement.format(
             declare_type=declare_type, declare_size=declare_size,

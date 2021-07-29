@@ -81,10 +81,10 @@ def test_where_clause(sql):
 def test_column_spec():
 
     columns = ['VARCHAR', 'VARCHAR(MAX)', 'VARCHAR(200)', 'VARCHAR(1)', 'INT', 'DECIMAL(5,2)']
-    size, dtypes = helpers.column_spec(columns)
+    size, dtypes_sql = helpers.column_spec(columns)
     
     assert size==[None, '(MAX)', '(200)', '(1)', None, '(5,2)']
-    assert dtypes==['VARCHAR', 'VARCHAR', 'VARCHAR', 'VARCHAR', 'INT', 'DECIMAL']
+    assert dtypes_sql==['VARCHAR', 'VARCHAR', 'VARCHAR', 'VARCHAR', 'INT', 'DECIMAL']
 
 
 def test_infer_datatypes_simple(sql):
@@ -93,8 +93,8 @@ def test_infer_datatypes_simple(sql):
 
     dataframe = pd.DataFrame({'_tinyint': [1]})
 
-    dtypes = helpers.infer_datatypes(sql.connection, table_name, dataframe)
-    assert dtypes['_tinyint']=='tinyint'
+    dtypes_sql = helpers.infer_datatypes(sql.connection, table_name, dataframe)
+    assert dtypes_sql['_tinyint']=='tinyint'
 
 
 def test_infer_datatypes(sql):
@@ -114,15 +114,15 @@ def test_infer_datatypes(sql):
     })
     dataframe[['_bit','_tinyint','_bigint']] = dataframe[['_bit','_tinyint','_bigint']].astype('Int64') 
 
-    dtypes = helpers.infer_datatypes(sql.connection, table_name, dataframe)
-    assert dtypes['_varchar']=="varchar(1)"
-    assert dtypes['_bit']=="bit"
-    assert dtypes['_tinyint']=="tinyint"
-    assert dtypes['_smallint']=="smallint"
-    assert dtypes['_bigint']=="bigint"
-    assert dtypes['_float']=="float"
-    assert dtypes['_time']=="time"
-    assert dtypes['_datetime']=="datetime"
+    dtypes_sql = helpers.infer_datatypes(sql.connection, table_name, dataframe)
+    assert dtypes_sql['_varchar']=="varchar(1)"
+    assert dtypes_sql['_bit']=="bit"
+    assert dtypes_sql['_tinyint']=="tinyint"
+    assert dtypes_sql['_smallint']=="smallint"
+    assert dtypes_sql['_bigint']=="bigint"
+    assert dtypes_sql['_float']=="float"
+    assert dtypes_sql['_time']=="time"
+    assert dtypes_sql['_datetime']=="datetime"
 
 
 def test_infer_datatypes_small_sample(sql):
@@ -134,10 +134,10 @@ def test_infer_datatypes_small_sample(sql):
     '_varchar': ['aaaaa','bbbb','ccc','dd','e']
     })
 
-    dtypes = helpers.infer_datatypes(sql.connection, table_name, dataframe, row_count=0)
+    dtypes_sql = helpers.infer_datatypes(sql.connection, table_name, dataframe, row_count=0)
 
-    assert dtypes['_tinyint']=="tinyint"
-    assert dtypes['_varchar']=="varchar(5)"
+    assert dtypes_sql['_tinyint']=="tinyint"
+    assert dtypes_sql['_varchar']=="varchar(5)"
     
 
 def test_get_schema(sql):
@@ -150,7 +150,7 @@ def test_get_schema(sql):
     schema = helpers.get_schema(sql.connection, table_name)
 
     assert schema.index.name=='column_name'
-    assert all(schema.select_dtypes('object').columns==['data_type','python_type'])
+    assert all(schema.select_dtypes('object').columns==['data_type'])
     assert all(schema.select_dtypes('int64').columns==['max_length', 'precision', 'scale'])
     assert all(schema.select_dtypes('bool').columns==['is_nullable','is_identity', 'is_primary_key'])
 
@@ -161,44 +161,6 @@ def test_get_schema_errors(sql):
     table_name = '##test_get_schema_errors'
     with pytest.raises(errors.SQLTableDoesNotExist):
         helpers.get_schema(sql.connection, table_name)
-
-
-def test_get_schema_undefined(sql):
-
-    table_name = '##test_get_schema_undefined'
-    columns = {"_geography": "GEOGRAPHY", "_hierarchyid": "HIERARCHYID"}
-    sql.create.table(table_name, columns)
-
-    with warnings.catch_warnings(record=True) as warn:
-        schema = helpers.get_schema(sql.connection, table_name)
-        assert len(warn)==1
-        assert isinstance(warn[-1].message, errors.DataframeUndefinedBestType)
-        assert "['_geography', '_hierarchyid']" in str(warn[-1].message)
-        assert all(schema['python_type']=='str')
-
-
-def test_read_query_undefined_type(sql):
-
-    table_name = '##test_read_query_undefined_type'
-    columns = {"_geography": "GEOGRAPHY", "_datetimeoffset": "DATETIMEOFFSET(4)"}
-    sql.create.table(table_name, columns)
-
-    geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
-    datetimeoffset = "'12-10-25 12:32:10 +01:00'"
-    statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
-    sql.connection.connection.cursor().execute(statement.format(
-        table_name=table_name,
-        geography=geography,
-        datetimeoffset=datetimeoffset
-    ))
-
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = helpers.read_query(sql.connection, "SELECT * FROM {table_name}".format(table_name=table_name))
-        assert len(warn)==1
-        assert issubclass(warn[-1].category, UserWarning)
-        assert "['_geography', '_datetimeoffset']" in str(warn[-1].message)
-        assert len(dataframe)==1
-        assert all(dataframe.columns==['_geography', '_datetimeoffset'])
 
 
 def test_flatten_schema():

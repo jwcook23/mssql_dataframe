@@ -24,11 +24,11 @@ def sample():
     dataframe = pd.DataFrame({
         '_varchar': [None,'b','c','4','e'],
         '_tinyint': [None,2,3,4,5],
-        '_smallint': [256,2,6,4,5],
-        '_int': [32768,2,3,4,5],
-        '_bigint': [2147483648,2,3,None,5],
-        '_float': [1.111111,2,3,4,5],
-        '_time': [datetime.now().time()]*5,
+        '_smallint': [256,2,6,4,5],                             # tinyint max is 255
+        '_int': [32768,2,3,4,5],                                # smallint max is 32,767
+        '_bigint': [2147483648,2,3,None,5],                     # int max size is 2,147,483,647
+        '_float': [1.111111,2,3,4,5],                           # any decicmal places
+        '_time': [str(datetime.now().time())]*5,                # string in format HH:MM:SS.ffffff
         '_datetime': [datetime.now()]*4+[pd.NaT],
         '_empty': [None]*5
     })
@@ -116,7 +116,16 @@ def test_table_from_dataframe_simple(sql):
     assert all(schema['is_nullable']==False)
     assert all(schema['is_identity']==False)
     assert all(schema['is_primary_key']==False)
-    assert all(schema['python_type']=='Int8')
+
+
+def test_table_from_dataframe_datestr(sql):
+    table_name = '##test_table_from_dataframe_datestr'
+    dataframe = pd.DataFrame({"ColumnA": ['06/22/2021']})
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+    schema = helpers.get_schema(sql.connection, table_name)
+
+    assert dataframe['ColumnA'].dtype.name=='datetime64[ns]'
+    assert schema.at['ColumnA','data_type']=='datetime'
 
 
 def test_table_from_dataframe_errorpk(sql, sample):
@@ -129,7 +138,7 @@ def test_table_from_dataframe_errorpk(sql, sample):
 def test_table_from_dataframe_nopk(sql, sample):
 
     table_name = '##test_table_from_dataframe_nopk'
-    sql.create.table_from_dataframe(table_name, sample, primary_key=None)
+    sql.create.table_from_dataframe(table_name, sample.copy(), primary_key=None)
     schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==9
@@ -146,7 +155,7 @@ def test_table_from_dataframe_nopk(sql, sample):
 def test_table_from_dataframe_sqlpk(sql, sample):
 
     table_name = '##test_table_from_dataframe_sqlpk'
-    sql.create.table_from_dataframe(table_name, sample, primary_key='sql')
+    sql.create.table_from_dataframe(table_name, sample.copy(), primary_key='sql')
     schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==10

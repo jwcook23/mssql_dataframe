@@ -8,6 +8,58 @@ import pyodbc
 from mssql_dataframe.core import errors, create, write
 
 
+def dtype_py(dataframe, dtypes_sql):
+    '''Convert dataframe to the optimal Python data type given the SQL data type. The optimal data type  
+    has the smallest required size and can contain missing values.
+    
+    Parameters
+    ----------
+
+    dataframe (pandas.DataFrame) : dataframe composed of any data types
+    dtypes_sql (dict) : keys = dataframe column name, values = SQL data type 
+
+    Returns
+    -------
+
+    dataframe (pandas.DataFrame) : dataframe with optimal Python type
+    
+    '''
+
+    rules = {
+        'varchar': 'object',
+        'bit': 'boolean',
+        'tinyint': 'Int8',
+        'smallint': 'Int16',
+        'int': 'Int32',
+        'bigint': 'Int64',
+        'float': 'float64',
+        'decimal': 'float64',
+        'time': 'timedelta64[ns]',
+        'date': 'datetime64[ns]',
+        'datetime': 'datetime64[ns]',
+        'datetime2': 'datetime64[ns]'
+    }
+
+    # convert accoring to rules
+    convert = {k:rules[v] for k,v in dtypes_sql.items() if v in rules and k in dataframe}
+
+    # assume default of str if not defined
+    undefined = list(dataframe.columns[~dataframe.columns.isin(convert)])
+    if undefined:
+        convert = {**convert, **{k:'str' for k in undefined}}
+
+    # handle timedelta64[ns] seperately as pd.to_timedelta handles strings
+    timedelta = [k for k,v in convert.items() if v=='timedelta64[ns]']
+    if timedelta:
+        convert = {k:v for k,v in convert.items() if k not in timedelta}
+        dataframe[timedelta] = dataframe[timedelta].apply(pd.to_timedelta)
+
+    # convert values
+    dataframe = dataframe.astype(convert)
+
+    return dataframe
+
+
 def execute(connection, statement:str, args:list=None):
     '''Execute an SQL statement prevent exposing any errors.
     
@@ -62,7 +114,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
             undefined_type = []
         except pyodbc.ProgrammingError as error:
             undefined_type = re.findall(r'ODBC SQL type (-?\d+) is not yet supported.*',error.args[0])
-            if len(undefined_type)>0:
+            if undefined_type:
                 # set undefined type default conversion as str
                 default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
@@ -78,8 +130,8 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     dataframe = pd.DataFrame(dataframe, columns=columns)
 
     # issue warning for undefined SQL ODBC data types
-    if len(default_index)>0:
-        warnings.warn("Undefined Python data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
+    if default_index:
+        warnings.warn("Undefined SQL ODBC data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
 
     return dataframe
 
@@ -123,7 +175,7 @@ def safe_sql(connection, inputs):
     execute(connection, statement, inputs)
     clean = connection.cursor.fetchone()
     # a value is too long and returns None, so raise an exception
-    if len([x for x in clean if x is None])>0:
+    if [x for x in clean if x is None]:
         raise errors.SQLInvalidLengthObjectName("SQL object name is too long.") from None
     
     # reconstruct possible schema specification
@@ -203,7 +255,7 @@ def column_spec(columns: list):
 
     size (list|str) : size of the SQL column
 
-    dtypes (list|str) : data type of the SQL column
+    dtypes_sql (list|str) : data type of the SQL column
 
     '''
 
@@ -215,13 +267,13 @@ def column_spec(columns: list):
     pattern = r"(\(\d+\)|\(\d.+\)|\(MAX\))"
     size = [re.findall(pattern, x) for x in columns]
     size = [x[0] if len(x)>0 else None for x in size]
-    dtypes = [re.sub(pattern,'',var) for var in columns]
+    dtypes_sql = [re.sub(pattern,'',var) for var in columns]
 
     if flatten:
         size = size[0]
-        dtypes = dtypes[0]
+        dtypes_sql = dtypes_sql[0]
 
-    return size, dtypes
+    return size, dtypes_sql
 
 
 def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_count: int = 1000):
@@ -238,9 +290,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     Returns
     -------
 
-    dtypes (dict) : keys = column name, values = data types and optionally size
-
-
+    dtypes_sql (dict) : keys = column name, values = SQL data types and optionally size
     """
     # create temporary table
     columns = {x:'NVARCHAR(MAX)' for x in dataframe.columns}
@@ -249,13 +299,13 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     
     # select random subset of data, ensuring the maximum values are included
     subset = dataframe.sample(n=min([row_count,len(dataframe)]))
-    strings = dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str')) & dataframe.any()]
-    datetimes = dataframe.select_dtypes('datetime').columns
-    numeric = dataframe.select_dtypes(include=np.number).columns
+    strings = list(dataframe.columns[dataframe.apply(lambda x: hasattr(x,'str')) & dataframe.any()])
+    datetimes = list(dataframe.select_dtypes('datetime').columns)
+    numeric = list(dataframe.select_dtypes(include=np.number).columns)
     include = pd.Series(dtype='int64')
-    if len(datetimes)>0 or len(numeric)>0:
-        include = include.append(dataframe[list(datetimes)+list(numeric)].idxmax())
-    if len(strings)>0:
+    if datetimes or numeric:
+        include = include.append(dataframe[datetimes+numeric].idxmax())
+    if strings:
         include = include.append(dataframe[strings].apply(lambda x: x.str.len()).idxmax())
     # handle columns of only na
     include = include.fillna(0).astype('int')
@@ -342,21 +392,21 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     args = [table_name] + column_names
 
     # execute statement, then transformat back to actual column name`
-    dtypes = read_query(connection, statement, args)
-    dtypes['ColumnIndex'] = dtypes['ColumnIndex'].str[1::].astype('int')
-    dtypes = {x[0]:x[1] for x in dtypes.values}
-    dtypes = {column_names[k]:v for k,v in dtypes.items()}
+    dtypes_sql = read_query(connection, statement, args)
+    dtypes_sql['ColumnIndex'] = dtypes_sql['ColumnIndex'].str[1::].astype('int')
+    dtypes_sql = {x[0]:x[1] for x in dtypes_sql.values}
+    dtypes_sql = {column_names[k]:v for k,v in dtypes_sql.items()}
 
     # determine length of VARCHAR columns
-    length = [k for k,v in dtypes.items() if v=="varchar"]
+    length = [k for k,v in dtypes_sql.items() if v=="varchar"]
     length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
     length = {k:"varchar("+str(v)+")" for k,v in length.items()}
-    dtypes.update(length)
+    dtypes_sql.update(length)
 
     # assume default for columns of only na values
-    dtypes = {**dtypes, **{k:'varchar(1)' for k in columns.keys() if k not in dtypes}}
+    dtypes_sql = {**dtypes_sql, **{k:'varchar(1)' for k in columns.keys() if k not in dtypes_sql}}
 
-    return dtypes
+    return dtypes_sql
 
 
 def get_schema(connection, table_name: str):
@@ -404,35 +454,12 @@ def get_schema(connection, table_name: str):
 
     statement = statement.format(tempdb=tempdb, table_name=table_name)
 
-    # connection.cursor.execute("SELECT * FROM sys.columns WHERE sys.columns.object_ID=OBJECT_ID('"+table_name+"')").fetchall()
-
     schema = read_query(connection, statement)
-    if len(schema)==0:
+    if schema.shape[0]==0:
          raise errors.SQLTableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
     
     schema = schema.set_index('column_name')
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)
-
-    # define Python type equalivant of the smallest data size that is also nullable
-    equal = pd.DataFrame.from_dict({
-        'varchar': ['object'],
-        'bit': ['boolean'],
-        'tinyint': ['Int8'],
-        'smallint': ['Int16'],
-        'int': ['Int32'],
-        'bigint': ['Int64'],
-        'float': ['float64'],
-        'decimal': ['float64'],
-        'time': ['timedelta64[ns]'],
-        'date': ['datetime64[ns]'],
-        'datetime': ['datetime64[ns]'],
-        'datetime2': ['datetime64[ns]']
-    }, orient='index', columns=["python_type"])
-    schema = schema.merge(equal, left_on='data_type', right_index=True, how='left')
-    undefined = list(schema[schema['python_type'].isna()].index)
-    if len(undefined)>0:
-        warnings.warn("Columns : "+str(undefined), errors.DataframeUndefinedBestType)
-        schema['python_type'] = schema['python_type'].fillna('str')
 
     return schema
 
@@ -461,12 +488,10 @@ def flatten_schema(schema):
     schema[['max_length','precision','scale']] = schema[['max_length','precision','scale']].astype('str')
     schema['value'] = schema['data_type']
     # length
-    dtypes = ['varchar','nvarchar']
-    idx = schema['data_type'].isin(dtypes)
+    idx = schema['data_type'].isin(['varchar','nvarchar'])
     schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'max_length']+')'
     # precision & scale
-    dtypes = ['decimal','numeric']
-    idx = schema['data_type'].isin(dtypes)
+    idx = schema['data_type'].isin(['decimal','numeric'])
     schema.loc[idx, 'value'] = schema.loc[idx, 'value']+'('+schema.loc[idx,'precision']+','+schema.loc[idx,'scale']+')'
 
     columns = schema['value'].to_dict()

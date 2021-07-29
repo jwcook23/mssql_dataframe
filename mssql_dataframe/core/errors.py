@@ -8,6 +8,9 @@ class SQLGeneral(Exception):
     '''General error to prevent exposing SQL server specific error messages.'''
     pass
 
+class SQLInvalidInsertFormat(Exception):
+    '''Exception for value in an incorrect format such as a date string of mm/dd/yyyy.'''
+
 class SQLTableDoesNotExist(Exception):
     '''Exception for SQL table that does not exist.'''
     pass
@@ -26,10 +29,6 @@ class SQLUndefinedPrimaryKey(Exception):
 
 class SQLInsufficientColumnSize(Exception):
     '''Exception for insufficient column size to insert a numeric or string.'''
-    pass
-
-class SQLUndefinedColumn(Exception):
-    '''Exception for undefined SQL column.'''
     pass
 
 class SQLInvalidLengthObjectName(Exception):

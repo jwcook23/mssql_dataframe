@@ -82,7 +82,7 @@ class connect():
             driver = [x for x in installed if x.endswith(' for SQL Server')]
         else: 
             driver = [x for x in installed if x==driver_search]
-        if len(driver)==0:
+        if not driver:
             raise errors.EnvironmentODBCDriverNotFound('Unable to find ODBC driver.') from None
         driver = max(driver)
 

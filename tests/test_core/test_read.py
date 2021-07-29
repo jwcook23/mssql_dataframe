@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 import pandas as pd
 
@@ -7,6 +9,7 @@ from mssql_dataframe.core import create, write, read
 
 class package:
     def __init__(self, connection):
+        self.connection = connection
         self.create = create.create(connection)
         self.write = write.write(connection, adjust_sql_objects=False)
         self.read = read.read(connection)
@@ -68,7 +71,7 @@ def test_select(sql):
     assert dataframe.dtypes['ColumnD']=='datetime64[ns]'
     assert dataframe.dtypes['ColumnE']=='object'
 
-    # # optional columns specified
+    # optional columns specified
     dataframe = sql.read.select(table_name, column_names=["ColumnB","ColumnC"])
     assert dataframe.index.name=='ColumnA'
     assert all(dataframe.columns==["ColumnB","ColumnC"])
@@ -86,3 +89,27 @@ def test_select(sql):
     dataframe = sql.read.select(table_name, column_names=["ColumnB"], order_column='ColumnA', order_direction='DESC')
     assert dataframe.index.name=='ColumnA'
     assert all(dataframe.index==[7,6,5])
+
+
+def test_select_undefined_type(sql):
+
+    table_name = '##test_select_undefined_type'
+    columns = {"_geography": "GEOGRAPHY", "_datetimeoffset": "DATETIMEOFFSET(4)"}
+    sql.create.table(table_name, columns)
+
+    geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
+    datetimeoffset = "'12-10-25 12:32:10 +01:00'"
+    statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
+    sql.connection.connection.cursor().execute(statement.format(
+        table_name=table_name,
+        geography=geography,
+        datetimeoffset=datetimeoffset
+    ))
+
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.read.select(table_name)
+        assert len(warn)==1
+        assert issubclass(warn[-1].category, UserWarning)
+        assert "['_geography', '_datetimeoffset']" in str(warn[-1].message)
+        assert len(dataframe)==1
+        assert all(dataframe.columns==['_geography', '_datetimeoffset'])

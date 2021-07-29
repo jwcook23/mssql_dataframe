@@ -90,7 +90,7 @@ df = pd.DataFrame({
 })
 df.index.name = 'PK_Column'
 # create the table with the index as the SQL primary key
-sql.create.table_from_dataframe(table_name='##sample_update', dataframe=df,
+df = sql.create.table_from_dataframe(table_name='##sample_update', dataframe=df,
     primary_key='index'
 )
 ```
@@ -170,7 +170,7 @@ df_merge = pd.DataFrame({
     'ColumnB': ['a','b']
 }, index=[0,1])
 df_merge.index.name = 'PK_Column'
-sql.create.table_from_dataframe(table_name='##sample_merge', dataframe=df_merge,
+df_merge = sql.create.table_from_dataframe(table_name='##sample_merge', dataframe=df_merge,
     primary_key='index'
 )
 sql.write.insert(table_name='##sample_merge', dataframe=df_merge, include_timestamps=True)
@@ -225,7 +225,7 @@ df_condition = pd.DataFrame({
     'ColumnB': ['a','b','b']
 }, index=[0,1,2])
 df_condition.index.name='_pk'
-sql.create.table_from_dataframe("##sample_merge_delete_condition", df_condition, 
+df_condition = sql.create.table_from_dataframe("##sample_merge_delete_condition", df_condition, 
     primary_key='index'
 )
 sql.write.insert("##sample_merge_delete_condition", df_condition, include_timestamps=True)
@@ -260,7 +260,7 @@ Note:
 df_upsert = pd.DataFrame({
     'ColumnA': [3,4]
 })
-sql.create.table_from_dataframe("##sample_upsert", df_upsert, primary_key='index')
+df_upsert = sql.create.table_from_dataframe("##sample_upsert", df_upsert, primary_key='index')
 sql.write.insert("##sample_upsert", df_upsert, include_timestamps=False)
 
 # simulate a deleted record
@@ -291,12 +291,12 @@ Note:
 from mssql_dataframe.core.helpers import get_schema
 # create a sample SQL table
 df_modify = pd.DataFrame({'Column1': [0,1,0,1]})
-sql.create.table_from_dataframe('##sample_modify', df_modify)
+df_modify = sql.create.table_from_dataframe('##sample_modify', df_modify)
 sql.write.insert('##sample_modify', df_modify)
 # get SQL schema and records
 schema = get_schema(sql.connection, '##sample_modify')
 result = sql.read.select('##sample_modify')
-schema[['data_type','python_type','is_nullable']]
+schema[['data_type','is_nullable']]
 result
 # manually change the SQL data type
 sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT', 
@@ -304,7 +304,7 @@ sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT',
 )
 schema = get_schema(sql.connection, '##sample_modify')
 result = sql.read.select('##sample_modify')
-schema[['data_type','python_type','is_nullable']]
+schema[['data_type','is_nullable']]
 result
 ```
 

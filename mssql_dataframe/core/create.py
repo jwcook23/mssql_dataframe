@@ -65,7 +65,7 @@ class create():
 
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0,len(column_names)))]
-        size, dtypes = helpers.column_spec(columns.values())
+        size, dtypes_sql = helpers.column_spec(columns.values())
         size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
 
         # develop syntax for SQL variable declaration
@@ -124,7 +124,7 @@ class create():
         # create variables for execute method
         args = list(zip(
             [x for x in column_names],
-            [x for x in dtypes],
+            [x for x in dtypes_sql],
             [x for x in size]
         ))
         args = [item for sublist in args for item in sublist if item is not None]
@@ -142,7 +142,7 @@ class create():
         ----------
 
         table_name (str) : name of table
-        dataframe (DataFrame) : data used to create table
+        dataframe (pandas.DataFrame) : data used to create table
         primary_key (str, default = 'sql') : method of setting the table's primary key, see below for description of options
         row_count (int, default = 1000) : number of rows for determining data types
 
@@ -154,26 +154,26 @@ class create():
         Returns
         -------
 
-        None
+        dataframe (pandas.DataFrame) : data with a potentially different data type, depending on what SQL inferred
 
         Examples
         --------
 
         #### create table without a primary key
 
-        create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
+        df = create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
 
         #### create table with the dataframe's index as the primary key
 
-        create.table_from_dataframe('##DFIndexPK', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
+        df = create.table_from_dataframe('##DFIndexPK', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
 
         #### create an SQL identity primary key
 
-        create.table_from_dataframe('##DFIdentityPK', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
+        df = create.table_from_dataframe('##DFIdentityPK', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
 
         #### attempt to automatically find a primary key in the dataframe
 
-        create.table_from_dataframe('##DFInferPK', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
+        df = create.table_from_dataframe('##DFInferPK', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
 
         """
 
@@ -201,10 +201,13 @@ class create():
         # not_null columns
         not_null = list(dataframe.columns[dataframe.notna().all()])
 
-        # create temp table to determine data types
+        # infer datatypes in a temp table
         name_temp = "##table_from_dataframe_"+table_name
- 
-        dtypes = helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
+        dtypes_sql = helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
+
+        # set best Python data type based on derived SQL data type to insure values are written correctly
+        # # for example a string mm/dd/yyyy is inferred as date, but can't be inserted into a date column
+        dataframe = helpers.dtype_py(dataframe, dtypes_sql)
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':
@@ -215,26 +218,27 @@ class create():
             unique = unique[unique].index
             subset = subset[unique]
             # attempt to use smallest integer
-            primary_key_column = subset.select_dtypes(['int16', 'int32', 'int64']).columns
-            if len(primary_key_column)>0:
+            primary_key_column = list(subset.select_dtypes(['int16', 'int32', 'int64']).columns)
+            if primary_key_column:
                 primary_key_column = subset[primary_key_column].max().idxmin()
             else:
                 # attempt to use smallest float
-                primary_key_column = subset.select_dtypes(['float16', 'float32', 'float64']).columns
-                if len(primary_key_column)>0:
+                primary_key_column = list(subset.select_dtypes(['float16', 'float32', 'float64']).columns)
+                if primary_key_column:
                     primary_key_column = subset[primary_key_column].max().idxmin()
                 else:
                     # attempt to use shortest length string
-                    primary_key_column = subset.select_dtypes(['object']).columns
-                    if len(primary_key_column)>0:
+                    primary_key_column = list(subset.select_dtypes(['object']).columns)
+                    if primary_key_column:
                         primary_key_column = subset[primary_key_column].apply(lambda x: x.str.len()).max().idxmin()
                     else:
                         primary_key_column = None    
 
         # create final SQL table
-        self.table(table_name, dtypes, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+        self.table(table_name, dtypes_sql, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
 
         # reset index after it was set as a column for table creation
         if primary_key=='index':
             dataframe = dataframe.set_index(keys=primary_key_column)
     
+        return dataframe

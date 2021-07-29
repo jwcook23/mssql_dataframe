@@ -26,18 +26,23 @@ def test_prepare_values(sql):
     assert all(dataframe['Column'].values==None)
 
     dataframe = pd.DataFrame({
-        'Column': ['a  ','  b  ','c','','   ']
+        'ColumnA': ['a  ','  b  ','c','','   '],
+        'ColumnB': [pd.Timedelta("0 days 01:00:00.123456789")]*5,
+        'ColumnC': [pd.Timedelta("0 days 00:00:00.1234")]*5
     })
-    dataframe = sql.write._write__prepare_values(dataframe)
-    assert all(dataframe['Column'].values==['a','b','c',None,None])
 
+    dataframe = sql.write._write__prepare_values(dataframe)
+    assert all(dataframe['ColumnA'].values==['a','b','c',None,None])
+    assert all(dataframe['ColumnB'].values==['01:00:00.1234567']*5)
+    assert all(dataframe['ColumnC'].values==['00:00:00.123400']*5)
 
 def test_insert_errors(sql):
 
     table_name = '##test_insert_errors'
     sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT',
-            'ColumnB': 'VARCHAR(1)'
+            'ColumnB': 'VARCHAR(1)',
+            'ColumnD': 'DATETIME'
     })
 
     with pytest.raises(errors.SQLTableDoesNotExist):
@@ -51,6 +56,12 @@ def test_insert_errors(sql):
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), include_timestamps=False)
+
+    with pytest.raises(errors.SQLInvalidInsertFormat):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': ['06/22/2021']}), include_timestamps=False)
+
+    with pytest.raises(errors.SQLInvalidInsertFormat):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': [1]}), include_timestamps=False)
 
 
 def test_insert(sql):
@@ -123,7 +134,7 @@ def test__prep_update_merge(sql):
     with pytest.raises(errors.SQLUndefinedPrimaryKey):
         sql.write._write__prep_update_merge(table_name, match_columns=None, dataframe=dataframe, operation='update')
 
-    with pytest.raises(errors.SQLUndefinedColumn):
+    with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.write._write__prep_update_merge(table_name, match_columns='MissingColumn', dataframe=dataframe, operation='update')       
 
     with pytest.raises(errors.DataframeUndefinedColumn):
