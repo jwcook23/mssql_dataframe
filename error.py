@@ -15,19 +15,19 @@ dataframe = dataframe.replace({'': None, 'None': None, 'nan': None, 'NaT': None,
 
 table_name = '##test_error'
 
-columns = dataframe.columns[31]
+columns = dataframe.columns[[2,31]]
 # size = int(dataframe[columns].str.len().max())
 # columns = {columns: 'varchar('+str(size)+')'}
 # sql.create.table(table_name, columns)
 
 # sql.write.insert(table_name, dataframe[list(columns.keys())], include_timestamps=False)
 
-sql.write.merge(table_name, dataframe.loc[:, [columns]])
+sql.write.merge(table_name, dataframe)
 
 
 # TODO: make created table's schema clearly evident
 # TODO: pass through integrity errors instead of hiding (duplicate primary key, null value in non-null)
-# TODO: test one column table, no primary key, ect.
+# TODO: composite primary key
 
 
 # create table

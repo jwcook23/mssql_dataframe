@@ -1,8 +1,9 @@
 from typing import Literal
+import warnings
 
 import pandas as pd
 
-from mssql_dataframe.core import helpers
+from mssql_dataframe.core import helpers, errors
 
 
 class create():
@@ -237,6 +238,24 @@ class create():
 
         # create final SQL table
         self.table(table_name, dtypes_sql, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+
+        # issue message for derived table
+        pk = primary_key_column
+        if sql_primary_key:
+            pk = '_pk (SQL managed int identity column)'
+        elif primary_key=='index':
+            pk = primary_key_column+' (dataframe index)'
+        elif primary_key_column is not None:
+            pk = primary_key_column+' (dataframe column)'
+        else:
+            pk = 'None'
+        msg = f'''
+        Created table {table_name}
+        Primary key: {pk}
+        Non-null columns: {not_null}
+        Data types: {dtypes_sql}
+        '''
+        warnings.warn(msg, errors.SQLObjectAdjustment)
 
         # reset index after it was set as a column for table creation
         if primary_key=='index':

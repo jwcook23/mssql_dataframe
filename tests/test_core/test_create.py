@@ -1,10 +1,11 @@
 from datetime import datetime
+import warnings
 
 import pytest
 import pandas as pd
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import helpers, create
+from mssql_dataframe.core import helpers, create, errors
 
 
 class package:
@@ -105,9 +106,12 @@ def test_table_from_dataframe_simple(sql):
 
     table_name = '##test_table_from_dataframe_simple'
     dataframe = pd.DataFrame({"ColumnA": [1]})
-    sql.create.table_from_dataframe(table_name, dataframe)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
-
     assert len(schema)==1
     assert all(schema.index=='ColumnA')
     assert all(schema['data_type']=='tinyint')
@@ -121,9 +125,12 @@ def test_table_from_dataframe_simple(sql):
 def test_table_from_dataframe_datestr(sql):
     table_name = '##test_table_from_dataframe_datestr'
     dataframe = pd.DataFrame({"ColumnA": ['06/22/2021']})
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
-
     assert dataframe['ColumnA'].dtype.name=='datetime64[ns]'
     assert schema.at['ColumnA','data_type']=='datetime'
 
@@ -138,9 +145,12 @@ def test_table_from_dataframe_errorpk(sql, sample):
 def test_table_from_dataframe_nopk(sql, sample):
 
     table_name = '##test_table_from_dataframe_nopk'
-    sql.create.table_from_dataframe(table_name, sample.copy(), primary_key=None)
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, sample.copy(), primary_key=None)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)    
     schema = helpers.get_schema(sql.connection, table_name)
-
     assert len(schema)==9
     assert all(schema.index==['_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime','_empty'])
     assert all(schema['data_type']==['varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime','varchar'])
@@ -155,9 +165,12 @@ def test_table_from_dataframe_nopk(sql, sample):
 def test_table_from_dataframe_sqlpk(sql, sample):
 
     table_name = '##test_table_from_dataframe_sqlpk'
-    sql.create.table_from_dataframe(table_name, sample.copy(), primary_key='sql')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, sample.copy(), primary_key='sql')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
-
     assert len(schema)==10
     assert all(schema.index==['_pk','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
     assert all(schema['data_type']==['int','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
@@ -173,9 +186,12 @@ def test_table_from_dataframe_indexpk(sql, sample):
 
     # unamed dataframe index
     table_name = '##test_table_from_dataframe_indexpk'
-    sql.create.table_from_dataframe(table_name, sample, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, sample.copy(), primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
-
     assert len(schema)==10
     assert all(schema.index==['_index','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
     assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
@@ -217,7 +233,11 @@ def test_table_from_dataframe_inferpk(sql):
         '_float1': [1.1111, 2, 3, 4, 5],
         '_float2': [1.1111, 2, 3, 4, 6]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_smallint','is_primary_key']
 
@@ -230,7 +250,11 @@ def test_table_from_dataframe_inferpk(sql):
         '_float2': [1.1111, 2, 3, 4, 6]
     })
     table_name = '##test_table_from_dataframe_inferpk_float'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_float1','is_primary_key']
 
@@ -240,7 +264,11 @@ def test_table_from_dataframe_inferpk(sql):
         '_varchar2': ['aa','b','c','d','e'],
     })
     table_name = '##test_table_from_dataframe_inferpk_string'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_varchar1','is_primary_key']
 
@@ -250,7 +278,11 @@ def test_table_from_dataframe_inferpk(sql):
         '_varchar2': [None,'b','c','d','e'],
     })
     table_name = '##test_table_from_dataframe_inferpk_uninferrable'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
     assert all(schema['is_primary_key']==False)
 

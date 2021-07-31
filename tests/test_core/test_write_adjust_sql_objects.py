@@ -32,10 +32,11 @@ def test_insert_create_table(sql):
 
     with warnings.catch_warnings(record=True) as warn:
         sql.write.insert(table_name, dataframe=dataframe)
-        assert len(warn)==2
+        assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating table '+table_name in str(warn[0].message)
-        assert 'Creating column _time_insert in table '+table_name in str(warn[1].message)        
+        assert 'Created table '+table_name in str(warn[1].message)
+        assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)        
         results = sql.read.select(table_name)
         assert all(results[['ColumnA']]==dataframe[['ColumnA']])
         assert all(results['_time_insert'].notna())
@@ -237,10 +238,11 @@ def test_merge_create_table(sql):
 
     with warnings.catch_warnings(record=True) as warn:
         sql.write.merge(table_name, dataframe, match_columns=['_pk'])
-        assert len(warn)==2
+        assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating table '+table_name in str(warn[0].message)
-        assert 'Creating column _time_insert in table '+table_name in str(warn[1].message)
+        assert 'Created table '+table_name in str(warn[1].message)
+        assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)
         results = sql.read.select(table_name)
         assert all(results[['_pk','ColumnA','ColumnB']]==dataframe)
         assert all(results['_time_insert'].notna())

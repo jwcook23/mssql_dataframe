@@ -317,8 +317,6 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
 
     # insert subset of data into temporary table as strings since SQL will determine final datatype
     subset = subset.astype('str')
-    for col in subset:
-        subset[col] = subset[col].str.strip()
     # # truncate datetimes to 3 decimal places
     subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
     # # remove zero decimal places from numeric values
