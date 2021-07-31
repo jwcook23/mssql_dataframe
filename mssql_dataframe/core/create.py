@@ -132,6 +132,7 @@ class create():
 
         # execute statement
         helpers.execute(self.__connection__, statement, args)
+        self.__connection__.cursor.commit()
 
 
     def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 

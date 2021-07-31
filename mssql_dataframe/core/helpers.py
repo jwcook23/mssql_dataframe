@@ -57,6 +57,9 @@ def dtype_py(dataframe, dtypes_sql):
     # convert values
     dataframe = dataframe.astype(convert)
 
+    # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
+    dataframe = dataframe.replace({'None': None})
+
     return dataframe
 
 
@@ -82,7 +85,7 @@ def execute(connection, statement:str, args:list=None):
             connection.cursor.execute(statement)
         else:
             connection.cursor.execute(statement, *args)
-    except Exception:
+    except Exception as err:
         raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
 
@@ -319,8 +322,9 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # # truncate datetimes to 3 decimal places
     subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
     # # remove zero decimal places from numeric values
-    subset[numeric] = subset[numeric].replace(r'\.0+','', regex=True)
+    subset = subset.replace(r'\.0+','', regex=True)
     # # treat empty like as None (NULL in SQL)
+    # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})
     # insert subset of data then use SQL to determine SQL data type
     wrt = write.write(connection, adjust_sql_objects=False)
@@ -369,7 +373,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
 
     # develop syntax for determine data types
     syntax = list(zip(
-        ["''_"+x+"''" for x in alias_names],
+        alias_names,
         ["+QUOTENAME(@ColumnName_"+x+")+" for x in alias_names]
     ))
     syntax = ",\n".join(["\t("+x[0]+", '"+x[1]+"')" for x in syntax])
@@ -391,15 +395,24 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # create variables for execute method
     args = [table_name] + column_names
 
-    # execute statement, then transformat back to actual column name`
+    # execute statement, then transform back to actual column name
     dtypes_sql = read_query(connection, statement, args)
-    dtypes_sql['ColumnIndex'] = dtypes_sql['ColumnIndex'].str[1::].astype('int')
+    
+    # assume default type for missing columns (columns of na only)
+    na_only = pd.Series(range(0,len(columns)), name='ColumnIndex')
+    na_only = pd.DataFrame(na_only[~na_only.isin(dtypes_sql['ColumnIndex'])])
+    na_only['type'] = 'varchar'
+    dtypes_sql = dtypes_sql.append(na_only)
+
+    # transform back to actual column name
+    dtypes_sql = dtypes_sql.sort_values(by='ColumnIndex')
     dtypes_sql = {x[0]:x[1] for x in dtypes_sql.values}
     dtypes_sql = {column_names[k]:v for k,v in dtypes_sql.items()}
 
-    # determine length of VARCHAR columns
+    # determine length of VARCHAR columns, assume length of 1 for na only
     length = [k for k,v in dtypes_sql.items() if v=="varchar"]
     length = subset[length].apply(lambda x: x.str.len()).max().astype('Int64')
+    length = length.fillna(1)
     length = {k:"varchar("+str(v)+")" for k,v in length.items()}
     dtypes_sql.update(length)
 

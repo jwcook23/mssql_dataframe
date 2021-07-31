@@ -16,7 +16,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
+    db = connect.connect(database_name='tempdb', server_name='localhost')
     yield package(db)
     db.connection.close()
 

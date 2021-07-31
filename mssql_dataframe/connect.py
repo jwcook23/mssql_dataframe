@@ -14,7 +14,6 @@ class connect():
     server_name (str, default='localhost') : name of server to connect to
     driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
     fast_executemany (bool, default=True) : increases performance of executemany operations
-    autocommit (bool, default=True) : automatically commit transactions
     username (str, default=None) : if not given, use Windows account credentials to connect
     password (str, default=None) : if not given, use Windows account credentials to connect
 
@@ -43,7 +42,7 @@ class connect():
 
 
     def __init__(self, database_name: str = 'master', server_name: str = 'localhost',
-        driver: str = None, fast_executemany: bool = True, autocommit: bool = True,
+        driver: str = None, fast_executemany: bool = True,
         username: str = None, password: str = ''):
 
         driver = self._get_driver(driver)
@@ -51,12 +50,12 @@ class connect():
         if username is None:
             self.connection = pyodbc.connect(
                 driver=driver, server=server_name, database=database_name,
-                autocommit=autocommit, trusted_connection='yes'
+                autocommit=False, trusted_connection='yes'
             )
         else:
             self.connection = pyodbc.connect(
                 driver=driver, server=server_name, database=database_name,
-                autocommit=autocommit, UID=username, PWD=password
+                autocommit=False, UID=username, PWD=password
             )
 
         self.cursor = self.connection.cursor()

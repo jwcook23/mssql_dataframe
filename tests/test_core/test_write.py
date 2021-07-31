@@ -12,7 +12,7 @@ from mssql_dataframe.core import errors
 
 @pytest.fixture(scope="module")
 def sql():
-    connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
+    connection = connect.connect(database_name='tempdb', server_name='localhost')
     yield SQLServer(connection, adjust_sql_objects=False)
     connection.connection.close()
 
@@ -48,7 +48,7 @@ def test_prepare_values(sql):
     })
 
     dataframe = sql.write._write__prepare_values(dataframe)
-    assert all(dataframe['ColumnA'].values==['a','b','c',None,None])
+    assert all(dataframe['ColumnA'].values==['a  ','  b  ','c',None,None])
     assert all(dataframe['ColumnB'].values==['01:00:00.1234567']*5)
     assert all(dataframe['ColumnC'].values==['00:00:00.123400']*5)
 

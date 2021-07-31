@@ -1,3 +1,4 @@
+from os import error
 from typing import Literal
 import warnings
 import re
@@ -84,9 +85,6 @@ class write():
             column_names=column_names,
             parameters=parameters
         )
-
-        # perform insert
-        dataframe = self.__prepare_values(dataframe)
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.executemany, statement)
@@ -384,21 +382,31 @@ class write():
         for _ in range(0,self.adjust_sql_attempts,1):
             error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
             try:
+                # prepare values for writting to SQL
+                dataframe = self.__prepare_values(dataframe)
                 # derive each loop incase handling error adjusted dataframe contents
                 if derive:
                     args = dataframe.values.tolist()
-                # cursor.execute/cursor.executemany
+                # call cursor.execute/cursor.executemany
                 cursor_method(statement, args)
                 error_class = None
                 break
             except (pyodbc.ProgrammingError, pyodbc.DataError) as odbc_error:
+                self.__connection__.cursor.rollback()
                 error_class, undefined_columns = self.__classify_error(table_name, odbc_error)
+                # if isinstance(error_class, errors.SQLGeneral):
+                #     break
                 dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
-            except:
+                if error_class is not None:
+                    raise error_class from None
+            except Exception as err:
+                self.__connection__.cursor.rollback()
                 raise error_class from None
         # raise unhandled errors or max adjust_sql_attempts reached
         if error_class is not None:
             raise error_class from None
+
+        self.__connection__.cursor.commit()
 
 
     def __classify_error(self, table_name: str, odbc_error: pyodbc.Error):
@@ -475,7 +483,7 @@ class write():
             if isinstance(error_class, errors.SQLTableDoesNotExist):
                 error_class = None
                 warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
-                dataframe = self.__create__.table_from_dataframe(table_name, dataframe)
+                dataframe = self.__create__.table_from_dataframe(table_name, dataframe, primary_key='infer')
 
             # SQLColumnDoesNotExist
             elif isinstance(error_class, errors.SQLColumnDoesNotExist):
@@ -498,6 +506,8 @@ class write():
                 dtypes_sql = helpers.infer_datatypes(self.__connection__, table_temp, dataframe)
                 columns, not_null, primary_key_column, _ = helpers.flatten_schema(schema)
                 adjust = {k:v for k,v in dtypes_sql.items() if v!=columns[k]}
+                if not adjust:
+                    error_class = errors.SQLInsufficientColumnSize('Insufficient column size error fix attempted but failed (same size determined).')
                 for column, data_type in adjust.items():
                     # warn if not a global temporary table for update/merge operations
                     if not table_name.startswith("##__update") and not table_name.startswith("##__merge"):
@@ -533,10 +543,9 @@ class write():
 
         """
 
-        # strings: strip leading/trailing spaces and empties
+        # strings: treat empty as None
         columns = (dataframe.applymap(type) == str).all(0)
         columns = columns.index[columns]
-        dataframe[columns] = dataframe[columns].apply(lambda x: x.str.strip())
         dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
 
         # timedetlas: convert to string

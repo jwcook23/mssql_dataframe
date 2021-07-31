@@ -10,7 +10,7 @@ from mssql_dataframe.core import errors, helpers
 
 @pytest.fixture(scope="module")
 def sql():
-    connection = connect.connect(database_name='tempdb', server_name='localhost', autocommit=False)
+    connection = connect.connect(database_name='tempdb', server_name='localhost')
     with warnings.catch_warnings(record=True) as warn:
         yield SQLServer(connection, adjust_sql_objects=True)
         connection.connection.close()
