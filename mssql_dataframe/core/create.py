@@ -29,7 +29,7 @@ class create():
         table_name (str) : name of table to create
         columns (dict) : keys = column names, values = data types and optionally size/precision
         not_null (list|str, default=[]) : list of columns to set as not null or a single column
-        primary_key_column (str, default=None) : column to set as the primary key
+        primary_key_column (str|list, default=None) : column(s) to set as the primary key
         sql_primary_key (bool, default=False) : create an INT SQL identity column as the primary key named _pk
 
         Returns
@@ -57,6 +57,7 @@ class create():
         {declare}
         SET @SQLStatement = N'CREATE TABLE '+QUOTENAME(@TableName)+' ('+
         {syntax}
+        {pk}
         +');'
         EXEC sp_executesql
         @SQLStatement,
@@ -64,10 +65,24 @@ class create():
         @TableName=@TableName, {values};
         """
 
+        # check inputs
+        if sql_primary_key and primary_key_column is not None:
+            raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
+        if isinstance(not_null, str):
+            not_null = [not_null]
+        if isinstance(primary_key_column, str):
+            primary_key_column = [primary_key_column]
+
+        # parse inputs
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0,len(column_names)))]
         size, dtypes_sql = helpers.column_spec(columns.values())
         size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
+
+        if primary_key_column is not None:
+            alias_pk = [str(x) for x in list(range(0,len(primary_key_column)))]
+        else:
+            alias_pk = []
 
         # develop syntax for SQL variable declaration
         declare = list(zip(
@@ -76,25 +91,27 @@ class create():
             ["DECLARE @ColumnSize_"+x+" SYSNAME = ?;" if x is not None else "" for x in size_vars]
         ))
         declare = '\n'.join(['\n'.join(x) for x in declare])
+        if primary_key_column is not None:
+            declare += '\n'+'\n'.join(["DECLARE @PK_"+x+" SYSNAME = ?;" for x in alias_pk])
 
         # develop syntax for SQL table creation
-        if sql_primary_key and primary_key_column is not None:
-            raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
-        if isinstance(not_null, str):
-            not_null = [not_null]
         syntax = list(zip(
             ["QUOTENAME(@ColumnName_"+x+")" for x in alias_names],
             ["QUOTENAME(@ColumnType_"+x+")" for x in alias_names],
             ["@ColumnSize_"+x+"" if x is not None else "" for x in size_vars],
-            ["'NOT NULL'" if x in not_null else "" for x in column_names],
-            ["'PRIMARY KEY'" if x==primary_key_column else "" for x in column_names]
+            ["'NOT NULL'" if x in not_null else "" for x in column_names]
         ))
         syntax = "+','+\n".join(
             ["+' '+".join([x for x in col if len(x)>0]) for col in syntax]
         )
 
+        # primary key syntax
+        pk = ""
         if sql_primary_key:
             syntax = "'_pk INT NOT NULL IDENTITY(1,1) PRIMARY KEY,'+\n"+syntax
+        elif primary_key_column is not None:
+            pk = "+','+".join(["QUOTENAME(@PK_"+x+")" for x in alias_pk])
+            pk = "+\n',PRIMARY KEY ('+"+pk+"+')'"
 
         # develop syntax for sp_executesql parameters
         parameters = list(zip(
@@ -104,6 +121,8 @@ class create():
         ))
         parameters = [", ".join([item for item in sublist if len(item)>0]) for sublist in parameters]
         parameters = ", ".join(parameters)
+        if primary_key_column is not None:
+            parameters += ", "+", ".join(["@PK_"+x+" SYSNAME" for x in alias_pk])
 
         # create input for sp_executesql SQL syntax
         values = list(zip(
@@ -113,11 +132,14 @@ class create():
         ))
         values = [", ".join([item for item in sublist if len(item)>0]) for sublist in values]
         values = ", ".join(values)
+        if primary_key_column is not None:
+            values += ", "+", ".join(["@PK_"+x+""+"=@PK_"+x+"" for x in alias_pk])
 
         # join components into final synax
         statement = statement.format(
             declare=declare,
             syntax=syntax,
+            pk=pk,
             parameters=parameters,
             values=values
         )
@@ -130,6 +152,8 @@ class create():
         ))
         args = [item for sublist in args for item in sublist if item is not None]
         args = [table_name] + args
+        if primary_key_column is not None:
+            args += primary_key_column
 
         # execute statement
         helpers.execute(self.__connection__, statement, args)
@@ -192,9 +216,9 @@ class create():
             primary_key_column = None
         elif primary_key == 'index':
             sql_primary_key = False
-            if dataframe.index.name is None:
+            if not any(dataframe.index.names):
                 dataframe.index.name = '_index'
-            primary_key_column = dataframe.index.name
+            primary_key_column = list(dataframe.index.names)
             dataframe = dataframe.reset_index()
         elif primary_key == 'infer':
             sql_primary_key = False
@@ -244,7 +268,7 @@ class create():
         if sql_primary_key:
             pk = '_pk (SQL managed int identity column)'
         elif primary_key=='index':
-            pk = primary_key_column+' (dataframe index)'
+            pk = str(primary_key_column)+' (dataframe index)'
         elif primary_key_column is not None:
             pk = primary_key_column+' (dataframe column)'
         else:

@@ -25,6 +25,7 @@ columns = dataframe.columns[[2,31]]
 sql.write.merge(table_name, dataframe)
 
 # TODO: composite primary key
+# TODO: prettify dynamic SQL for troubleshooting / some way to use intellisense
 
 
 schema = get_schema(db, table_name)

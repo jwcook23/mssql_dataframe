@@ -74,6 +74,22 @@ def test_table_pk(sql):
     assert all(schema['is_primary_key']==[True, False, False])
 
 
+def test_table_composite_pk(sql):
+
+    table_name = "##test_table_composite_pk"
+    columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "DECIMAL(5,2)"}
+    primary_key_column = ["A","B"]
+    not_null = "B"
+    sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column)
+    schema = helpers.get_schema(sql.connection, table_name)
+
+    assert len(schema)==3
+    assert all(schema.index==['A','B','C'])
+    assert all(schema['data_type']==['tinyint','varchar','decimal'])
+    assert all(schema['is_identity']==[False, False, False])
+    assert all(schema['is_primary_key']==[True, True, False])
+
+
 def test_table_errorpk(sql):
 
     with pytest.raises(ValueError):
@@ -286,3 +302,23 @@ def test_table_from_dataframe_inferpk(sql):
     schema = helpers.get_schema(sql.connection, table_name)
     assert all(schema['is_primary_key']==False)
 
+
+def test_table_from_dataframe_composite_pk(sql):
+
+    table_name = '##test_update_composite_pk'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    })
+    dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
+
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+
+    schema = helpers.get_schema(sql.connection, table_name)
+    assert schema.at['ColumnA','is_primary_key']
+    assert schema.at['ColumnB','is_primary_key']

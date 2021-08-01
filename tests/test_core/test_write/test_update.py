@@ -93,6 +93,25 @@ def test_update_two_match_columns(sql):
     assert '_time_insert' not in result.columns
 
 
+def test_update_composite_pk(sql):
+
+    table_name = '##test_update_composite_pk'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    })
+    dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe, include_timestamps=False)
+
+    # update values in table, using the primary key created in SQL and ColumnA
+    dataframe['ColumnC'] = [5,6]
+    sql.write.update(table_name, dataframe, include_timestamps=False)
+    result = sql.read.select(table_name)
+    assert all(result[['ColumnC']]==dataframe[['ColumnC']])
+
+
 def test_update_exclude_timestamps(sql):
 
     table_name = '##test_update_exclude_timestamps'

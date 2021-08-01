@@ -56,7 +56,7 @@ class write():
         """
 
         # write index column as it is the primary key
-        if dataframe.index.name is not None:
+        if any(dataframe.index.names):
             dataframe = dataframe.reset_index()
 
         # sanitize table and column names for safe sql
@@ -588,11 +588,10 @@ class write():
         if sum(schema.index.isin(match_columns))!=len(match_columns):
             raise errors.SQLColumnDoesNotExist('one of match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
         # check match_column presence in dataframe, use dataframe index if needed
+        if any(dataframe.index.names):
+            dataframe = dataframe.reset_index()
         if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
-            if len([x for x in match_columns if x==dataframe.index.name])>0:
-                dataframe = dataframe.reset_index()
-            else:
-                raise errors.DataframeUndefinedColumn('one of match_columns {} is not found in the input dataframe'.format(match_columns))
+            raise errors.DataframeUndefinedColumn('one of match_columns {} is not found in the input dataframe'.format(match_columns))
 
         # check for new columns instead of relying on _attempt_write to prevent error for both temp table and target table
         undefined_columns = list(dataframe.columns[~dataframe.columns.isin(schema.index)])

@@ -139,6 +139,29 @@ def test_merge_two_match_columns(sql):
     assert all(result.loc[result.index==2,'_time_update'].isna())
 
 
+def test_merge_composite_pk(sql):
+
+    table_name = "##test_merge_composite_pk"
+    dataframe = pd.DataFrame({
+        'State': ['A','B'],
+        'ColumnA': [3,4],
+        'ColumnB': ['a','b']
+    })
+    dataframe = dataframe.set_index(keys=['State','ColumnA'])
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    sql.write.insert(table_name, dataframe, include_timestamps=False)
+
+    dataframe = dataframe[dataframe.index!=('A',3)]
+    dataframe.loc[dataframe.index==('B',4),'ColumnB'] = 'c'
+    dataframe = dataframe.append(
+        pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}).set_index(keys=['State','ColumnA'])
+    )
+    sql.write.merge(table_name, dataframe, include_timestamps=False)
+
+    result = sql.read.select(table_name)
+    assert all(result[['ColumnB']]==dataframe[['ColumnB']])
+    
+
 def test_merge_one_delete_condition(sql):
     
     table_name = "##test_merge_one_delete_condition"

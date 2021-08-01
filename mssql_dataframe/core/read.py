@@ -117,9 +117,11 @@ class read():
 
         # set dataframe index as primary key
         if len(primary_key)>0:
-            dtype_pk = dataframe.dtypes[primary_key[0]]
+            dtype_pk = dataframe.dtypes[primary_key]
             dataframe = dataframe.set_index(keys=primary_key)
-            # use lowercase version, which represents non-nullable datatype for example, int64 for Int64
-            dataframe.index = dataframe.index.astype(dtype_pk.name.lower())
+            # change datatype of single index primary key (multi-index can be object only)
+            if len(primary_key)==1:
+                # use lowercase version to represent non-nullable datatype (ex: int64 for Int64)
+                dataframe.index = dataframe.index.astype(dtype_pk[0].name.lower())
 
         return dataframe

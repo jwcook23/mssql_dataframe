@@ -102,6 +102,23 @@ def test_insert(sql):
     assert all(results['_time_insert'].notna())
 
 
+def test_insert_composite_pk(sql):
+    
+    table_name = '##test_insert_composite_pk'
+    sql.create.table(table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(5)',
+            'ColumnC': 'BIGINT'
+    }, primary_key_column=['ColumnA','ColumnB'])
+
+    dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [12345]})
+    sql.write.insert(table_name, dataframe, include_timestamps=False)
+
+    results = sql.read.select(table_name)
+    assert len(results)==1
+    assert pd.isnull(results.at[(1,'12345'),'ColumnC'])
+
+
 def test_insert_exclude_timestamps(sql):
 
     table_name = '##test_insert_exclude_timestamps'
