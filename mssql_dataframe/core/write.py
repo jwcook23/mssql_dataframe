@@ -18,7 +18,7 @@ class write():
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
         adjust_sql_objects (bool) : create and modify SQL tables and columns as needed if True
-        adjust_sql_attempts (int) : maximum attempts at adjusting_sql_objects after write failure
+        adjust_sql_attempts (int, default=10) : maximum attempts at adjusting_sql_objects after write failure
         '''
 
         self.__connection__ = connection
@@ -357,8 +357,9 @@ class write():
 
 
     def __attempt_write(self, table_name, dataframe, cursor_method, statement, args: list = None):
-        '''Execute a statement using a pyodbc.cursor method until all built in methods to handle errors have been exhausted.
-        
+        '''Execute a statement using a pyodbc.cursor method until all built in methods to handle errors
+        have been exhausted. Raises general errors to prevent exposing injection attempts.
+
         Parameters
         ----------
 
@@ -393,15 +394,17 @@ class write():
             except (pyodbc.ProgrammingError, pyodbc.DataError) as odbc_error:
                 self.__connection__.cursor.rollback()
                 error_class, undefined_columns = self.__classify_error(table_name, odbc_error)
-                # if isinstance(error_class, errors.SQLGeneral):
-                #     break
                 dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
                 if error_class is not None:
                     raise error_class from None
-            except Exception as err:
+            except pyodbc.IntegrityError as error_class:
+                # attempt to insert duplicated primary key or null into non-null column
+                raise error_class
+            except Exception:
+                # unclassified error
                 self.__connection__.cursor.rollback()
                 raise error_class from None
-        # raise unhandled errors or max adjust_sql_attempts reached
+        # max adjust_sql_attempts reached
         if error_class is not None:
             raise error_class from None
 

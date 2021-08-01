@@ -24,21 +24,8 @@ columns = dataframe.columns[[2,31]]
 
 sql.write.merge(table_name, dataframe)
 
-
-# TODO: make created table's schema clearly evident
-# TODO: pass through integrity errors instead of hiding (duplicate primary key, null value in non-null)
 # TODO: composite primary key
 
-
-# create table
-# add _time_insert
-# column not created with adequate size?
-# attempted fix, same column size found
-# integrity error (duplicate primary key)
-
-# ProgrammingError('String data, right truncation: length 94 buffer 92', 'HY000')
-
-# TODO: dataframe.at[18780,'Practice-Location-Address-Line1'] = ' None'
 
 schema = get_schema(db, table_name)
 
