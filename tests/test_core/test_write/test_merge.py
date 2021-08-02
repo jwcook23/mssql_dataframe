@@ -56,7 +56,11 @@ def test_merge_keep_unmatched(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
@@ -86,7 +90,11 @@ def test_merge_one_match_column(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
@@ -116,7 +124,11 @@ def test_merge_two_match_columns(sql):
         'ColumnA': [3,4],
         'ColumnB': ['a','b']
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index and ColumnA
@@ -148,7 +160,11 @@ def test_merge_composite_pk(sql):
         'ColumnB': ['a','b']
     })
     dataframe = dataframe.set_index(keys=['State','ColumnA'])
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     dataframe = dataframe[dataframe.index!=('A',3)]
@@ -171,7 +187,11 @@ def test_merge_one_delete_condition(sql):
         'ColumnB': ['a','b','b']
     }, index=[0,1,2])
     dataframe.index.name='_pk'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
@@ -209,7 +229,11 @@ def test_merge_two_delete_conditions(sql):
         'ColumnB': ['a','b','b']
     }, index=[0,1,2])
     dataframe.index.name = '_pk'
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the primary key that came from the dataframe's index
@@ -243,7 +267,11 @@ def test_merge_exclude_timestamps(sql):
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
@@ -284,7 +312,11 @@ def test_merge_add_column(sql_adjustable):
     dataframe = pd.DataFrame({
         'ColumnA': [1,2]
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -310,7 +342,11 @@ def test_merge_alter_column(sql_adjustable):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -338,7 +374,11 @@ def test_merge_add_and_alter_column(sql_adjustable):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # merge using the SQL primary key that came from the dataframe's index

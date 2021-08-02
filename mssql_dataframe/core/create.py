@@ -243,22 +243,17 @@ class create():
             unique = subset.nunique()==len(subset)
             unique = unique[unique].index
             subset = subset[unique]
-            # attempt to use smallest integer
+            # use first appearing integer column
             primary_key_column = list(subset.select_dtypes(['int16', 'int32', 'int64']).columns)
             if primary_key_column:
-                primary_key_column = subset[primary_key_column].max().idxmin()
+                primary_key_column = primary_key_column[0]
             else:
-                # attempt to use smallest float
-                primary_key_column = list(subset.select_dtypes(['float16', 'float32', 'float64']).columns)
+                # use first appearing string column
+                primary_key_column = list(subset.select_dtypes(['object']).columns)
                 if primary_key_column:
-                    primary_key_column = subset[primary_key_column].max().idxmin()
+                    primary_key_column = subset[primary_key_column].apply(lambda x: x.str.len()).max().idxmin()
                 else:
-                    # attempt to use shortest length string
-                    primary_key_column = list(subset.select_dtypes(['object']).columns)
-                    if primary_key_column:
-                        primary_key_column = subset[primary_key_column].apply(lambda x: x.str.len()).max().idxmin()
-                    else:
-                        primary_key_column = None    
+                    primary_key_column = None
 
         # create final SQL table
         self.table(table_name, dtypes_sql, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)

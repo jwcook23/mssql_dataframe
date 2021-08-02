@@ -40,7 +40,7 @@ def dtype_py(dataframe, dtypes_sql):
         'datetime2': 'datetime64[ns]'
     }
 
-    # convert accoring to rules
+    # set rules for conversion
     convert = {k:rules[v] for k,v in dtypes_sql.items() if v in rules and k in dataframe}
 
     # assume default of str if not defined
@@ -55,7 +55,16 @@ def dtype_py(dataframe, dtypes_sql):
         dataframe[timedelta] = dataframe[timedelta].apply(pd.to_timedelta)
 
     # convert values
-    dataframe = dataframe.astype(convert)
+    try:
+        # BUG: first convert objects to floats if final data type is int
+        # # https://github.com/pandas-dev/pandas/issues/25472
+        dataframe = dataframe.astype({k:'float' for k,v in convert.items() if v.startswith('Int') and dataframe[k].dtype.name=='object'})
+        # convert according to rules
+        dataframe = dataframe.astype(convert)
+    except ValueError as error:
+        value = re.findall(r": .*'(.*)'.*", error.args[0])
+        columns = list(dataframe.columns[(dataframe==value[0]).any()])
+        raise errors.SQLInvalidDataType(f"Columns: {columns}, "+error.args[0])
 
     # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
     dataframe = dataframe.replace({'None': None})

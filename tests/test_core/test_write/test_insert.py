@@ -28,11 +28,11 @@ def sql_adjustable():
         assert 'SQL objects will be created/modified as needed' in str(warn[-1].message)
 
 
-def test_insert_errors(sql):
+def test_insert_errors(sql, sql_adjustable):
 
     table_name = '##test_insert_errors'
     sql.create.table(table_name, columns={
-            'ColumnA': 'TINYINT',
+            'ColumnA': 'SMALLINT',
             'ColumnB': 'VARCHAR(1)',
             'ColumnD': 'DATETIME'
     })
@@ -49,8 +49,18 @@ def test_insert_errors(sql):
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), include_timestamps=False)
 
-    with pytest.raises(errors.SQLInvalidInsertFormat):
-        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': ['06/22/2021']}), include_timestamps=False)
+    # date value that can be converted
+    sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': ['06/22/2021']}), include_timestamps=False)
+
+    # string that cannot be converted to their Python equalivant based on SQL data type
+    with pytest.raises(errors.SQLInvalidDataType):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['abs']}), include_timestamps=False)
+    with pytest.raises(errors.SQLInvalidDataType):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12-5']}), include_timestamps=False)
+    with pytest.raises(errors.SQLInvalidDataType):
+        sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12345-67589']}), include_timestamps=False)
+    with pytest.raises(errors.SQLInvalidDataType):
+        sql_adjustable.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12345-67589']}), include_timestamps=False)
 
 
 def test_insert(sql):
@@ -209,7 +219,12 @@ def test_insert_alter_primary_key(sql_adjustable):
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3]
     }).set_index(keys='ColumnA')
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     new = pd.DataFrame({
@@ -232,7 +247,11 @@ def test_insert_add_and_alter_column(sql_adjustable):
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3]
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
 
     dataframe['ColumnB'] = [256,257,258,259]
     dataframe['ColumnC'] = [0,1,2,3]

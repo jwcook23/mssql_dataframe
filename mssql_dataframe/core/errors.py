@@ -35,6 +35,9 @@ class SQLInvalidLengthObjectName(Exception):
     '''Exception for an SQL object name that is too long.'''
     pass
 
+class SQLInvalidDataType(Exception):
+    '''Exception for invalid SQL data type.'''
+
 class SQLObjectAdjustment(Warning):
     '''Warning for creating of modifying an SQL object'''
     pass
@@ -42,6 +45,3 @@ class SQLObjectAdjustment(Warning):
 class DataframeUndefinedColumn(Exception):
     '''Exception for undefined dataframe column.'''
     pass
-
-class DataframeUndefinedBestType(Warning):
-    '''Warning for undefined best data type of dataframe column given an SQL data type.'''

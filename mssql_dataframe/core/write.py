@@ -1,6 +1,7 @@
 from typing import Literal
 import warnings
 import re
+from numpy.lib.arraysetops import isin
 
 import pandas as pd
 import numpy as np
@@ -391,14 +392,13 @@ class write():
                 cursor_method(statement, args)
                 error_class = None
                 break
-            except (pyodbc.ProgrammingError, pyodbc.DataError) as odbc_error:
+            except (pyodbc.ProgrammingError, pyodbc.DataError, pyodbc.IntegrityError) as odbc_error:
                 self.__connection__.cursor.rollback()
-                error_class, undefined_columns = self.__classify_error(table_name, odbc_error)
+                error_class, undefined_columns = self.__classify_error(table_name, dataframe, odbc_error)
                 dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
                 if error_class is not None:
                     raise error_class from None
-            except pyodbc.IntegrityError as error_class:
-                # attempt to insert duplicated primary key or null into non-null column
+            except errors.SQLInvalidDataType as error_class:
                 raise error_class
             except Exception:
                 # unclassified error
@@ -411,12 +411,13 @@ class write():
         self.__connection__.cursor.commit()
 
 
-    def __classify_error(self, table_name: str, odbc_error: pyodbc.Error):
+    def __classify_error(self, table_name: str, dataframe: pd.DataFrame, odbc_error: pyodbc.Error):
         '''Classify an ODBC write error so it can be handled
         
         Parameters
         ----------
         table_name (str) : name of table to adjust
+        dataframe (pandas.DataFrame): tabular data that is being written to an SQL table
         odbc_error (pyodbc.Error) : a pyodbc error
 
         Returns
@@ -435,11 +436,22 @@ class write():
             undefined_columns = re.findall(r"Invalid column name '(.+?)'", error_string)
             error_class =  errors.SQLColumnDoesNotExist(f"Columns {undefined_columns} do not exist in {table_name}")
         elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
-            error_class = errors.SQLInsufficientColumnSize(f"A string column in {table_name} has insuffcient size.")
+            # check that string data is not being written to non-string column
+            try:
+                schema = helpers.get_schema(self.__connection__, table_name)
+                columns, _, _, _ = helpers.flatten_schema(schema)
+                _ = helpers.dtype_py(dataframe.select_dtypes('object'), columns)
+            except errors.SQLInvalidDataType as error:
+                raise error
+            finally:
+                error_class = errors.SQLInsufficientColumnSize(f"A string column in {table_name} has insufficient size.")
         elif 'Numeric value out of range' in error_string or 'Arithmetic overflow error' in error_string:
             error_class = errors.SQLInsufficientColumnSize(f"A numeric column in {table_name} has insuffcient size.")
         elif 'Invalid character value for cast specification' in error_string or 'Restricted data type attribute violation' in error_string:
             error_class = errors.SQLInvalidInsertFormat(f"A column in {table_name} is incorrectly formatted for insert.")
+        elif isinstance(odbc_error, pyodbc.IntegrityError):
+            # allowable visible exception for attempt to insert duplicated primary key value
+            error_class = odbc_error
         else:
             error_class = errors.SQLGeneral("Generic SQL error in write.__classify_error")
 
@@ -473,6 +485,13 @@ class write():
                 warnings.warn('Creating column {} in table {} with data type DATETIME.'.format(column, table_name), errors.SQLObjectAdjustment)
                 self.__modify__.column(table_name, modify='add', column_name=column, data_type='DATETIME')
 
+        # # convert to Python type based on SQL type
+        elif isinstance(error_class, errors.SQLInvalidInsertFormat):
+            error_class = None
+            schema = helpers.get_schema(self.__connection__, table_name)
+            columns, _, _, _ = helpers.flatten_schema(schema)
+            dataframe = helpers.dtype_py(dataframe, columns)
+
         # raise error since adjust_sql_objects==False
         elif not isinstance(error_class, errors.SQLGeneral) and not self.adjust_sql_objects:
             error_class.args = (error_class.args[0],'Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.')
@@ -482,12 +501,14 @@ class write():
         else:
 
             # SQLTableDoesNotExist
+            # # create table
             if isinstance(error_class, errors.SQLTableDoesNotExist):
                 error_class = None
                 warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
                 dataframe = self.__create__.table_from_dataframe(table_name, dataframe, primary_key='infer')
 
             # SQLColumnDoesNotExist
+            # # create missing columns
             elif isinstance(error_class, errors.SQLColumnDoesNotExist):
                 error_class = None
                 schema = helpers.get_schema(self.__connection__, table_name)
@@ -501,6 +522,7 @@ class write():
                     self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
 
             # SQLInsufficientColumnSize
+            # # change data type and/or size (ex: tinyint to int or varchar(1) to varchar(2))
             elif isinstance(error_class, errors.SQLInsufficientColumnSize):
                 error_class = None
                 schema = helpers.get_schema(self.__connection__, table_name)
@@ -508,8 +530,6 @@ class write():
                 dtypes_sql = helpers.infer_datatypes(self.__connection__, table_temp, dataframe)
                 columns, not_null, primary_key_column, _ = helpers.flatten_schema(schema)
                 adjust = {k:v for k,v in dtypes_sql.items() if v!=columns[k]}
-                if not adjust:
-                    error_class = errors.SQLInsufficientColumnSize('Insufficient column size error fix attempted but failed (same size determined).')
                 for column, data_type in adjust.items():
                     # warn if not a global temporary table for update/merge operations
                     if not table_name.startswith("##__update") and not table_name.startswith("##__merge"):
@@ -526,7 +546,7 @@ class write():
                         self.__modify__.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
                     else:
                         self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
-
+        
         return dataframe, error_class
 
 
@@ -537,6 +557,7 @@ class write():
         ----------
 
         dataframe (pandas.DataFrame) : contains values in a format that will cause inserts to fails
+        table_name ()
 
         Returns
         -------

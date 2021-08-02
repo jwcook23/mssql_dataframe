@@ -221,7 +221,11 @@ def test_table_from_dataframe_indexpk(sql, sample):
     # named dataframe index
     table_name = '##DataFrameIndexPKNamed'
     sample.index.name = 'NamedIndex'
-    sql.create.table_from_dataframe(table_name, sample, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, sample.copy(), primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
 
     assert len(schema)==10
@@ -256,23 +260,6 @@ def test_table_from_dataframe_inferpk(sql):
         assert 'Created table' in str(warn[0].message)
     schema = helpers.get_schema(sql.connection, table_name)
     assert schema.at['_smallint','is_primary_key']
-
-    # float primary key
-    dataframe = pd.DataFrame({
-        '_varchar1': ['a','b','c','d','e'],
-        '_varchar2': ['aa','b','c','d','e'],
-        '_tinyint': [None, 2, 3, 4, 5],
-        '_float1': [1.1111, 2, 3, 4, 5],
-        '_float2': [1.1111, 2, 3, 4, 6]
-    })
-    table_name = '##test_table_from_dataframe_inferpk_float'
-    with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
-        assert len(warn)==1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-        assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
-    assert schema.at['_float1','is_primary_key']
 
     # string primary key
     dataframe = pd.DataFrame({

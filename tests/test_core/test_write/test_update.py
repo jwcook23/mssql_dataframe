@@ -52,7 +52,11 @@ def test_update_one_match_column(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -76,7 +80,11 @@ def test_update_two_match_columns(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -102,7 +110,11 @@ def test_update_composite_pk(sql):
         'ColumnC': [3,4]
     })
     dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -120,7 +132,11 @@ def test_update_exclude_timestamps(sql):
         'ColumnB': ['a','b'],
         'ColumnC': [3,4]
     })
-    sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -152,7 +168,11 @@ def test_update_add_column(sql_adjustable):
     dataframe = pd.DataFrame({
         'ColumnA': [1,2]
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using the SQL primary key that came from the dataframe's index
@@ -176,7 +196,11 @@ def test_update_alter_column(sql_adjustable):
         'ColumnB': ['a','b'],
         'ColumnC': [0,0]
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using ColumnA
@@ -205,7 +229,11 @@ def test_update_add_and_alter_column(sql_adjustable):
         'ColumnA': [1,2],
         'ColumnB': ['a','b']
     })
-    sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
     sql_adjustable.write.insert(table_name, dataframe, include_timestamps=False)
 
     # update using the SQL primary key that came from the dataframe's index

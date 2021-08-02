@@ -58,6 +58,11 @@ If `adjust_sql_objects=True` (default is False):
 2. column size will increase if needed, for example from TINYINT to INT
 3. an SQL table will be created if it does not exist
 
+With `adjust_sql_objects=True` exceptions will still be raised in certian cases to preserve integrity:
+
+1. prevent changing SQL data type from number like to string
+2. prevent changing column nullability
+
 ```python
 import time
 import pandas as pd
