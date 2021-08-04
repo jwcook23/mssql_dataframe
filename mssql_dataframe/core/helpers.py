@@ -94,7 +94,12 @@ def execute(connection, statement:str, args:list=None):
             connection.cursor.execute(statement)
         else:
             connection.cursor.execute(statement, *args)
-    except Exception as err:
+    except pyodbc.ProgrammingError as error:
+        if 'Invalid column name' in str(error):
+            raise errors.SQLColumnDoesNotExist(error.args[1])
+        else:
+            raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
+    except Exception:
         raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
 

@@ -14,6 +14,20 @@ In practice this module may be useful for updating models, web scraping, or gene
 
 See EXAMPLES.md for full examples.
 
+### Initialization
+
+``` python
+import pandas as pd
+
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
+
+# # connect to database using pyodbc
+db = connect(database_name='master', server_name='localhost')
+# # initialize the main package
+sql = SQLServer(db, adjust_sql_objects=True)
+```
+
 ### Updating SQL Table
 
 UPDATE an SQL table using primary keys or other columns.
@@ -51,7 +65,7 @@ SQL objects will be created/modified as needed if the main class is initialized 
 
 Certain actions won't be taken even with `adjust_sql_objects=True` to preserve integrity.
 
-1. A column's won't change from NOT NULL automatically.
+1. A column won't change from NOT NULL automatically.
 2. Column data type won't change from number like (INT, NUMERIC, etc.) to character like (VARCHAR).
 
 Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `adjust_sql_objects=False`.

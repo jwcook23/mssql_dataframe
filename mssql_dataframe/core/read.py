@@ -26,7 +26,7 @@ class read():
         ----------
 
         table_name (str) : name of table to select data frame
-        column_names (list, default=None) : list of columns to select, or None to select all
+        column_names (list|str, default=None) : list of columns to select, or None to select all
         where (list, default=None) : where clause filter to apply
         limit (int, default=None) : select limited number of records only
         order_column (str, default=None) : order results by column
@@ -46,8 +46,11 @@ class read():
 
         read.select('SomeTable')
 
+        #### specific columns
+        read.select('SomeTable', column_names=['ColumnA','ColumnB']
+
         #### specify select criteria
-        read.select('SomeTable', column_names=['ColumnD'], where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
+        read.select('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
 
         """
 
@@ -59,6 +62,8 @@ class read():
         if column_names is None:
             column_names = '*'
         else:
+            if isinstance(column_names, str):
+                column_names = [column_names]
             # always read in the primary_key
             column_names = [x for x in primary_key if x not in column_names]+column_names
             column_names = helpers.safe_sql(self.__connection__, column_names)

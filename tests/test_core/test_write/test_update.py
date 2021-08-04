@@ -46,7 +46,7 @@ def test_update_errors(sql):
 
 def test_update_one_match_column(sql):
 
-    table_name = '##test_update_one_match_column'
+    table_name = '##test_update one_match_column'
     dataframe = pd.DataFrame({
         'ColumnA': [1,2],
         'ColumnB': ['a','b'],

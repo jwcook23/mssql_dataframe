@@ -4,7 +4,7 @@ import pytest
 import pandas as pd
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import create, write, read
+from mssql_dataframe.core import create, write, read, errors
 
 
 class package:
@@ -21,9 +21,9 @@ def sql():
     db.connection.close()
 
 
-def test_select_input_errors(sql):
+def test_select_errors(sql):
 
-    table_name = '##test_select_input_errors'
+    table_name = '##test_select_errors'
     sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT'
     })
@@ -35,7 +35,10 @@ def test_select_input_errors(sql):
         sql.read.select(table_name, order_column='A', order_direction=None)
 
     with pytest.raises(ValueError):
-        sql.read.select(table_name, order_column='A', order_direction='a')    
+        sql.read.select(table_name, order_column='A', order_direction='a')
+
+    with pytest.raises(errors.SQLColumnDoesNotExist):
+        sql.read.select(table_name, column_names = "NotAColumn")
 
 
 def test_select(sql):
@@ -75,6 +78,12 @@ def test_select(sql):
     dataframe = sql.read.select(table_name, column_names=["ColumnB","ColumnC"])
     assert dataframe.index.name=='ColumnA'
     assert all(dataframe.columns==["ColumnB","ColumnC"])
+    assert dataframe.shape[0]==input.shape[0]
+
+    # single string column
+    dataframe = sql.read.select(table_name, column_names="ColumnB")
+    assert dataframe.index.name=='ColumnA'
+    assert all(dataframe.columns==["ColumnB"])
     assert dataframe.shape[0]==input.shape[0]
 
     # optional where statement

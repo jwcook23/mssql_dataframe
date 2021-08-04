@@ -199,6 +199,7 @@ class write():
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        table_temp = helpers.safe_sql(self.__connection__, table_temp)
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 
@@ -354,6 +355,7 @@ class write():
 
         # execute statement, and potentially handle errors
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        table_temp = helpers.safe_sql(self.__connection__, table_temp)
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
 
 

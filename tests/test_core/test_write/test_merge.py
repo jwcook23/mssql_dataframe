@@ -52,7 +52,7 @@ def test_merge_errors(sql):
 
 def test_merge_keep_unmatched(sql):
     
-    table_name = "##test_merge_keep_unmatched"
+    table_name = "##test_merge keep_unmatched"
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
