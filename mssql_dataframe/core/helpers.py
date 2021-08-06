@@ -334,7 +334,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
     # # truncate datetimes to 3 decimal places
     subset[datetimes] = subset[datetimes].replace(r'(?<=\.\d{3})\d+','', regex=True)
     # # remove zero decimal places from numeric values
-    subset = subset.replace(r'\.0+','', regex=True)
+    subset = subset.replace(r'\.0+$','', regex=True)
     # # treat empty like as None (NULL in SQL)
     # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
     subset = subset.replace({'': None, 'None': None, 'nan': None, 'NaT': None, '<NA>': None})

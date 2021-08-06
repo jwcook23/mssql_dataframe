@@ -27,7 +27,7 @@ class read():
 
         table_name (str) : name of table to select data frame
         column_names (list|str, default=None) : list of columns to select, or None to select all
-        where (list, default=None) : where clause filter to apply
+        where (str, default=None) : where clause filter to apply
         limit (int, default=None) : select limited number of records only
         order_column (str, default=None) : order results by column
         order_direction (str, default=None) : order direction
