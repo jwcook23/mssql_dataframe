@@ -85,23 +85,29 @@ def execute(connection, statement:str, args:list=None):
     Returns
     -------
 
+    cursor (pyodbc.Cursor) : cursor that many contain results of a read operation or used to commit write transaction
+
     None
     
     '''
 
+    cursor = connection.connection.cursor()
+    cursor.fast_executemany = connection.fast_executemany
     try:
         if args is None:
-            connection.cursor.execute(statement)
+            cursor.execute(statement)
         else:
-            connection.cursor.execute(statement, *args)
+            cursor.execute(statement, *args)
     except pyodbc.ProgrammingError as error:
         if 'Invalid column name' in str(error):
             raise errors.SQLColumnDoesNotExist(error.args[1])
         else:
             raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
-    except Exception:
+    except Exception as error:
         raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
     
+    return cursor
+
 
 def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     ''' Read SQL query and return results in a dataframe. Skip errors due to undefined ODBC SQL data types.
@@ -119,31 +125,31 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     dataframe (pandas.DataFrame) : tabular data with assigned column names and a best python data type
     '''
 
-    # execute the statement before getting results
-    execute(connection, statement, args)
-
     # return result as string if SQL ODBC data type is not defined
     undefined_type = None
     default_index = []
     while undefined_type is None or len(undefined_type)>0:
+        cursor = execute(connection, statement, args)
         try:
-            dataframe = connection.cursor.fetchall()
+            dataframe = cursor.fetchall()
             undefined_type = []
         except pyodbc.ProgrammingError as error:
+            cursor.rollback()
             undefined_type = re.findall(r'ODBC SQL type (-?\d+) is not yet supported.*',error.args[0])
             if undefined_type:
                 # set undefined type default conversion as str
                 default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
-                execute(connection, statement, args)
             else:
                 raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
-        except:
+        except errors.SQLColumnDoesNotExist as error:
+            raise error
+        except Exception as error:
             raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
 
     # form dataframe with column names
     dataframe = [list(x) for x in dataframe]
-    columns = [col[0] for col in connection.cursor.description]
+    columns = [col[0] for col in cursor.description]
     dataframe = pd.DataFrame(dataframe, columns=columns)
 
     # issue warning for undefined SQL ODBC data types
@@ -189,8 +195,8 @@ def safe_sql(connection, inputs):
     statement = "SELECT {syntax}"
     syntax = ", ".join(["QUOTENAME(?)"]*len(inputs))
     statement = statement.format(syntax=syntax)
-    execute(connection, statement, inputs)
-    clean = connection.cursor.fetchone()
+    cursor = execute(connection, statement, inputs)
+    clean = cursor.fetchone()
     # a value is too long and returns None, so raise an exception
     if [x for x in clean if x is None]:
         raise errors.SQLInvalidLengthObjectName("SQL object name is too long.") from None

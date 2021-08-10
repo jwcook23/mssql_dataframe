@@ -21,7 +21,6 @@ class connect():
     ----------
 
     connection (pyodbc.Connection) : manage operations to database connection and database transactions
-    cursor (pyodbc.Cursor) : database cursor to manage read and write operations
 
     Examples
     --------
@@ -57,9 +56,8 @@ class connect():
                 driver=driver, server=server_name, database=database_name,
                 autocommit=False, UID=username, PWD=password
             )
-
-        self.cursor = self.connection.cursor()
-        self.cursor.fast_executemany = fast_executemany
+        
+        self.fast_executemany = fast_executemany
 
     @staticmethod
     def _get_driver(driver_search):

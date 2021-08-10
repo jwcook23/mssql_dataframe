@@ -1,33 +1,48 @@
-import pandas as pd
+# import pandas as pd
 
-from mssql_dataframe import connect, collection
+# from mssql_dataframe import connect, collection
 
-db = connect.connect()
-sql = collection.SQLServer(db, adjust_sql_objects=True)
+# db = connect.connect()
+# sql = collection.SQLServer(db, adjust_sql_objects=True)
 
+# df = pd.read_csv('C:/Users/jacoo/Desktop/Temp/test.csv')
+# sql.write.merge('##NoTable', df)
 
-df = pd.read_csv('C:/Users/jacoo/Desktop/Temp/test.csv')
+import pyodbc
 
-df = df.head(3)
+connection = pyodbc.connect(
+    driver='ODBC Driver 17 for SQL Server', server='localhost', database='master',
+    autocommit=False, trusted_connection='yes'
+)
+cursor = connection.cursor()
+cursor.fast_executemany = True
+cursor.execute("""
+CREATE TABLE ##TableA(
+    ColumnA VARCHAR(256),
+    ColumnB TINYINT
+)
+""")
 
-sql.write.merge('##NoTable', df)
+statement = """
+INSERT INTO
+##TableA (
+    ColumnA, ColumnB
+) VALUES (
+    ?, ?
+)
+"""
 
-# import pyodbc
+args = [['a'*256, 1]]
+# cursor.executemany(statement, args)
+# cursor.commit()
+# cursor.execute('SELECT * FROM ##TableA').fetchall()
 
-# connection = pyodbc.connect(
-#     driver='ODBC Driver 17 for SQL Server', server='localhost', database='master',
-#     autocommit=False, trusted_connection='yes'
-# )
-# cursor = connection.cursor()
+cursor.setinputsizes([
+    (pyodbc.SQL_WLONGVARCHAR,256,0),
+    (pyodbc.SQL_VARCHAR,256,0)
+])
 
-# statement = """
-# INSERT INTO
-# ##NonExistantTable (
-#     [ColumnA]
-# ) VALUES (
-#     ?
-# )
-# """
+cursor.executemany(statement, args)
 
 # # expected behavior
 # cursor.fast_executemany = True
@@ -69,10 +84,6 @@ sql.write.merge('##NoTable', df)
 # except pyodbc.ProgrammingError as err:
 #     # True
 #     print('Invalid object name' in str(err))
-
-
-
-
 # cursor.setinputsizes([
 #     (pyodbc.SQL_VARCHAR,512,0),           # variable length string
 #     (pyodbc.SQL_WLONGVARCHAR,512,0),      # unicode variable length character data

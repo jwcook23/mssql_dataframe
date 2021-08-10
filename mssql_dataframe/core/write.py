@@ -87,7 +87,7 @@ class write():
         )
 
         # execute statement, and potentially handle errors
-        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.executemany, statement)
+        self.__attempt_write(table_name, dataframe, 'executemany', statement)
 
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None,
@@ -198,10 +198,11 @@ class write():
         args = [table_name, table_temp]+match_columns+update_columns
 
         # execute statement, and potentially handle errors
-        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        self.__attempt_write(table_name, dataframe, 'execute', statement, args)
         table_temp = helpers.safe_sql(self.__connection__, table_temp)
-        self.__connection__.cursor.execute('DROP TABLE '+table_temp)
-        self.__connection__.cursor.commit()
+        cursor = self.__connection__.connection.cursor()
+        cursor.execute('DROP TABLE '+table_temp)
+        cursor.commit()
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, 
@@ -355,10 +356,11 @@ class write():
             args = [table_name, table_temp]+match_columns+update_columns+insert_columns+delete_conditions
 
         # execute statement, and potentially handle errors
-        self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
+        self.__attempt_write(table_name, dataframe, 'execute', statement, args)
         table_temp = helpers.safe_sql(self.__connection__, table_temp)
-        self.__connection__.cursor.execute('DROP TABLE '+table_temp)
-        self.__connection__.cursor.commit()
+        cursor = self.__connection__.connection.cursor()
+        cursor.execute('DROP TABLE '+table_temp)
+        cursor.commit()
 
 
     def __attempt_write(self, table_name, dataframe, cursor_method, statement, args: list = None):
@@ -370,7 +372,7 @@ class write():
 
         table_name (str) : name of the SQL table
         dataframe (pandas.DataFrame): tabular data that is being written to an SQL table
-        cursor_method (pyodbc.connection.cursor.execute|pyodbc.connection.cursor.executemany) : cursor method used to write data
+        cursor_method (str) : 'execute'|'executemany', cursor method used to write data
         statement (str) : statement to execute
         args (list|None) : arguments to pass to cursor_method when executing statement, if None build from dataframe values
 
@@ -379,6 +381,7 @@ class write():
         None
 
         '''
+
         # derive args from dataframe values
         derive = False
         if args is None:
@@ -387,17 +390,33 @@ class write():
         for idx in range(0,self.adjust_sql_attempts,1):
             error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
             try:
+                cursor = self.__connection__.connection.cursor()
+                cursor.fast_executemany = self.__connection__.fast_executemany 
                 # prepare values for writting to SQL
                 dataframe = self.__prepare_values(dataframe)
                 # derive each loop incase handling error adjusted dataframe contents
                 if derive:
                     args = dataframe.values.tolist()
+                # allow string length > 255 with fast_executemany=True, otherwise appropriate exceptions might not later occur
+                # # BUG: https://github.com/mkleehammer/pyodbc/issues/940
+                # columns = (dataframe.applymap(type) == str).all(0)
+                # if any(columns):
+                #     size = dataframe[columns[columns].index].apply(lambda x: max(x.str.len()))
+                #     size = max(size)*2
+                #     cursor.setinputsizes([
+                #         (pyodbc.SQL_VARCHAR,size,0),            # variable length string
+                #         (pyodbc.SQL_WLONGVARCHAR,size,0),       # unicode variable length character data
+                #         (pyodbc.SQL_WVARCHAR,size,0)            # unicode variable length character string
+                #     ])
                 # call cursor.execute/cursor.executemany
-                cursor_method(statement, args)
+                if cursor_method=='execute':
+                    cursor.execute(statement, args)
+                elif cursor_method=='executemany':
+                    cursor.executemany(statement, args)
                 error_class = None
                 break
             except (pyodbc.ProgrammingError, pyodbc.DataError, pyodbc.IntegrityError) as odbc_error:
-                self.__connection__.cursor.rollback()
+                cursor.rollback()
                 error_class, undefined_columns = self.__classify_error(table_name, dataframe, odbc_error)
                 dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
                 if error_class is not None:
@@ -406,7 +425,7 @@ class write():
                 raise error_class
             except Exception:
                 # unclassified error
-                self.__connection__.cursor.rollback()
+                cursor.rollback()
                 raise error_class from None
         # raise exception that can't be handled
         if error_class is not None:
@@ -415,7 +434,7 @@ class write():
         if idx==self.adjust_sql_attempts-1:
             raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
 
-        self.__connection__.cursor.commit()
+        cursor.commit()
 
 
     def __classify_error(self, table_name: str, dataframe: pd.DataFrame, odbc_error: pyodbc.Error):
@@ -532,8 +551,9 @@ class write():
                     self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
                 # drop intermediate temp table
                 table_temp = helpers.safe_sql(self.__connection__, table_temp)
-                self.__connection__.cursor.execute('DROP TABLE '+table_temp)
-                self.__connection__.cursor.commit()
+                cursor = self.__connection__.connection.cursor()
+                cursor.execute('DROP TABLE '+table_temp)
+                cursor.commit()
 
             # SQLInsufficientColumnSize
             # # change data type and/or size (ex: tinyint to int or varchar(1) to varchar(2))
@@ -562,8 +582,9 @@ class write():
                         self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
                 # drop intermediate temp table
                 table_temp = helpers.safe_sql(self.__connection__, table_temp)
-                self.__connection__.cursor.execute('DROP TABLE '+table_temp)
-                self.__connection__.cursor.commit()
+                cursor = self.__connection__.connection.cursor()
+                cursor.execute('DROP TABLE '+table_temp)
+                cursor.commit()
 
         
         return dataframe, error_class
@@ -585,12 +606,13 @@ class write():
 
         """
 
-        # strings: treat empty as None
+        # strings: treat zero length as None
         columns = (dataframe.applymap(type) == str).all(0)
         columns = columns.index[columns]
         dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
 
         # timedetlas: convert to string
+        # # TODO: cursor.setinputsizes
         columns = list(dataframe.select_dtypes('timedelta').columns)
         if columns:
             invalid = ((dataframe[columns]>=pd.Timedelta(days=1)) | (dataframe[columns]<pd.Timedelta(days=0))).any()
@@ -605,6 +627,7 @@ class write():
 
         # datetimes: convert dataframe of single datetime column
         # # otherwise dataframe.values.tolist() will then be composed of Python int's instead of Python Timestamps
+        # # TODO: cursor.setinputsizes
         if dataframe.shape[1]==1 and dataframe.select_dtypes('datetime').shape[1]==1:
             dataframe = dataframe.astype(object)
 

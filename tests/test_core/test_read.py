@@ -109,11 +109,13 @@ def test_select_undefined_type(sql):
     geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
     datetimeoffset = "'12-10-25 12:32:10 +01:00'"
     statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
-    sql.connection.connection.cursor().execute(statement.format(
+    cursor = sql.connection.connection.cursor()
+    cursor.execute(statement.format(
         table_name=table_name,
         geography=geography,
         datetimeoffset=datetimeoffset
     ))
+    cursor.commit()
 
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.read.select(table_name)

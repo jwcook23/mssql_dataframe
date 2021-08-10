@@ -52,9 +52,6 @@ def test_insert_errors(sql, sql_adjustable):
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), include_timestamps=False)
 
-    # date value that can be converted
-    sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnD': ['06/22/2021']}), include_timestamps=False)
-
     # string that cannot be converted to their Python equalivant based on SQL data type
     with pytest.raises(errors.SQLInvalidDataType):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['abs']}), include_timestamps=False)
@@ -94,7 +91,7 @@ def test_insert(sql):
         'ColumnA': [5,np.nan,7],
         'ColumnB': [5,6,None],
         'ColumnC': [pd.NA,6,7],
-        'ColumnD': ['06-22-2021','06-22-2021',pd.NaT],
+        'ColumnD': ['06-22-2021','06/22/2021',pd.NaT],
         'ColumnE' : ['a','b',None]
     })
     dataframe['ColumnB'] = dataframe['ColumnB'].astype('Int64')
@@ -148,7 +145,7 @@ def test_insert_create_table(sql_adjustable):
 
     table_name = '##test_insert_create_table'
 
-    # SQL will infer '06/22/2021' as a date but not allow for insertion
+    # SQL will infer '06/22/2021' as a date but not allow for insertion (possibly since fast_executemany=True)
     # # insure internally value is first created to datetime which will work
     dataframe = pd.DataFrame({
         "ColumnA": [1,2,3],
@@ -165,6 +162,19 @@ def test_insert_create_table(sql_adjustable):
         results = sql_adjustable.read.select(table_name)
         assert all(results[['ColumnA']]==dataframe[['ColumnA']])
         assert all(results['_time_insert'].notna())
+
+    
+def test_insert_create_table_long_string(sql_adjustable):
+
+    table_name = '##test_insert_create_table_long_string'
+
+    dataframe = pd.DataFrame({
+        "ColumnA": ['a'*256]
+    })
+    
+    with warnings.catch_warnings(record=True) as warn:
+        sql_adjustable.write.insert(table_name, dataframe=dataframe)
+        assert len(warn)==3
 
 
 def test_insert_add_column(sql_adjustable):
@@ -188,7 +198,7 @@ def test_insert_add_column(sql_adjustable):
         assert all(results['_time_insert'].notna())
 
 
-def test_insert_alter_column(sql_adjustable):
+def test_insert_alter_column(sql_adjustable): 
 
     table_name = '##test_insert_alter_column'
     sql_adjustable.create.table(table_name, columns={
@@ -221,7 +231,8 @@ def test_insert_alter_primary_key(sql_adjustable):
     dataframe = pd.DataFrame({
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3]
-    }).set_index(keys='ColumnA')
+    })
+    dataframe = dataframe.set_index(keys='ColumnA')
     with warnings.catch_warnings(record=True) as warn:
         sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index')
         assert len(warn)==1

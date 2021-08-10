@@ -156,8 +156,8 @@ class create():
             args += primary_key_column
 
         # execute statement
-        helpers.execute(self.__connection__, statement, args)
-        self.__connection__.cursor.commit()
+        cursor = helpers.execute(self.__connection__, statement, args)
+        cursor.commit()
 
 
     def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
@@ -233,6 +233,7 @@ class create():
 
         # set best Python data type based on derived SQL data type to insure values are written correctly
         # # for example a string mm/dd/yyyy is inferred as date, but can't be inserted into a date column
+        # # TODO: cursor.setinputsizes
         dataframe = helpers.dtype_py(dataframe, dtypes_sql)
 
         # infer primary key column after best fit data types have been determined
