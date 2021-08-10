@@ -201,6 +201,7 @@ class write():
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
         table_temp = helpers.safe_sql(self.__connection__, table_temp)
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
+        self.__connection__.cursor.commit()
 
 
     def merge(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None, 
@@ -357,6 +358,7 @@ class write():
         self.__attempt_write(table_name, dataframe, self.__connection__.cursor.execute, statement, args)
         table_temp = helpers.safe_sql(self.__connection__, table_temp)
         self.__connection__.cursor.execute('DROP TABLE '+table_temp)
+        self.__connection__.cursor.commit()
 
 
     def __attempt_write(self, table_name, dataframe, cursor_method, statement, args: list = None):
@@ -382,7 +384,7 @@ class write():
         if args is None:
             derive = True
 
-        for _ in range(0,self.adjust_sql_attempts,1):
+        for idx in range(0,self.adjust_sql_attempts,1):
             error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
             try:
                 # prepare values for writting to SQL
@@ -406,9 +408,12 @@ class write():
                 # unclassified error
                 self.__connection__.cursor.rollback()
                 raise error_class from None
-        # max adjust_sql_attempts reached
+        # raise exception that can't be handled
         if error_class is not None:
             raise error_class from None
+        # max adjust_sql_attempts reached
+        if idx==self.adjust_sql_attempts-1:
+            raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
 
         self.__connection__.cursor.commit()
 
@@ -438,15 +443,18 @@ class write():
             undefined_columns = re.findall(r"Invalid column name '(.+?)'", error_string)
             error_class =  errors.SQLColumnDoesNotExist(f"Columns {undefined_columns} do not exist in {table_name}")
         elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
-            # check that string data is not being written to non-string column
+            # additionally check schema for better error classification
             try:
                 schema = helpers.get_schema(self.__connection__, table_name)
                 columns, _, _, _ = helpers.flatten_schema(schema)
                 _ = helpers.dtype_py(dataframe.select_dtypes('object'), columns)
-            except errors.SQLInvalidDataType as error:
-                raise error
-            finally:
                 error_class = errors.SQLInsufficientColumnSize(f"A string column in {table_name} has insufficient size.")
+            except errors.SQLTableDoesNotExist as error:
+                # BUG: https://github.com/mkleehammer/pyodbc/issues/940
+                error_class = error
+            except errors.SQLInvalidDataType as error:
+                # example: string data is not being written to non-string column
+                raise error
         elif 'Numeric value out of range' in error_string or 'Arithmetic overflow error' in error_string:
             error_class = errors.SQLInsufficientColumnSize(f"A numeric column in {table_name} has insuffcient size.")
         elif 'Invalid character value for cast specification' in error_string or 'Restricted data type attribute violation' in error_string:
@@ -522,6 +530,10 @@ class write():
                     if not table_name.startswith("##__update") and not table_name.startswith("##__merge"):
                         warnings.warn('Creating column {} in table {} with data type {}.'.format(column, table_name, data_type), errors.SQLObjectAdjustment)
                     self.__modify__.column(table_name, modify='add', column_name=column, data_type=data_type, not_null=False)
+                # drop intermediate temp table
+                table_temp = helpers.safe_sql(self.__connection__, table_temp)
+                self.__connection__.cursor.execute('DROP TABLE '+table_temp)
+                self.__connection__.cursor.commit()
 
             # SQLInsufficientColumnSize
             # # change data type and/or size (ex: tinyint to int or varchar(1) to varchar(2))
@@ -548,6 +560,11 @@ class write():
                         self.__modify__.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
                     else:
                         self.__modify__.column(table_name, modify='alter', column_name=column, data_type=data_type, not_null=is_nullable)
+                # drop intermediate temp table
+                table_temp = helpers.safe_sql(self.__connection__, table_temp)
+                self.__connection__.cursor.execute('DROP TABLE '+table_temp)
+                self.__connection__.cursor.commit()
+
         
         return dataframe, error_class
 

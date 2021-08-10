@@ -43,7 +43,7 @@ class connect():
 
     def __init__(self, database_name: str = 'master', server_name: str = 'localhost',
         driver: str = None, fast_executemany: bool = True,
-        username: str = None, password: str = ''):
+        username: str = None, password: str = None):
 
         driver = self._get_driver(driver)
 

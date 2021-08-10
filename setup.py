@@ -17,7 +17,7 @@ setup(
     python_requires='>=3.5',
     packages = find_packages(exclude=('tests',)),
     install_requires = [
-        'pyodbc',
+        'pyodbc>=4.0.24',       # version with Cursor.setinputsizes
         'pandas'
     ]
 )

@@ -40,6 +40,9 @@ def test_insert_errors(sql, sql_adjustable):
     with pytest.raises(errors.SQLTableDoesNotExist):
         sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), include_timestamps=False)
 
+    with pytest.raises(errors.SQLTableDoesNotExist):
+        sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': ['a'*256]}), include_timestamps=False)
+
     with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), include_timestamps=False)
 
