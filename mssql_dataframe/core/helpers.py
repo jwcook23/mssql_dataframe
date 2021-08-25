@@ -5,71 +5,58 @@ import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe.core import errors, create, write
+from mssql_dataframe.core import errors, create, write, conversion
 
 
 def dtype_py(dataframe, dtypes_sql):
-    '''Convert dataframe to the optimal Python data type given the SQL data type. The optimal data type  
-    has the smallest required size and can contain missing values.
+    pass
+    # '''Convert dataframe to the optimal Python data type given the SQL data type. The optimal data type  
+    # has the smallest required size and can contain missing values.
     
-    Parameters
-    ----------
+    # Parameters
+    # ----------
 
-    dataframe (pandas.DataFrame) : dataframe composed of any data types
-    dtypes_sql (dict) : keys = dataframe column name, values = SQL data type 
+    # dataframe (pandas.DataFrame) : dataframe composed of any data types
+    # dtypes_sql (dict) : keys = dataframe column name, values = SQL data type 
 
-    Returns
-    -------
+    # Returns
+    # -------
 
-    dataframe (pandas.DataFrame) : dataframe with optimal Python type
+    # dataframe (pandas.DataFrame) : dataframe with optimal Python type
     
-    '''
+    # '''
 
-    rules = {
-        'varchar': 'object',
-        'bit': 'boolean',
-        'tinyint': 'Int8',
-        'smallint': 'Int16',
-        'int': 'Int32',
-        'bigint': 'Int64',
-        'float': 'float64',
-        'decimal': 'float64',
-        'time': 'timedelta64[ns]',
-        'date': 'datetime64[ns]',
-        'datetime': 'datetime64[ns]',
-        'datetime2': 'datetime64[ns]'
-    }
+    # # set rules for conversion
+    # relation = {x[0]:x[1] for x in conversion.relation[['sql','pandas']].values}
+    # convert = {k:relation[v] for k,v in dtypes_sql.items() if v in relation and k in dataframe}
 
-    # set rules for conversion
-    convert = {k:rules[v] for k,v in dtypes_sql.items() if v in rules and k in dataframe}
+    # # assume default of str if not defined
+    # undefined = list(dataframe.columns[~dataframe.columns.isin(convert)])
+    # if undefined:
+    #     convert = {**convert, **{k:'str' for k in undefined}}
 
-    # assume default of str if not defined
-    undefined = list(dataframe.columns[~dataframe.columns.isin(convert)])
-    if undefined:
-        convert = {**convert, **{k:'str' for k in undefined}}
+    # # handle timedelta64[ns] seperately as pd.to_timedelta handles strings
+    # timedelta = [k for k,v in convert.items() if v=='timedelta64[ns]']
+    # if timedelta:
+    #     convert = {k:v for k,v in convert.items() if k not in timedelta}
+    #     dataframe[timedelta] = dataframe[timedelta].apply(pd.to_timedelta)
 
-    # handle timedelta64[ns] seperately as pd.to_timedelta handles strings
-    timedelta = [k for k,v in convert.items() if v=='timedelta64[ns]']
-    if timedelta:
-        convert = {k:v for k,v in convert.items() if k not in timedelta}
-        dataframe[timedelta] = dataframe[timedelta].apply(pd.to_timedelta)
+    # # convert values
+    # try:
+    #     # BUG: first convert objects to floats if final data type is int
+    #     # # https://github.com/pandas-dev/pandas/issues/25472
+    #     dataframe = dataframe.astype({k:'float' for k,v in convert.items() if v.startswith('Int') and dataframe[k].dtype.name=='object'})
+    #     # convert according to rules
+    #     dataframe = dataframe.astype(convert)
+    # except ValueError as error:
+    #     value = re.findall(r": .*'(.*)'.*", error.args[0])
+    #     columns = list(dataframe.columns[(dataframe==value[0]).any()])
+    #     raise errors.SQLInvalidDataType(f"Columns: {columns}, "+error.args[0])
 
-    # convert values
-    try:
-        # BUG: first convert objects to floats if final data type is int
-        # # https://github.com/pandas-dev/pandas/issues/25472
-        dataframe = dataframe.astype({k:'float' for k,v in convert.items() if v.startswith('Int') and dataframe[k].dtype.name=='object'})
-        # convert according to rules
-        dataframe = dataframe.astype(convert)
-    except ValueError as error:
-        value = re.findall(r": .*'(.*)'.*", error.args[0])
-        columns = list(dataframe.columns[(dataframe==value[0]).any()])
-        raise errors.SQLInvalidDataType(f"Columns: {columns}, "+error.args[0])
+    # # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
+    # # dataframe = dataframe.replace({'None': None})
 
-    # BUG: unable to use .astype('str',skipna=True) https://github.com/pandas-dev/pandas/issues/25353
-    dataframe = dataframe.replace({'None': None})
-
-    return dataframe
+    # return dataframe
 
 
 def execute(connection, statement:str, args:list=None):
@@ -102,14 +89,14 @@ def execute(connection, statement:str, args:list=None):
         if 'Invalid column name' in str(error):
             raise errors.SQLColumnDoesNotExist(error.args[1])
         else:
-            raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
+            raise error
     except Exception as error:
-        raise errors.SQLGeneral("Generic SQL error in helpers.execute") from None
+        raise error
     
     return cursor
 
 
-def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
+def read_query(connection, statement: str, args: list = None, schema: pd.DataFrame = None) -> pd.DataFrame:
     ''' Read SQL query and return results in a dataframe. Skip errors due to undefined ODBC SQL data types.
 
     Parameters
@@ -118,6 +105,7 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     connection (mssql_dataframe.connect) : connection for executing statement
     statement (str) : statement to execute
     args (list, default=None) : arguments to pass to execute
+    schema (pd.DataFrame, default=None) : schema returned from function get_schema
 
     Returns
     -------
@@ -125,13 +113,12 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
     dataframe (pandas.DataFrame) : tabular data with assigned column names and a best python data type
     '''
 
-    # return result as string if SQL ODBC data type is not defined
     undefined_type = None
     default_index = []
     while undefined_type is None or len(undefined_type)>0:
         cursor = execute(connection, statement, args)
         try:
-            dataframe = cursor.fetchall()
+            raw = cursor.fetchall()
             undefined_type = []
         except pyodbc.ProgrammingError as error:
             cursor.rollback()
@@ -141,20 +128,23 @@ def read_query(connection, statement: str, args: list = None) -> pd.DataFrame:
                 default_index += [int(re.findall(r'.*column-index=(\d+).*',error.args[0])[0])]
                 connection.connection.add_output_converter(int(undefined_type[0]), str)
             else:
-                raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
+                raise error
         except errors.SQLColumnDoesNotExist as error:
             raise error
         except Exception as error:
-            raise errors.SQLGeneral("Generic SQL error in helpers.read_query") from None
+            raise error
 
-    # form dataframe with column names
-    dataframe = [list(x) for x in dataframe]
+    # form dataframe with column names and appropriate data type
     columns = [col[0] for col in cursor.description]
-    dataframe = pd.DataFrame(dataframe, columns=columns)
+    schema = schema.set_index(keys='column_name')
+    dtypes = {col: schema.at[col,'pandas_type'] for col in columns}
+    dataframe = {col: [row[idx] for row in raw] for idx,col in enumerate(columns)}
+    dataframe = {col: pd.Series(vals, dtype=dtypes[col]) for col,vals in dataframe.items()}
+    dataframe = pd.DataFrame(dataframe)
 
     # issue warning for undefined SQL ODBC data types
     if default_index:
-        warnings.warn("Undefined SQL ODBC data type generically inferred as strings for columns: "+str(list(dataframe.columns[default_index])))
+        warnings.warn("Undefined SQL ODBC data type generically inferred as byte string for columns: "+str(list(dataframe.columns[default_index])))
 
     return dataframe
 
@@ -199,7 +189,7 @@ def safe_sql(connection, inputs):
     clean = cursor.fetchone()
     # a value is too long and returns None, so raise an exception
     if [x for x in clean if x is None]:
-        raise errors.SQLInvalidLengthObjectName("SQL object name is too long.") from None
+        raise errors.SQLInvalidLengthObjectName("SQL object name is too long.")
     
     # reconstruct possible schema specification
     clean = list(zip(clean,schema))
@@ -364,7 +354,7 @@ def infer_datatypes(connection, table_name: str, dataframe: pd.DataFrame, row_co
             WHEN count(try_convert(TIME, _Column)) = count(_Column) 
                 AND SUM(CASE WHEN try_convert(DATE, _Column) = ''1900-01-01'' THEN 0 ELSE 1 END) = 0
                 THEN ''time''
-            WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''datetime''
+            WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''datetime2''
             WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''float''
             ELSE ''varchar''
         END) AS type
@@ -451,7 +441,7 @@ def get_schema(connection, table_name: str):
 
     Returns
     -------
-    schema (pandas.DataFrame) : schema for each column in the table
+    schema (pandas.DataFrame) : schema for each column in the table, as well as pandas and odbc data types
 
     '''
     
@@ -466,7 +456,7 @@ def get_schema(connection, table_name: str):
     statement = """
     SELECT
         _columns.name AS column_name,
-        TYPE_NAME(SYSTEM_TYPE_ID) AS data_type, 
+        TYPE_NAME(SYSTEM_TYPE_ID) AS sql_type, 
         _columns.max_length, 
         _columns.precision, 
         _columns.scale, 
@@ -485,12 +475,31 @@ def get_schema(connection, table_name: str):
 
     statement = statement.format(tempdb=tempdb, table_name=table_name)
 
-    schema = read_query(connection, statement)
+    # execute statement
+    cursor = execute(connection, statement)
+    schema = cursor.fetchall()
+    schema = [list(x) for x in schema]
+    columns = [col[0] for col in cursor.description]
+    schema = pd.DataFrame(schema, columns=columns)
     if schema.shape[0]==0:
-         raise errors.SQLTableDoesNotExist('{table_name} does not exist'.format(table_name=table_name)) from None
+         raise errors.SQLTableDoesNotExist('{table_name} does not exist'.format(table_name=table_name))
     
-    schema = schema.set_index('column_name')
+    # enforce is_primary_key type as boolean
     schema['is_primary_key'] = schema['is_primary_key'].fillna(False)
+
+    # add pandas_type and odbc_type
+    schema = schema.merge(conversion.relation, left_on='sql_type', right_on='sql_type')
+
+    # override DATETIME2 precision to correctly reflect number of decimal places (for cursor.setinputsizes)
+    # # remove YYYY-MM-DD hh:mm:ss assuming a value for the decimal between ss.FFFFFFF
+    schema.loc[schema['sql_type']=='datetime2','precision'] += -20
+    # # handle if original value didn't have fractional seconds
+    schema.loc[(schema['sql_type']=='datetime2') & (schema['precision']<0),'precision'] = 0
+
+    # override TIME scale and precision by exchanging their values (for cursor.setinputsizes)
+    # # scale is actually precision
+    # # precision is actually scale
+    schema.loc[schema['sql_type']=='time',['scale','precision']] = schema.loc[schema['sql_type']=='time',['precision','scale']].values
 
     return schema
 

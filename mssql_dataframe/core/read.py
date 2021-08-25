@@ -112,13 +112,9 @@ class read():
 
         # read sql query
         if where_args is None:
-            dataframe = helpers.read_query(self.__connection__, statement)
+            dataframe = helpers.read_query(self.__connection__, statement, schema=schema)
         else:
-            dataframe = helpers.read_query(self.__connection__, statement, where_args)
-
-        # change to optimal python datatype
-        dtypes_sql = schema['data_type'].to_dict()
-        dataframe = helpers.dtype_py(dataframe, dtypes_sql)
+            dataframe = helpers.read_query(self.__connection__, statement, where_args, schema=schema)
 
         # set dataframe index as primary key
         if len(primary_key)>0:

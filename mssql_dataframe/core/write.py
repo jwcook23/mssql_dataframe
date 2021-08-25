@@ -1,13 +1,12 @@
 from typing import Literal
 import warnings
 import re
-from numpy.lib.arraysetops import isin
 
 import pandas as pd
 import numpy as np
 import pyodbc
 
-from mssql_dataframe.core import errors, helpers, create, modify
+from mssql_dataframe.core import errors, helpers, create, modify, conversion
 
 
 class write():
@@ -389,52 +388,44 @@ class write():
 
         for idx in range(0,self.adjust_sql_attempts,1):
             error_class = errors.SQLGeneral("Generic SQL error in write.__attempt_write")
+            cursor = self.__connection__.connection.cursor()
+            cursor.fast_executemany = self.__connection__.fast_executemany 
             try:
-                cursor = self.__connection__.connection.cursor()
-                cursor.fast_executemany = self.__connection__.fast_executemany 
                 # prepare values for writting to SQL
-                dataframe = self.__prepare_values(dataframe)
-                # derive each loop incase handling error adjusted dataframe contents
+                dataframe, inputsizes = self.__prepare_write(table_name, dataframe)
+                # derive args each loop incase handling error adjusted dataframe contents
                 if derive:
                     args = dataframe.values.tolist()
-                # allow string length > 255 with fast_executemany=True, otherwise appropriate exceptions might not later occur
-                # # BUG: https://github.com/mkleehammer/pyodbc/issues/940
-                # columns = (dataframe.applymap(type) == str).all(0)
-                # if any(columns):
-                #     size = dataframe[columns[columns].index].apply(lambda x: max(x.str.len()))
-                #     size = max(size)*2
-                #     cursor.setinputsizes([
-                #         (pyodbc.SQL_VARCHAR,size,0),            # variable length string
-                #         (pyodbc.SQL_WLONGVARCHAR,size,0),       # unicode variable length character data
-                #         (pyodbc.SQL_WVARCHAR,size,0)            # unicode variable length character string
-                #     ])
+                # set input size and data type to prevent errors when using fast_executemany=True
+                cursor.setinputsizes(inputsizes)
                 # call cursor.execute/cursor.executemany
                 if cursor_method=='execute':
                     cursor.execute(statement, args)
                 elif cursor_method=='executemany':
                     cursor.executemany(statement, args)
                 error_class = None
+                cursor.commit()
                 break
             except (pyodbc.ProgrammingError, pyodbc.DataError, pyodbc.IntegrityError) as odbc_error:
                 cursor.rollback()
                 error_class, undefined_columns = self.__classify_error(table_name, dataframe, odbc_error)
                 dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
                 if error_class is not None:
-                    raise error_class from None
+                    raise error_class
+            except errors.SQLTableDoesNotExist as error_class:
+                cursor.rollback()
+                dataframe, error_class = self.__handle_error(table_name, dataframe, error_class, undefined_columns=[])
             except errors.SQLInvalidDataType as error_class:
                 raise error_class
-            except Exception:
+            except Exception as error:
                 # unclassified error
-                cursor.rollback()
-                raise error_class from None
+                raise error
         # raise exception that can't be handled
         if error_class is not None:
-            raise error_class from None
+            raise error_class
         # max adjust_sql_attempts reached
         if idx==self.adjust_sql_attempts-1:
             raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
-
-        cursor.commit()
 
 
     def __classify_error(self, table_name: str, dataframe: pd.DataFrame, odbc_error: pyodbc.Error):
@@ -460,6 +451,7 @@ class write():
             error_class =  errors.SQLTableDoesNotExist(f"{table_name} does not exist")
         elif 'Invalid column name' in error_string:
             undefined_columns = re.findall(r"Invalid column name '(.+?)'", error_string)
+            undefined_columns = list(set(undefined_columns))
             error_class =  errors.SQLColumnDoesNotExist(f"Columns {undefined_columns} do not exist in {table_name}")
         elif 'String data, right truncation' in error_string or 'String or binary data would be truncated' in error_string:
             # additionally check schema for better error classification
@@ -511,8 +503,8 @@ class write():
         if include_timestamps:
             error_class = None
             for column in include_timestamps:
-                warnings.warn('Creating column {} in table {} with data type DATETIME.'.format(column, table_name), errors.SQLObjectAdjustment)
-                self.__modify__.column(table_name, modify='add', column_name=column, data_type='DATETIME')
+                warnings.warn('Creating column {} in table {} with data type DATETIME2.'.format(column, table_name), errors.SQLObjectAdjustment)
+                self.__modify__.column(table_name, modify='add', column_name=column, data_type='DATETIME2')
 
         # # convert to Python type based on SQL type
         elif isinstance(error_class, errors.SQLInvalidInsertFormat):
@@ -524,7 +516,7 @@ class write():
         # raise error since adjust_sql_objects==False
         elif not isinstance(error_class, errors.SQLGeneral) and not self.adjust_sql_objects:
             error_class.args = (error_class.args[0],'Initialize with parameter adjust_sql_objects=True to create/modify SQL objects.')
-            raise error_class from None
+            raise error_class
 
         # handle error since adjust_sql_objects==True
         else:
@@ -590,29 +582,39 @@ class write():
         return dataframe, error_class
 
 
-    def __prepare_values(self, dataframe):
-        """Prepare values for writing to SQL.
+    def __prepare_write(self, table_name: str, dataframe: pd.DataFrame):
+        """Prepare values and cursor attributes for writing to SQL.
         
         Parameters
         ----------
 
-        dataframe (pandas.DataFrame) : contains values in a format that will cause inserts to fails
-        table_name ()
+        dataframe (pandas.DataFrame) : contains values in a format that may cause insert to fail
+        table_name (str) : name of table being written to
 
         Returns
         -------
 
         DataFrame (pandas.DataFrame) : values to insert into SQL
+        inputsizes (list) : cursor attributes for data type, size, and precision such as (pyodbc.SQL_DECIMAL, 18, 4)
 
         """
 
-        # strings: treat zero length as None
-        columns = (dataframe.applymap(type) == str).all(0)
-        columns = columns.index[columns]
-        dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
+        # use target table schema to define cursor attributes and dataframe values
+        schema = helpers.get_schema(self.__connection__, table_name)
+        schema = schema[schema.column_name.isin(dataframe.columns)]
+        # assume string for undefined
+        # schema['pandas_type'] = schema['pandas_type'].fillna('object')
+        # schema['odbc'] = schema['odbc'].fillna(conversion.relation.loc[conversion.relation['sql']=='varchar','odbc'].values[0])
+        # schema[['max_length','precision','odbc']] = schema[['max_length','precision','odbc']].astype('int')
+        # change dataframe contents corresponding to SQL type
+        dtypes = {x[0]:x[1] for x in schema[['column_name','pandas_type']].values}
+        dataframe = dataframe.astype(dtypes)
+        # definition for cursor attributes type, size, and precision; ex: (pyodbc.SQL_DECIMAL, 18, 4)
+        inputsizes = list(schema[['odbc_type','max_length','precision']].to_records(index=False))
+        # # convert from numpy type to base Python type for pyodbc
+        inputsizes = [(int(x[0]), int(x[1]) ,int(x[2])) for x in inputsizes]
 
         # timedetlas: convert to string
-        # # TODO: cursor.setinputsizes
         columns = list(dataframe.select_dtypes('timedelta').columns)
         if columns:
             invalid = ((dataframe[columns]>=pd.Timedelta(days=1)) | (dataframe[columns]<pd.Timedelta(days=0))).any()
@@ -625,13 +627,17 @@ class write():
         # any kind of missing values to be NULL in SQL
         dataframe = dataframe.fillna(np.nan).replace([np.nan], [None])
 
+        # strings: treat zero length as None
+        columns = (dataframe.applymap(type) == str).all(0)
+        columns = columns.index[columns]
+        dataframe[columns] = dataframe[columns].replace(r'^\s*$', np.nan, regex=True)
+
         # datetimes: convert dataframe of single datetime column
         # # otherwise dataframe.values.tolist() will then be composed of Python int's instead of Python Timestamps
-        # # TODO: cursor.setinputsizes
         if dataframe.shape[1]==1 and dataframe.select_dtypes('datetime').shape[1]==1:
             dataframe = dataframe.astype(object)
 
-        return dataframe
+        return dataframe, inputsizes
 
 
     def __prep_update_merge(self, table_name, match_columns, dataframe, operation: Literal['update','merge']):

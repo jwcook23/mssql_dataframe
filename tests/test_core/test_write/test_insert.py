@@ -67,6 +67,49 @@ def test_insert(sql):
 
     table_name = '##test_insert'
     sql.create.table(table_name, columns={
+            # '_bit': 'BIT',
+            # '_tinyint': 'TINYINT',
+            # '_smallint': 'SMALLINT',
+            # '_int': 'INT',
+            # '_bigint': 'BIGINT',
+            # '_float': 'FLOAT',
+            '_time': 'TIME',
+            # '_date': 'DATE',
+            # '_datetime2': 'DATETIME2',
+            # '_varchar': 'VARCHAR(1)',
+            # '_nvarchar': 'NVARCHAR(1)'
+    })
+
+    dataframe=pd.DataFrame({
+        # '_bit': pd.Series([1, 0, None], dtype='boolean'),
+        # '_tinyint': pd.Series([0, 255, None], dtype='UInt8'),
+        # '_smallint': pd.Series([-2**15, 2**15-1, None], dtype='Int16'),
+        # '_int': pd.Series([-2**31, 2**31-1, None], dtype='Int32'),
+        # '_bigint': pd.Series([-2**63, 2**63-1, None], dtype='Int64'),
+        # '_float': pd.Series([-1.79**308, 1.79**308, None], dtype='float'),
+        '_time': pd.Series(['00:00:00.0000000', '23:59:59.9999999', None], dtype='timedelta64[ns]'),
+        # '_date': pd.Series([(pd.Timestamp.min+pd.DateOffset(days=1)).date(), pd.Timestamp.max.date(), None], dtype='datetime64[ns]'),
+        # '_datetime2': pd.Series([pd.Timestamp.min, pd.Timestamp.max, None], dtype='datetime64[ns]'),
+        # '_varchar': pd.Series(['a', 'bbb', None], dtype='string'),
+        # '_nvarchar': pd.Series([u'100\N{DEGREE SIGN}F', u'company name\N{REGISTERED SIGN}', None], dtype='string'),
+    })
+
+    sql.write.insert(table_name, dataframe)
+
+    # sql.connection.connection.cursor().execute('SELECT * FROM ##test_insert').fetchall()
+    results = sql.read.select(table_name)
+    assert all(results.loc[results['ColumnA'].notna(),'ColumnA']==pd.Series([1,5,7], index=[0,4,6]))
+    assert all(results.loc[results['ColumnB'].notna(),'ColumnB']==pd.Series([2,3,4,5,6], index=[1,2,3,4,5]))
+    assert all(results.loc[results['ColumnC'].notna(),'ColumnC']==pd.Series([6,7], index=[5,6]))
+    assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22)]*4, index=[4,5,7,8]))
+    assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
+    assert all(results['_time_insert'].notna())
+
+
+def test_insert_flat(sql):
+
+    table_name = '##test_insert_flat'
+    sql.create.table(table_name, columns={
             'ColumnA': 'TINYINT',
             'ColumnB': 'INT',
             'ColumnC': 'BIGINT',
@@ -86,30 +129,9 @@ def test_insert(sql):
     dataframe = pd.DataFrame({'ColumnB': [2,3,4]})
     sql.write.insert(table_name, dataframe)
 
-    # entire dataframe
-    dataframe = pd.DataFrame({
-        'ColumnA': [5,np.nan,7],
-        'ColumnB': [5,6,None],
-        'ColumnC': [pd.NA,6,7],
-        'ColumnD': ['06-22-2021','06/22/2021',pd.NaT],
-        'ColumnE' : ['a','b',None]
-    })
-    dataframe['ColumnB'] = dataframe['ColumnB'].astype('Int64')
-    dataframe['ColumnD'] = pd.to_datetime(dataframe['ColumnD'])
-    sql.write.insert(table_name, dataframe)
-
     # single column of dates
     dataframe = pd.DataFrame({'ColumnD': ['06-22-2021','06-22-2021']}, dtype='datetime64[ns]')
     sql.write.insert(table_name, dataframe)
-
-    # test all insertions
-    results = sql.read.select(table_name)
-    assert all(results.loc[results['ColumnA'].notna(),'ColumnA']==pd.Series([1,5,7], index=[0,4,6]))
-    assert all(results.loc[results['ColumnB'].notna(),'ColumnB']==pd.Series([2,3,4,5,6], index=[1,2,3,4,5]))
-    assert all(results.loc[results['ColumnC'].notna(),'ColumnC']==pd.Series([6,7], index=[5,6]))
-    assert all(results.loc[results['ColumnD'].notna(),'ColumnD']==pd.Series([date(2021,6,22)]*4, index=[4,5,7,8]))
-    assert all(results.loc[results['ColumnE'].notna(),'ColumnE']==pd.Series(['a','b'], index=[4,5]))
-    assert all(results['_time_insert'].notna())
 
 
 def test_insert_composite_pk(sql):
@@ -148,12 +170,13 @@ def test_insert_create_table(sql_adjustable):
     # SQL will infer '06/22/2021' as a date but not allow for insertion (possibly since fast_executemany=True)
     # # insure internally value is first created to datetime which will work
     dataframe = pd.DataFrame({
-        "ColumnA": [1,2,3],
-        "ColumnB": ['06/22/2021','06-22-2021','2023-08-31']
+        # "ColumnA": [1,2,3],
+        # "ColumnB": ['06/22/2021','06-22-2021','2023-08-31']
+        "ColumnB": ['06/22/2021']
     })
 
     with warnings.catch_warnings(record=True) as warn:
-        sql_adjustable.write.insert(table_name, dataframe=dataframe)
+        sql_adjustable.write.insert(table_name, dataframe=dataframe, include_timestamps=False)
         assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating table '+table_name in str(warn[0].message)
@@ -161,6 +184,7 @@ def test_insert_create_table(sql_adjustable):
         assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)        
         results = sql_adjustable.read.select(table_name)
         assert all(results[['ColumnA']]==dataframe[['ColumnA']])
+        assert all(results[['ColumnB']]==dataframe[['ColumnB']])
         assert all(results['_time_insert'].notna())
 
     
@@ -171,7 +195,7 @@ def test_insert_create_table_long_string(sql_adjustable):
     dataframe = pd.DataFrame({
         "ColumnA": ['a'*256]
     })
-    
+
     with warnings.catch_warnings(record=True) as warn:
         sql_adjustable.write.insert(table_name, dataframe=dataframe)
         assert len(warn)==3

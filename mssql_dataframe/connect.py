@@ -80,7 +80,7 @@ class connect():
         else: 
             driver = [x for x in installed if x==driver_search]
         if not driver:
-            raise errors.EnvironmentODBCDriverNotFound('Unable to find ODBC driver.') from None
+            raise errors.EnvironmentODBCDriverNotFound('Unable to find ODBC driver.')
         driver = max(driver)
 
         return driver
