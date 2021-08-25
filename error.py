@@ -17,14 +17,15 @@ cursor.fast_executemany = True
 conversion = pd.DataFrame.from_records([
     {'sql': 'bit', 'pandas': 'boolean', 'odbc': pyodbc.SQL_BIT, 'size': 1, 'precision': 0},
     {'sql': 'tinyint', 'pandas': 'UInt8', 'odbc': pyodbc.SQL_TINYINT, 'size': 1, 'precision': 0},
-    # {'sql': 'smallint', 'pandas': 'Int16', 'odbc': pyodbc.SQL_SMALLINT},
-    # {'sql': 'int', 'pandas': 'Int32', 'odbc': pyodbc.SQL_INTEGER},
-    # {'sql': 'bigint', 'pandas': 'Int64', 'odbc': pyodbc.SQL_BIGINT},
-    # {'sql': 'float', 'pandas': 'float64', 'odbc': pyodbc.SQL_FLOAT},
+    {'sql': 'smallint', 'pandas': 'Int16', 'odbc': pyodbc.SQL_SMALLINT, 'size': 2, 'precision': 0},
+    {'sql': 'int', 'pandas': 'Int32', 'odbc': pyodbc.SQL_INTEGER, 'size': 4, 'precision': 0},
+    {'sql': 'bigint', 'pandas': 'Int64', 'odbc': pyodbc.SQL_BIGINT, 'size': 8, 'precision': 0},
+    {'sql': 'float', 'pandas': 'float64', 'odbc': pyodbc.SQL_FLOAT, 'size': 8, 'precision': 53},
+    # TODO: pandas support for exact decimal & numeric SQL types
     # {'sql': 'decimal', 'pandas': 'float64', 'odbc': pyodbc.SQL_DECIMAL},
     {'sql': 'time', 'pandas': 'timedelta64[ns]', 'odbc': pyodbc.SQL_SS_TIME2, 'size': 16, 'precision': 7},
-    # {'sql': 'date', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_DATE},
-    # {'sql': 'datetime2', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_TIMESTAMP},
+    {'sql': 'date', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_DATE, 'size': 10, 'precision': 0},
+    {'sql': 'datetime2', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_TIMESTAMP, 'size': 27, 'precision': 7},
     # {'sql': 'varchar', 'pandas': 'string', 'odbc': pyodbc.SQL_VARCHAR},
     # {'sql': 'nvarchar', 'pandas': 'string', 'odbc': pyodbc.SQL_WVARCHAR},
 ])
@@ -34,18 +35,28 @@ conversion = pd.DataFrame.from_records([
 sample = pd.DataFrame({
     '_bit': pd.Series([False, True, None], dtype='boolean'),
     '_tinyint': pd.Series([0, 255, None], dtype='UInt8'),
+    '_smallint': pd.Series([-2**15, 2**15-1, None], dtype='Int16'),
+    '_int': pd.Series([-2**31, 2**31-1, None], dtype='Int32'),
     '_bigint': pd.Series([-2**63, 2**63-1, None], dtype='Int64'),
-    '_time': pd.Series(['00:00:00.0000000','23:59:59.9999999',None], dtype='timedelta64[ns]')
+    '_float': pd.Series([-1.79**308, 1.79**308, None], dtype='float'),
+    '_time': pd.Series(['00:00:00.0000000','23:59:59.9999999',None], dtype='timedelta64[ns]'),
+    '_date': pd.Series([(pd.Timestamp.min+pd.DateOffset(days=1)).date(), pd.Timestamp.max.date(), None], dtype='datetime64[ns]'),
+    '_datetime2': pd.Series([pd.Timestamp.min, pd.Timestamp.max, None], dtype='datetime64[ns]'),
 })
 ## increase sample size rows
-# sample = pd.concat([sample]*10000).reset_index(drop=True)
 sample = pd.concat([sample]*10000).reset_index(drop=True)
 ## add id column for return sorting
 sample.index.name = 'id'
 sample = sample.reset_index()
 sample['id'] = sample['id'].astype('Int64')
 
-# insure correct testing
+# insure conversion is fully defined
+missing = conversion.isna().any()
+if any(missing):
+    missing = missing[missing].index.tolist()
+    raise AttributeError(f'conversion is not fully defined for: {missing}')
+
+# insure full testing
 ## insure all conversion rules are being tested
 missing = ~conversion['sql'].isin([x[1::] for x in sample.columns])
 if any(missing):
@@ -78,7 +89,7 @@ missing = ~query_params['pandas'].isin(conversion['pandas'])
 if any(missing):
     missing = query_params.loc[missing,'pandas'].unique().tolist()
     raise AttributeError(f'undefined conversion for pandas data types: {missing}')    
-query_params = query_params.merge(conversion)
+query_params = query_params.merge(conversion, how='left')
 query_params = query_params[['odbc','size','precision']].to_numpy().tolist()
 query_params = [tuple(x) for x in query_params]
 cursor.setinputsizes(query_params)
