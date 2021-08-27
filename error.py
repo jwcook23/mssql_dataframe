@@ -37,24 +37,26 @@ conversion = pd.DataFrame.from_records([
     {'sql': 'bigint', 'pandas': 'Int64', 'odbc': pyodbc.SQL_BIGINT, 'size': 8, 'precision': 0},
     # {'sql': 'float', 'pandas': 'float64', 'odbc': pyodbc.SQL_FLOAT, 'size': 8, 'precision': 53},
     # {'sql': 'time', 'pandas': 'timedelta64[ns]', 'odbc': pyodbc.SQL_SS_TIME2, 'size': 16, 'precision': 7},
-    {'sql': 'date', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_DATE, 'size': 10, 'precision': 0},
-    {'sql': 'datetime2', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_TIMESTAMP, 'size': 27, 'precision': 7},
-    # {'sql': 'varchar', 'pandas': 'string', 'odbc': pyodbc.SQL_VARCHAR},
-    # {'sql': 'nvarchar', 'pandas': 'string', 'odbc': pyodbc.SQL_WVARCHAR},
+    # {'sql': 'date', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_DATE, 'size': 10, 'precision': 0},
+    # {'sql': 'datetime2', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_TIMESTAMP, 'size': 27, 'precision': 7},
+    {'sql': 'varchar', 'pandas': 'string', 'odbc': pyodbc.SQL_VARCHAR, 'size': 6, 'precision': 6},
+    # {'sql': 'nvarchar', 'pandas': 'string', 'odbc': pyodbc.SQL_WVARCHAR, 'size': 3, 'precision': 0},
 ])
 
 # sample data
 ## format >> {'_<SQL_data_type>': pd.Series([<lower_limit>,<upper_limit>,<null>,<truncation>],dtype=<pandas_data_type>)}
 sample = pd.DataFrame({
-    # '_bit': pd.Series([False, True, None], dtype='boolean'),
-    # '_tinyint': pd.Series([0, 255, None], dtype='UInt8'),
-    # '_smallint': pd.Series([-2**15, 2**15-1, None], dtype='Int16'),
-    # '_int': pd.Series([-2**31, 2**31-1, None], dtype='Int32'),
-    '_bigint': pd.Series([-2**63, 2**63-1, None], dtype='Int64'),
-    # '_float': pd.Series([-1.79**308, 1.79**308, None], dtype='float'),
-    # '_time': pd.Series(['00:00:00.0000000','23:59:59.9999999',None], dtype='timedelta64[ns]'),
-    '_date': pd.Series([(pd.Timestamp.min+pd.DateOffset(days=1)).date(), pd.Timestamp.max.date(), None], dtype='datetime64[ns]'),
-    '_datetime2': pd.Series([pd.Timestamp.min, pd.Timestamp.max, None], dtype='datetime64[ns]'),
+    # '_bit': pd.Series([False, True, None, None], dtype='boolean'),
+    # '_tinyint': pd.Series([0, 255, None, None], dtype='UInt8'),
+    # '_smallint': pd.Series([-2**15, 2**15-1, None, None], dtype='Int16'),
+    # '_int': pd.Series([-2**31, 2**31-1, None, None], dtype='Int32'),
+    '_bigint': pd.Series([-2**63, 2**63-1, None, None], dtype='Int64'),
+    # '_float': pd.Series([-1.79**308, 1.79**308, None, None], dtype='float'),
+    # '_time': pd.Series(['00:00:00.0000000', '23:59:59.9999999', None, '00:00:01.123456789'], dtype='timedelta64[ns]'),
+    # '_date': pd.Series([(pd.Timestamp.min+pd.DateOffset(days=1)).date(), pd.Timestamp.max.date(), None, None], dtype='datetime64[ns]'),
+    # '_datetime2': pd.Series([pd.Timestamp.min, pd.Timestamp.max, None, pd.Timestamp('1970-01-01 00:00:01.123456789')], dtype='datetime64[ns]'),
+    '_varchar': pd.Series(['a', 'bbb', None], dtype='string'),
+    # '_nvarchar': pd.Series([u'100\N{DEGREE SIGN}F', u'company name\N{REGISTERED SIGN}', None], dtype='string'),
 })
 ## increase sample size rows
 # sample = pd.concat([sample]*10000).reset_index(drop=True)
@@ -107,15 +109,26 @@ query_params = query_params[['odbc','size','precision']].to_numpy().tolist()
 query_params = [tuple(x) for x in query_params]
 cursor.setinputsizes(query_params)
 
-# prepare write values
+# get target table schema for writing/reading values
+schema = []
+columns = sample.columns
+for col in columns:
+    x = list(cursor.columns(table='##conversion',catalog='tempdb',column=col).fetchone())
+    schema.append(x)
+schema = pd.DataFrame(schema, columns = [x[0] for x in cursor.description])
+
+# prepare write values based on destination schema
 prepped = sample.copy()
 ## SQL data type TIME
 ### as string since datetime.time allows 6 decimal places but SQL allows 7
-dtype = prepped.select_dtypes('timedelta64[ns]').columns
+dtype = schema.loc[schema['data_type']==pyodbc.SQL_SS_TIME2,'column_name']
 truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds%100>0))
 if any(truncation):
     truncation = list(truncation[truncation].index)
-    warnings.warn(f'nanosecond precision for columns {truncation} will be truncated as TIME allows 7 max decimal places')
+    warnings.warn(f'Nanosecond precision for columns {truncation} will be truncated as TIME allows 7 max decimal places. Dataframe columns will also be truncted to reflect this.')
+    nanosecond = sample[dtype].apply(lambda x: pd.to_timedelta((x.dt.nanoseconds//100)*100))
+    sample[dtype] = sample[dtype].apply(lambda x: x.dt.floor(freq='us'))
+    sample[dtype] = sample[dtype]+nanosecond
 invalid = ((prepped[dtype]>=pd.Timedelta(days=1)) | (prepped[dtype]<pd.Timedelta(days=0))).any()
 if any(invalid):
     invalid = list(invalid[invalid].index)
@@ -125,11 +138,15 @@ prepped[dtype] = prepped[dtype].replace({'NaT': None})
 prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
 ## SQL data type DATETIME2
 ### as string since datetime.datetime allows 6 decimals but SQL allows 7
-dtype = prepped.select_dtypes('datetime64[ns]').columns
+dtype = schema.loc[schema['data_type']==pyodbc.SQL_TYPE_TIMESTAMP,'column_name']
 truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond%100>0))
 if any(truncation):
     truncation = list(truncation[truncation].index)
-    warnings.warn(f'nanosecond precision for columns {truncation} will be truncated as DATETIME2 allows 7 max decimal places')
+    warnings.warn(f'Nanosecond precision for columns {truncation} will be truncated as DATETIME2 allows 7 max decimal places. Dataframe columns will also be truncted to reflect this.')
+    nanosecond = sample[dtype].apply(lambda x: pd.to_timedelta((x.dt.nanosecond//100)*100))
+    sample[dtype] = sample[dtype].apply(lambda x: x.dt.floor(freq='us'))
+    sample[dtype] = sample[dtype]+nanosecond
+
 prepped[dtype] = prepped[dtype].astype('str')
 prepped[dtype] = prepped[dtype].replace({'NaT': None})
 prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
@@ -171,11 +188,6 @@ columns = [col[0] for col in cursor.description]
 print('read in {} seconds'.format(time.time()-time_start))
 
 # SQL schema for pandas data types
-schema = []
-for col in columns:
-    x = list(list(cursor.columns(table='##conversion',catalog='tempdb',column=col).fetchone()))
-    schema.append(x)
-schema = pd.DataFrame(schema, columns = [x[0] for x in cursor.description])
 dtypes = schema[['column_name','data_type']].merge(conversion[['odbc','pandas']], left_on='data_type', right_on='odbc')
 dtypes = dtypes[['column_name','pandas']].to_numpy()
 dtypes = {x[0]:x[1] for x in dtypes}
@@ -189,5 +201,4 @@ print('dataframe in {} seconds'.format(time.time()-time_start))
 
 # test result, accounting for precision differences
 expected = sample.drop(columns=['id'])
-expected['_datetime2'] = expected['_datetime2'].dt.floor('U')
 assert result.equals(expected)
