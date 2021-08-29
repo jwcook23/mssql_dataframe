@@ -1,6 +1,7 @@
-''' Defines conversion rules between SQL/ODBC/pandas as well has a function for inferring best SQL types from string values.
+''' Handles base funcationality of data movement between Python pandas and SQL. Includes conversion rules between SQL/ODBC/pandas.
 '''
 import warnings
+import struct
 
 import pyodbc
 import pandas as pd
@@ -169,25 +170,112 @@ def prepare_values(schema, dataframe):
     prepped = prepped.fillna(np.nan).replace([np.nan], [None])
 
     # values to pyodbc cursor executemany
-    args = prepped.values.tolist()
+    values = prepped.values.tolist()
 
-    return dataframe, args
+    return dataframe, values
 
 
-# TODO: SQL cross apply statement to infer data types
-# infer = """
-# (CASE 
-#     WHEN count(try_convert(BIT, _Column)) = count(_Column) 
-#         AND MAX(_Column)=1 AND count(_Column)>2 THEN ''bit''
-#     WHEN count(try_convert(TINYINT, _Column)) = count(_Column) THEN ''tinyint''
-#     WHEN count(try_convert(SMALLINT, _Column)) = count(_Column) THEN ''smallint''
-#     WHEN count(try_convert(INT, _Column)) = count(_Column) THEN ''int''
-#     WHEN count(try_convert(BIGINT, _Column)) = count(_Column) THEN ''bigint''
-#     WHEN count(try_convert(TIME, _Column)) = count(_Column) 
-#         AND SUM(CASE WHEN try_convert(DATE, _Column) = ''1900-01-01'' THEN 0 ELSE 1 END) = 0
-#         THEN ''time''
-#     WHEN count(try_convert(DATETIME, _Column)) = count(_Column) THEN ''datetime''
-#     WHEN count(try_convert(FLOAT, _Column)) = count(_Column) THEN ''float''
-#     ELSE ''varchar''
-# END) AS type
-# """
+def prepare_connection(connection):
+    ''' Prepare connection by adding output converters.
+    
+    Parameters
+    ----------
+    connection (pyodbc.Connection) : connection without default output converters
+
+    Returns
+    -------
+    connection (pyodbc.Connection) : connection with added output converters
+
+    Advantages:
+
+    1. conversion to base Python type isn't defined by the ODBC library which will raise an error such as:
+    - pyodbc.ProgrammingError: ('ODBC SQL type -155 is not yet supported. column-index=0 type=-155', 'HY106')
+    
+    2. conversion directly to a pandas type allows greater precision such as:
+    - python datetime.datetime allows 6 decimal places of precision while pandas Timestamps allows 9
+
+    Sidenotes:
+    1. adding converters for nullable pandas integer types isn't possible, since those are implemented at the array level
+    2. pandas doesn't have an exact precision decimal data type
+
+    '''
+
+    # TIME (pyodbc.SQL_SS_TIME2, SQL TIME)
+    ## python datetime.time has 6 decimal places of precision and isn't nullable
+    ## pandas Timedelta supports 9 decimal places and is nullable
+    ## SQL TIME only supports 7 decimal places for precision
+    ## SQL TIME range is '00:00:00.0000000' to '23:59:59.9999999' while pandas allows multiple days and negatives
+    def SQL_SS_TIME2(raw_bytes, pattern=struct.Struct("<4hI")):
+        hour, minute, second, _, fraction = pattern.unpack(raw_bytes)
+        return pd.Timedelta(hours=hour, minutes=minute, seconds=second, microseconds=fraction//1000, nanoseconds=fraction%1000)
+    connection.add_output_converter(pyodbc.SQL_SS_TIME2, SQL_SS_TIME2)
+
+    # TIMESTAMP (pyodbc.SQL_TYPE_TIMESTMAP, SQL DATETIME2)
+    ## python datetime.datetime has 6 decimal places of precision and isn't nullable
+    ## pandas Timestamp supports 9 decimal places and is nullable
+    ## SQL DATETIME2 only supports 7 decimal places for precision
+    ## pandas Timestamp range range is '1677-09-21 00:12:43.145225' to '2262-04-11 23:47:16.854775807' while SQL allows '0001-01-01' through '9999-12-31'
+    def SQL_TYPE_TIMESTAMP(raw_bytes, pattern=struct.Struct("hHHHHHI")):
+        year, month, day, hour, minute, second, fraction = pattern.unpack(raw_bytes)
+        return pd.Timestamp(year=year, month=month, day=day, hour=hour, minute=minute, second=second, microsecond=fraction//1000, nanosecond=fraction%1000)
+    connection.add_output_converter(pyodbc.SQL_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP)
+
+    return connection
+
+
+def insert_values(table_name, columns, values, cursor):
+    ''' Insert values into a table.
+
+    Parameters
+    ----------
+    table_name (str) : table to insert into
+    columns (list) : columns to insert into
+    values (list) : values to insert
+    cursor (pyodbc.Cursor) : database cursor to perform transaction
+
+    Returns
+    -------
+    None
+    '''
+
+    insert = ', '.join(columns)
+    params = ', '.join(['?']*len(columns))
+    statement = f"""
+    INSERT INTO
+    {table_name} (
+        {insert}
+    ) VALUES (
+        {params}
+    )
+    """
+    cursor.executemany(statement, values)
+    cursor.commit()
+
+
+def read_values(statement, schema, cursor):
+    ''' Read data from SQL into a pandas dataframe.
+
+    Parameters
+    ----------
+    statement (str) : statement to execute to get data
+    schema (pandas.DataFrame) : output from get_schema function for setting dataframe data types
+    cursor (pyodbc.Cursor) : database cursor for reading data
+
+    Returns
+    -------
+    result (pandas.DataFrame) : resulting data from performing statement
+
+    '''
+
+    # read data from SQL
+    result = cursor.execute(statement).fetchall()
+    columns = [col[0] for col in cursor.description]
+
+    # form output using SQL schema and explicit pandas types
+    dtypes = schema.loc[columns,'pandas'].to_dict()
+    result = {col: [row[idx] for row in result] for idx,col in enumerate(columns)}
+    result = {col: pd.Series(vals, dtype=dtypes[col]) for col,vals in result.items()}
+    result = pd.DataFrame(result)
+
+    return result
+
