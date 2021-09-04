@@ -152,18 +152,19 @@ def sql_unique(dataframe, dtypes):
 
     # primary key 
     dtypes = dtypes.loc[dataframe.columns]
+    dtypes.index.name = 'column_name'
+    dtypes = dtypes.reset_index()
     ## attempt to use smallest sized numeric value
     check = pd.Series(['tinyint','smallint','int','bigint','float'], name='sql')
-    pk = pd.DataFrame(check).merge(dtypes.reset_index(), left_on='sql', right_on='sql')
+    pk = pd.DataFrame(check).merge(dtypes, left_on='sql', right_on='sql')
     if len(pk)>0:
         pk = dataframe[pk['column_name']].max().idxmin()    
     else:
         pk = None
-    
     ## attempt to use smallest size string value
     if pk is None:
         check = pd.Series(['varchar','nvarchar'], name='sql')
-        pk = pd.DataFrame(check).merge(dtypes.reset_index(), left_on='sql', right_on='sql')
+        pk = pd.DataFrame(check).merge(dtypes, left_on='sql', right_on='sql')
         if len(pk)>0:
             pk = dataframe[pk['column_name']].apply(lambda x: x.str.len().max()).idxmin()
         else:
@@ -188,13 +189,12 @@ def sql_dtype(dataframe):
     '''
     
     # determine data type based on conversion rules
-    dtypes = pd.DataFrame(dataframe.dtypes, columns=['pandas'])
+    dtypes = pd.DataFrame(dataframe.dtypes.copy(), columns=['pandas'])
     dtypes.index.name = 'column_name'
     dtypes = dtypes.reset_index()
     dtypes['pandas'] = dtypes['pandas'].apply(lambda x: x.name)
     dtypes = dtypes.merge(conversion.rules, left_on='pandas', right_on='pandas')
     dtypes = dtypes.set_index(keys='column_name')
-
 
     # determine SQL type for pandas string
     dtypes = _deduplicate_string(dataframe, dtypes)
