@@ -41,6 +41,7 @@ def test_dtypes():
     _check_dtypes(dtypes)
     _check_dataframe(dataframe, dtypes)
     assert len(notnull)==0
+    assert pk is None
 
 
 def test_pk():
@@ -66,3 +67,17 @@ def test_pk():
     _check_dataframe(df, dtypes)
     assert df.columns.isin(notnull).all()
     assert pk=='_varchar_smaller'
+
+
+def test_default():
+
+    # setup test data
+    dataframe = sample.dataframe
+    dataframe['_nvarchar_default'] = None
+
+    # infer SQL properties
+    dataframe, dtypes, notnull, pk = infer.sql(dataframe)
+    _check_dtypes(dtypes)
+    _check_dataframe(dataframe, dtypes)
+    assert len(notnull)==0
+    assert pk is None

@@ -57,6 +57,8 @@ def convert_numeric(dataframe):
     for col in columns:
         # skip missing since pd.to_numeric doesn't work with nullable integer types
         notna = ~dataframe[col].isna()
+        if (notna==False).all():
+            continue
         try:
             converted = pd.to_numeric(dataframe.loc[notna,col], downcast='integer')
             dataframe.loc[notna,col] = converted
@@ -98,10 +100,14 @@ def convert_date(dataframe):
     # attempt conversion of object columns to timedelta
     columns = dataframe.columns[dataframe.dtypes=='object']
     for col in columns:
+        if dataframe[col].isna().all():
+            continue
         dataframe[col] = pd.to_timedelta(dataframe[col], errors='ignore')
     # attempt conversion of object columns to timedelta
     columns = dataframe.columns[dataframe.dtypes=='object']
     for col in columns:
+        if dataframe[col].isna().all():
+            continue
         dataframe[col] = pd.to_datetime(dataframe[col], errors='ignore')
 
     return dataframe
@@ -221,10 +227,10 @@ def _deduplicate_string(dataframe, dtypes):
     deduplicate = dtypes[dtypes['pandas']=='string']
     columns = deduplicate.index.unique()
     for col in columns:
-        # if encoding removes characters then assume nvarchar
+        # if encoding removes characters or all are None then assume nvarchar
         pre = dataframe[col].str.len()
         post = dataframe[col].str.encode('ascii',errors='ignore').str.len().astype('Int64')
-        if pre.ne(post).any():
+        if pre.ne(post).any() or dataframe[col].isna().all():
             resolved = deduplicate[deduplicate['sql']=='nvarchar'].loc[col]
         else:
             resolved = deduplicate[deduplicate['sql']=='varchar'].loc[col]
