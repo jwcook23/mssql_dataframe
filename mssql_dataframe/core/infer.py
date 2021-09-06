@@ -1,8 +1,10 @@
+'''Functions for inferring SQL properties from a dataframe containing string values.'''
+
 from datetime import time
 
 import pandas as pd
 
-from mssql_dataframe.core import conversion
+from mssql_dataframe.core import conversion, errors
 
 
 def sql(dataframe):
@@ -50,6 +52,11 @@ def convert_numeric(dataframe):
     -------
     dataframe (pandas.DataFrame) : object columns converted to nullable numeric like data type
     '''
+
+    # convert non-nullable integers to nullable integer types
+    convert = {k:v.name for k,v in dataframe.dtypes.items() if v.name.startswith('int')}
+    convert = {k:v[0].upper()+v[1::] for k,v in convert.items()}
+    dataframe = dataframe.astype(convert)
 
     # attempt conversion of object columns to numeric
     columns = dataframe.columns[dataframe.dtypes=='object']
@@ -199,7 +206,11 @@ def sql_dtype(dataframe):
     dtypes.index.name = 'column_name'
     dtypes = dtypes.reset_index()
     dtypes['pandas'] = dtypes['pandas'].apply(lambda x: x.name)
-    dtypes = dtypes.merge(conversion.rules, left_on='pandas', right_on='pandas')
+    dtypes = dtypes.merge(conversion.rules, left_on='pandas', right_on='pandas', how='left')
+    missing = dtypes.isna().any(axis='columns')
+    if any(missing):
+        missing = dtypes.loc[missing, 'column_name'].to_list()
+        raise errors.UndefinedConversionRule(f'columns: {missing}') 
     dtypes = dtypes.set_index(keys='column_name')
 
     # determine SQL type for pandas string

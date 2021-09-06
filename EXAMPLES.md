@@ -255,7 +255,7 @@ schema[['data_type','is_nullable']]
 result
 # manually change the SQL data type
 sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT', 
-    not_null=False
+    notnull=False
 )
 schema = get_schema(sql.connection, '##sample_modify')
 result = sql.read.select('##sample_modify')

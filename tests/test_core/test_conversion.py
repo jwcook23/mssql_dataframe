@@ -37,7 +37,6 @@ def sql(data):
 
     # database cursor
     cursor = db.connection.cursor()
-    cursor.fast_executemany = True
 
     # column name = dataframe column name, data type = dataframe column name without prefixed underscore
     create = {x:x[1::].upper() for x in data.columns if x!='id'}
@@ -53,7 +52,7 @@ def sql(data):
     )"""
     cursor.execute(create)
 
-    yield cursor
+    yield db.connection
     db.connection.close()
 
 
@@ -93,20 +92,14 @@ def test_rules(data):
     
 def test_sample(sql, data):
 
-    # get target table schema to setup insert/read
-    schema = conversion.get_schema(sql, table_name, columns=data.columns)
-
-    # insert data
-    cursor = conversion.prepare_cursor(schema, dataframe=data, cursor=sql)
-    dataframe, values = conversion.prepare_values(schema, dataframe=data)
-    columns = dataframe.columns
-    conversion.insert_values(table_name, columns, values, cursor)
+    # insert values
+    dataframe, schema = conversion.insert_values(table_name, dataframe=data, connection=sql)
 
     # read data, excluding ID columns that is only to insure sorting
     columns = ', '.join([x for x in data.columns if x!='id'])
     statement = f'SELECT {columns} FROM {table_name} ORDER BY id ASC'
-    result = conversion.read_values(statement, schema, cursor)
+    result = conversion.read_values(statement, schema, connection=sql)
 
     # compare result to insert
-    ## note that dataframe is compared instead of sample as dataframe values may have changed during preparation
+    ## note comparing to return from insert_values as values may have changed during insert preperation
     assert result.equals(dataframe.drop(columns='id'))

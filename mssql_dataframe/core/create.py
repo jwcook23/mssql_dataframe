@@ -3,7 +3,7 @@ import warnings
 
 import pandas as pd
 
-from mssql_dataframe.core import helpers, errors
+from mssql_dataframe.core import dynamic, errors, conversion, infer
 
 
 class create():
@@ -19,7 +19,7 @@ class create():
         self.__connection__ = connection
         
 
-    def table(self, table_name: str, columns: dict, not_null: list = [],
+    def table(self, table_name: str, columns: dict, notnull: list = [],
     primary_key_column: str = None, sql_primary_key: bool = False):
         """Create SQL table by explicitly specifying SQL create table parameters.
 
@@ -28,7 +28,7 @@ class create():
 
         table_name (str) : name of table to create
         columns (dict) : keys = column names, values = data types and optionally size/precision
-        not_null (list|str, default=[]) : list of columns to set as not null or a single column
+        notnull (list|str, default=[]) : list of columns to set as not null or a single column
         primary_key_column (str|list, default=None) : column(s) to set as the primary key
         sql_primary_key (bool, default=False) : create an INT SQL identity column as the primary key named _pk
 
@@ -44,10 +44,10 @@ class create():
         create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
 
         #### table with a primary key and another not null column
-        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_null="B", primary_key_column="A")
+        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, notnull="B", primary_key_column="A")
 
         #### table with an SQL identity primary key
-        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_null="B", sql_primary_key=True)
+        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, notnull="B", sql_primary_key=True)
 
         """
         
@@ -68,15 +68,15 @@ class create():
         # check inputs
         if sql_primary_key and primary_key_column is not None:
             raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
-        if isinstance(not_null, str):
-            not_null = [not_null]
+        if isinstance(notnull, str):
+            notnull = [notnull]
         if isinstance(primary_key_column, str):
             primary_key_column = [primary_key_column]
 
         # parse inputs
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0,len(column_names)))]
-        size, dtypes_sql = helpers.column_spec(columns.values())
+        size, dtypes_sql = dynamic.column_spec(columns.values())
         size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
 
         if primary_key_column is not None:
@@ -99,7 +99,7 @@ class create():
             ["QUOTENAME(@ColumnName_"+x+")" for x in alias_names],
             ["QUOTENAME(@ColumnType_"+x+")" for x in alias_names],
             ["@ColumnSize_"+x+"" if x is not None else "" for x in size_vars],
-            ["'NOT NULL'" if x in not_null else "" for x in column_names]
+            ["'NOT NULL'" if x in notnull else "" for x in column_names]
         ))
         syntax = "+','+\n".join(
             ["+' '+".join([x for x in col if len(x)>0]) for col in syntax]
@@ -156,8 +156,9 @@ class create():
             args += primary_key_column
 
         # execute statement
-        cursor = helpers.execute(self.__connection__, statement, args)
-        cursor.commit()
+        cursor = self.__connection__.connection.cursor()
+        cursor.execute(statement, args)
+        # cursor.commit()
 
 
     def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
@@ -224,56 +225,35 @@ class create():
             sql_primary_key = False
             primary_key_column = None
 
-        # not_null columns
-        not_null = list(dataframe.columns[dataframe.notna().all()])
-
-        # infer datatypes in a temp table
-        name_temp = "##table_from_dataframe_"+table_name
-        dtypes_sql = helpers.infer_datatypes(self.__connection__, name_temp, dataframe, row_count)
-
-        # set best Python data type based on derived SQL data type to insure values are written correctly
-        # # for example a string mm/dd/yyyy is inferred as date, but can't be inserted into a date column
-        # # TODO: cursor.setinputsizes
-        dataframe = helpers.dtype_py(dataframe, dtypes_sql)
+        # infer SQL specifications from contents of dataframe
+        dataframe, dtypes, notnull, pk = infer.sql(dataframe)
+        dtypes = conversion.string_size(dtypes, dataframe)
+        if any(dtypes['sql'].isin(['varchar','nvarchar'])):
+            raise NotImplementedError('need to implement size into sql column')
+        dtypes = dtypes['sql'].to_dict()
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':
-            # primary key must not be null
-            subset = dataframe[not_null]
-            # primary key must contain unique values
-            unique = subset.nunique()==len(subset)
-            unique = unique[unique].index
-            subset = subset[unique]
-            # use first appearing integer column
-            primary_key_column = list(subset.select_dtypes(['int16', 'int32', 'int64']).columns)
-            if primary_key_column:
-                primary_key_column = primary_key_column[0]
-            else:
-                # use first appearing string column
-                primary_key_column = list(subset.select_dtypes(['object']).columns)
-                if primary_key_column:
-                    primary_key_column = subset[primary_key_column].apply(lambda x: x.str.len()).max().idxmin()
-                else:
-                    primary_key_column = None
+            primary_key_column = pk
 
         # create final SQL table
-        self.table(table_name, dtypes_sql, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+        self.table(table_name, dtypes, notnull=notnull, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
 
         # issue message for derived table
-        pk = primary_key_column
+        pk_name = primary_key_column
         if sql_primary_key:
-            pk = '_pk (SQL managed int identity column)'
+            pk_name = '_pk (SQL managed int identity column)'
         elif primary_key=='index':
-            pk = str(primary_key_column)+' (dataframe index)'
+            pk_name = str(primary_key_column)+' (dataframe index)'
         elif primary_key_column is not None:
-            pk = primary_key_column+' (dataframe column)'
+            pk_name = primary_key_column+' (dataframe column)'
         else:
-            pk = 'None'
+            pk_name = 'None'
         msg = f'''
         Created table {table_name}
-        Primary key: {pk}
-        Non-null columns: {not_null}
-        Data types: {dtypes_sql}
+        Primary key: {pk_name}
+        Non-null columns: {notnull}
+        Data types: {dtypes}
         '''
         warnings.warn(msg, errors.SQLObjectAdjustment)
 

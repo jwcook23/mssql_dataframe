@@ -3,9 +3,10 @@ import warnings
 
 import pytest
 import pandas as pd
+import pyodbc
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import helpers, create, errors
+from mssql_dataframe.core import conversion, create, errors
 
 
 class package:
@@ -41,63 +42,73 @@ def test_table_column(sql):
     table_name = '##test_table_column'
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
 
     assert len(schema)==1
     assert all(schema.index=='A')
-    assert all(schema['data_type']=='varchar')
-    assert all(schema['max_length']==1)
-    assert all(schema['precision']==0)
-    assert all(schema['scale']==0)
+    assert all(schema['sql']=='varchar')
     assert all(schema['is_nullable']==True)
-    assert all(schema['is_identity']==False)
-    assert all(schema['is_primary_key']==False)
+    assert all(schema['ss_is_identity']==False)
+    assert all(schema['pk_seq'].isna())
+    assert all(schema['pk_name'].isna())
+    assert all(schema['pandas']=='string')
+    assert all(schema['odbc']==pyodbc.SQL_VARCHAR)
+    assert all(schema['size']==0)
+    assert all(schema['precision']==0)
 
 
 def test_table_pk(sql):
 
     table_name = "##test_table_pk"
-    columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
+    columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "FLOAT"}
     primary_key_column = "A"
-    not_null = "B"
-    sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column)
-    schema = helpers.get_schema(sql.connection, table_name)
+    notnull = "B"
+    sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column)
+    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
 
     assert len(schema)==3
     assert all(schema.index==['A','B','C'])
-    assert all(schema['data_type']==['tinyint','varchar','decimal'])
-    assert all(schema['max_length']==[1,100,5])
-    assert all(schema['precision']==[3,0,5])
-    assert all(schema['scale']==[0,0,2])
+    assert all(schema['sql']==['tinyint','varchar','float'])
     assert all(schema['is_nullable']==[False, False, True])
-    assert all(schema['is_identity']==[False, False, False])
-    assert all(schema['is_primary_key']==[True, False, False])
+    assert all(schema['ss_is_identity']==False)
+    assert schema['pk_seq'].equals(pd.Series([1, pd.NA, pd.NA], index=['A','B','C'], dtype='Int64'))
+    assert all(schema['pk_name'].isna()==[False, True, True])
+    assert all(schema['pandas']==['UInt8','string','float64'])
+    assert all(schema['odbc']==[pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT])
+    assert all(schema['size']==[1,0,8])
+    assert all(schema['precision']==[0,0,53])
 
 
 def test_table_composite_pk(sql):
 
     table_name = "##test_table_composite_pk"
-    columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "DECIMAL(5,2)"}
+    columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "FLOAT"}
     primary_key_column = ["A","B"]
-    not_null = "B"
-    sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column)
-    schema = helpers.get_schema(sql.connection, table_name)
+    notnull = "B"
+    sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column)
+    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
 
     assert len(schema)==3
     assert all(schema.index==['A','B','C'])
-    assert all(schema['data_type']==['tinyint','varchar','decimal'])
-    assert all(schema['is_identity']==[False, False, False])
-    assert all(schema['is_primary_key']==[True, True, False])
+    assert all(schema['sql']==['tinyint','varchar','float'])
+    assert all(schema['is_nullable']==[False, False, True])
+    assert all(schema['ss_is_identity']==False)
+    assert schema['pk_seq'].equals(pd.Series([1, 2, pd.NA], index=['A','B','C'], dtype='Int64'))
+    assert all(schema['pk_name'].isna()==[False, False, True])
+    assert all(schema['pandas']==['UInt8','string','float64'])
+    assert all(schema['odbc']==[pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT])
+    assert all(schema['size']==[1,0,8])
+    assert all(schema['precision']==[0,0,53])
 
 
-def test_table_errorpk(sql):
+def test_table_pk_input_error(sql):
 
     with pytest.raises(ValueError):
-        table_name = "##test_table_errorpk"
+        table_name = "##test_table_pk_input_error"
         columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
         primary_key_column = "A"
-        not_null = "B"
-        sql.create.table(table_name, columns, not_null=not_null, primary_key_column=primary_key_column, sql_primary_key=True)
+        notnull = "B"
+        sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column, sql_primary_key=True)
 
 
 def test_table_sqlpk(sql):
@@ -105,17 +116,19 @@ def test_table_sqlpk(sql):
     table_name = '##test_table_sqlpk'
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns, sql_primary_key=True)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection.connection, table_name, ['_pk']+list(columns.keys()))
 
     assert len(schema)==2
     assert all(schema.index==['_pk','A'])
-    assert all(schema['data_type']==['int','varchar'])
-    assert all(schema['max_length']==[4,1])
-    assert all(schema['precision']==[10,0])
-    assert all(schema['scale']==[0,0])
-    assert all(schema['is_nullable']==[False,True])
-    assert all(schema['is_identity']==[True,False])
-    assert all(schema['is_primary_key']==[True,False])
+    assert all(schema['sql']==['int identity','varchar'])
+    assert all(schema['is_nullable']==[False, True])
+    assert all(schema['ss_is_identity']==[True, False])
+    assert schema['pk_seq'].equals(pd.Series([1, pd.NA], index=['_pk','A'], dtype='Int64'))
+    assert all(schema['pk_name'].isna()==[False, True])
+    assert all(schema['pandas']==['Int32','string'])
+    assert all(schema['odbc']==[pyodbc.SQL_INTEGER, pyodbc.SQL_VARCHAR])
+    assert all(schema['size']==[4,0])
+    assert all(schema['precision']==[0,0])
 
 
 def test_table_from_dataframe_simple(sql):
@@ -127,15 +140,29 @@ def test_table_from_dataframe_simple(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
-    assert len(schema)==1
-    assert all(schema.index=='ColumnA')
-    assert all(schema['data_type']=='tinyint')
-    assert all(schema['max_length']==1)
-    assert all(schema['precision']==3)
-    assert all(schema['is_nullable']==False)
-    assert all(schema['is_identity']==False)
-    assert all(schema['is_primary_key']==False)
+    schema = conversion.get_schema(sql.connection.connection, table_name, dataframe.columns)
+
+    raise NotImplementedError('need to downcast types if they are not strings')
+    # assert len(schema)==1
+    # assert all(schema.index=='ColumnA')
+    # assert all(schema['data_type']=='tinyint')
+    # assert all(schema['max_length']==1)
+    # assert all(schema['precision']==3)
+    # assert all(schema['is_nullable']==False)
+    # assert all(schema['is_identity']==False)
+    # assert all(schema['is_primary_key']==False)
+
+    assert len(schema)==2
+    assert all(schema.index==['ColumnA'])
+    assert all(schema['sql']==[''])
+    assert all(schema['is_nullable']==[False, True])
+    assert all(schema['ss_is_identity']==[True, False])
+    assert schema['pk_seq'].equals(pd.Series([1, pd.NA], index=['_pk','A'], dtype='Int64'))
+    assert all(schema['pk_name'].isna()==[False, True])
+    assert all(schema['pandas']==['Int32','string'])
+    assert all(schema['odbc']==[pyodbc.SQL_INTEGER, pyodbc.SQL_VARCHAR])
+    assert all(schema['size']==[4,0])
+    assert all(schema['precision']==[0,0])
 
 
 def test_table_from_dataframe_datestr(sql):
@@ -146,7 +173,7 @@ def test_table_from_dataframe_datestr(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, dataframe.columns)
     assert dataframe['ColumnA'].dtype.name=='datetime64[ns]'
     assert schema.at['ColumnA','data_type']=='datetime'
 
@@ -166,7 +193,7 @@ def test_table_from_dataframe_nopk(sql, sample):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)    
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert len(schema)==9
     assert all(schema.index==['_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime','_empty'])
     assert all(schema['data_type']==['varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime','varchar'])
@@ -186,7 +213,7 @@ def test_table_from_dataframe_sqlpk(sql, sample):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert len(schema)==10
     assert all(schema.index==['_pk','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
     assert all(schema['data_type']==['int','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
@@ -207,7 +234,7 @@ def test_table_from_dataframe_indexpk(sql, sample):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert len(schema)==10
     assert all(schema.index==['_index','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
     assert all(schema['data_type']==['tinyint','varchar', 'tinyint', 'smallint', 'int', 'bigint', 'float', 'time', 'datetime', 'varchar'])
@@ -226,7 +253,7 @@ def test_table_from_dataframe_indexpk(sql, sample):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
 
     assert len(schema)==10
     assert all(schema.index==['NamedIndex','_varchar', '_tinyint', '_smallint', '_int', '_bigint', '_float','_time', '_datetime', '_empty'])
@@ -258,7 +285,7 @@ def test_table_from_dataframe_inferpk(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert schema.at['_smallint','is_primary_key']
 
     # string primary key
@@ -272,7 +299,7 @@ def test_table_from_dataframe_inferpk(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert schema.at['_varchar1','is_primary_key']
 
     # uninferrable primary key
@@ -286,7 +313,7 @@ def test_table_from_dataframe_inferpk(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert all(schema['is_primary_key']==False)
 
 
@@ -306,6 +333,6 @@ def test_table_from_dataframe_composite_pk(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
 
-    schema = helpers.get_schema(sql.connection, table_name)
+    schema = conversion.get_schema(sql.connection, table_name, sample.columns)
     assert schema.at['ColumnA','is_primary_key']
     assert schema.at['ColumnB','is_primary_key']

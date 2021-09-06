@@ -4,6 +4,9 @@ class EnvironmentODBCDriverNotFound(Exception):
     '''Exception for not automatically determining ODBC driver.'''
     pass
 
+class UndefinedConversionRule(Exception):
+    '''Exception for undefined conversion rule between pandas, ODBC, and SQL.'''
+
 class SQLGeneral(Exception):
     '''General error to prevent exposing SQL server specific error messages.'''
     pass

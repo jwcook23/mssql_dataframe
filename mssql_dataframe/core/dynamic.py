@@ -1,6 +1,9 @@
+'''Functions for strings that include SQL objects.'''
+
 import re
 
 from mssql_dataframe.core import errors
+
 
 def escape(cursor, inputs):
     ''' Prepare dynamic strings by passing them through T-SQL QUOTENAME.
@@ -106,3 +109,37 @@ def where(cursor, where: str):
     args = [x[1][1] for x in conditions if len(x[1])>1]
 
     return statement, args
+
+
+def column_spec(columns: list):
+    ''' Extract SQL data type, size, and precision from list of strings.
+
+    Parameters
+    ----------
+    
+    columns (list|str) : strings to extract SQL specifications from
+
+    Returns
+    -------
+
+    size (list|str) : size of the SQL column
+
+    dtypes_sql (list|str) : data type of the SQL column
+
+    '''
+
+    flatten = False
+    if isinstance(columns,str):
+        columns = [columns]
+        flatten = True
+
+    pattern = r"(\(\d+\)|\(\d.+\)|\(MAX\))"
+    size = [re.findall(pattern, x) for x in columns]
+    size = [x[0] if len(x)>0 else None for x in size]
+    dtypes_sql = [re.sub(pattern,'',var) for var in columns]
+
+    if flatten:
+        size = size[0]
+        dtypes_sql = dtypes_sql[0]
+
+    return size, dtypes_sql

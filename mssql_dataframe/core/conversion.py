@@ -1,4 +1,4 @@
-''' Handles base funcationality of data movement between Python pandas and SQL. Includes conversion rules between SQL/ODBC/pandas.
+''' Functions for data movement between Python pandas dataframes and SQL. Includes conversion rules between SQL/ODBC/pandas.
 '''
 import warnings
 import struct
@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 
 from mssql_dataframe.core import errors
+from mssql_dataframe.core.dynamic import escape
 
 rules = pd.DataFrame.from_records([
     {'sql': 'bit', 'pandas': 'boolean', 'odbc': pyodbc.SQL_BIT, 'size': 1, 'precision': 0},
@@ -25,21 +26,24 @@ rules = pd.DataFrame.from_records([
 rules['sql'] = rules['sql'].astype('string')
 
 
-def get_schema(cursor, table_name, columns):
+def get_schema(connection, table_name, columns):
     '''Get schema of an SQL table, as well as the defined conversion rules.
 
     Parameters
     ----------
-    cursor (pyodbc.Cursor) : cursor for executing statement
+    connection (pyodbc.Connection) : connection to database
     table_name (str) : table name containing columns
     columns (list) : column names of schema to get
 
     Returns
     -------
+    schema (pandas.DataFrame) : table column specifications and conversion rules
     '''
 
-    # insure temp tables are found
-    if table_name.startswith('##'):
+    cursor = connection.cursor()
+
+    # add cataglog for temporary tables
+    if table_name.startswith('#'):
         catalog = 'tempdb'
     else:
         catalog = None
@@ -47,11 +51,14 @@ def get_schema(cursor, table_name, columns):
     # get schema
     schema = []
     for col in columns:
-        x = list(cursor.columns(table=table_name,catalog=catalog,column=col).fetchone())
-        schema.append(x)
+        x = cursor.columns(table=table_name, catalog=catalog, column=col).fetchone()
+        if x is None:
+            raise errors.SQLTableDoesNotExist(f'catalog = {catalog}, table_name = {table_name}')
+        schema.append(list(x))
     schema = pd.DataFrame(schema, columns = [x[0] for x in cursor.description])
-    schema = schema[['column_name','data_type','type_name','is_nullable','ss_is_identity']]
-    schema[['column_name','type_name']] = schema[['column_name','type_name']].astype('string')
+    schema = schema.rename(columns={'type_name': 'sql'})
+    schema = schema[['column_name','data_type','sql','is_nullable','ss_is_identity']]
+    schema[['column_name','sql']] = schema[['column_name','sql']].astype('string')
     schema['is_nullable'] = schema['is_nullable']=='YES'
     schema['ss_is_identity'] = schema['ss_is_identity']==1
 
@@ -72,7 +79,7 @@ def get_schema(cursor, table_name, columns):
     missing = schema[['pandas','odbc','size','precision']].isna().any(axis='columns')
     if any(missing):
         missing = missing[missing].index.tolist()
-        raise AttributeError(f'undefined conversion for columns: {missing}')  
+        raise errors.UndefinedConversionRule(f'columns: {missing}')  
 
     return schema
 
@@ -92,7 +99,7 @@ def prepare_cursor(schema, dataframe, cursor):
     cursor (pyodbc.Cursor) : cursor with SQL data type and size parameters set
     '''
 
-    schema = schema[['odbc','size','precision']]
+    schema = schema[['sql','odbc','size','precision']]
     columns = pd.Series(dataframe.columns, name='column_name')
     missing = ~columns.isin(schema.index)
     if any(missing):
@@ -103,11 +110,7 @@ def prepare_cursor(schema, dataframe, cursor):
     schema = schema.loc[dataframe.columns]
     
     # use dataframe contents to determine size for strings
-    infer = schema[schema['size']==0].index
-    infer = dataframe[infer].apply(lambda x: x.str.len()).max()
-    infer = pd.DataFrame(infer, columns=['size'])
-    schema.update(infer)
-    schema['size'] = schema['size'].astype('int64')
+    string_size(schema, dataframe)
 
     # set SQL data type and size for cursor
     schema = schema[['odbc','size','precision']].to_numpy().tolist()
@@ -115,6 +118,24 @@ def prepare_cursor(schema, dataframe, cursor):
     cursor.setinputsizes(schema)
 
     return cursor
+
+
+def string_size(schema, dataframe):
+    ''' Determine the size of VARCHAR and NVARCHAR columns using dataframe contents.
+
+    Parameters
+    ----------
+    schema (pandas.DataFrame) : contains the column size to update and the column sql to identify string columns
+    dataframe (pandas.DataFrame) : dataframe contents
+    '''
+
+    infer = schema[schema['sql'].isin(['varchar','nvarchar'])].index
+    infer = dataframe[infer].apply(lambda x: x.str.len()).max()
+    infer = pd.DataFrame(infer, columns=['size'])
+    schema.update(infer)
+    schema['size'] = schema['size'].astype('int64')
+
+    return schema
 
 
 def prepare_values(schema, dataframe):
@@ -223,21 +244,39 @@ def prepare_connection(connection):
     return connection
 
 
-def insert_values(table_name, columns, values, cursor):
+def insert_values(table_name, dataframe, connection, fast_executemany: bool = True):
     ''' Insert values into a table.
 
     Parameters
     ----------
     table_name (str) : table to insert into
-    columns (list) : columns to insert into
-    values (list) : values to insert
-    cursor (pyodbc.Cursor) : database cursor to perform transaction
+    dataframe (pandas.DataFrame) : dataframe of values to insert
+    connection (pyodbc.Connection) : connection to database
 
     Returns
     -------
-    None
+    dataframe (pandas.DataFrame) : values that may have been truncated due to SQL precision limitations
+    schema (pandas.DataFrame) : table column specifications and conversion rules
     '''
 
+    # create cursor to perform operations
+    cursor = connection.cursor()
+    cursor.fast_executemany = fast_executemany
+
+    # get table schema for setting input data types and sizes
+    schema = get_schema(connection, table_name, columns=dataframe.columns)
+
+    # dynamic SQL object names
+    table_name = escape(cursor, table_name)
+    columns = escape(cursor, dataframe.columns)
+
+    # prepare cursor for input data types and sizes
+    cursor = prepare_cursor(schema, dataframe, cursor)
+
+    # prepare values of dataframe for insert
+    dataframe, values = prepare_values(schema, dataframe)
+
+    # issue insert statement
     insert = ', '.join(columns)
     params = ', '.join(['?']*len(columns))
     statement = f"""
@@ -251,21 +290,25 @@ def insert_values(table_name, columns, values, cursor):
     cursor.executemany(statement, values)
     cursor.commit()
 
+    return dataframe, schema
 
-def read_values(statement, schema, cursor):
+
+def read_values(statement, schema, connection):
     ''' Read data from SQL into a pandas dataframe.
 
     Parameters
     ----------
     statement (str) : statement to execute to get data
     schema (pandas.DataFrame) : output from get_schema function for setting dataframe data types
-    cursor (pyodbc.Cursor) : database cursor for reading data
+    connection (pyodbc.Connection) : connection to database
 
     Returns
     -------
     result (pandas.DataFrame) : resulting data from performing statement
 
     '''
+
+    cursor = connection.cursor()
 
     # read data from SQL
     result = cursor.execute(statement).fetchall()

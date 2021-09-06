@@ -1,6 +1,6 @@
 from typing import Literal
 
-from mssql_dataframe.core import helpers
+from mssql_dataframe.core import dynamic
 
 
 class modify():
@@ -16,7 +16,7 @@ class modify():
         self.__connection__ = connection
 
 
-    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, not_null: bool = False):
+    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, notnull: bool = False):
         """Add, alter, or drop a column in an existing SQL table.
 
         Parameters
@@ -26,7 +26,7 @@ class modify():
         modify (str) : method of modification, see below for description of options
         column_name (str) : name of column
         data_type (str) : if modify='add' or modify='alter', data type and optionally size/precision
-        not_null (bool, default=False) : if modify='alter', specification for if the column is nullable
+        notnull (bool, default=False) : if modify='alter', specification for if the column is nullable
 
         modify = 'add' : adds the column to the table
         modify = 'alter' : change the data type or nullability of the column
@@ -46,7 +46,7 @@ class modify():
 
         #### alter a column
 
-        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', not_null=True)
+        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', notnull=True)
 
         #### drop a column
 
@@ -96,7 +96,7 @@ class modify():
             type_column = "+' '+QUOTENAME(@ColumnType)"
             parameter_type = ", @ColumnType SYSNAME"
             value_type = ", @ColumnType=@ColumnType"
-            size, dtypes_sql = helpers.column_spec(data_type)
+            size, dtypes_sql = dynamic.column_spec(data_type)
             if size is None:
                 declare_size = ""
                 size_column = ""
@@ -107,7 +107,7 @@ class modify():
                 size_column = "+' '+@ColumnSize"
                 parameter_size = ", @ColumnSize VARCHAR(MAX)"
                 value_size = ", @ColumnSize=@ColumnSize"
-            if not_null:
+            if notnull:
                 null_column = "+' NOT NULL'"
             else:
                 null_column = ""
@@ -123,8 +123,9 @@ class modify():
         )
 
         args = [x for x in args if x is not None]
-        cursor = helpers.execute(self.__connection__, statement, args)
-        cursor.commit()
+        cursor = self.__connection__.connection.cursor()
+        cursor.execute(statement, *args)
+        # cursor.commit()
 
 
     def primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
@@ -199,5 +200,6 @@ class modify():
             parameter=parameter, value=value
         )
 
-        cursor = helpers.execute(self.__connection__, statement, args)
-        cursor.commit()
+        cursor = self.__connection__.connection.cursor()
+        cursor.execute(statement, *args)
+        # cursor.commit()

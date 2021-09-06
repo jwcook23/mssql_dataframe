@@ -7,7 +7,7 @@ import numpy as np
 
 from mssql_dataframe import connect
 from mssql_dataframe.collection import SQLServer
-from mssql_dataframe.core import errors, helpers
+from mssql_dataframe.core import errors, conversion
 
 
 @pytest.fixture(scope="module")
@@ -244,8 +244,8 @@ def test_insert_alter_column(sql_adjustable):
         assert all(results[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
         assert all(results['_time_insert'].notna())
 
-    schema = helpers.get_schema(sql_adjustable.connection, table_name)
-    columns,_,_,_ = helpers.flatten_schema(schema)
+    schema = conversion.get_schema(sql_adjustable.connection, table_name, columns=dataframe.columns)
+    # columns,_,_,_ = helpers.flatten_schema(schema)
     assert columns=={'ColumnA': 'tinyint', 'ColumnB': 'varchar(3)', 'ColumnC': 'int', '_time_insert': 'datetime'}
 
 
