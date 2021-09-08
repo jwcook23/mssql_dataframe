@@ -11,19 +11,19 @@ from mssql_dataframe.core import errors
 from mssql_dataframe.core.dynamic import escape
 
 rules = pd.DataFrame.from_records([
-    {'sql': 'bit', 'pandas': 'boolean', 'odbc': pyodbc.SQL_BIT, 'size': 1, 'precision': 0},
-    {'sql': 'tinyint', 'pandas': 'UInt8', 'odbc': pyodbc.SQL_TINYINT, 'size': 1, 'precision': 0},
-    {'sql': 'smallint', 'pandas': 'Int16', 'odbc': pyodbc.SQL_SMALLINT, 'size': 2, 'precision': 0},
-    {'sql': 'int', 'pandas': 'Int32', 'odbc': pyodbc.SQL_INTEGER, 'size': 4, 'precision': 0},
-    {'sql': 'bigint', 'pandas': 'Int64', 'odbc': pyodbc.SQL_BIGINT, 'size': 8, 'precision': 0},
-    {'sql': 'float', 'pandas': 'float64', 'odbc': pyodbc.SQL_FLOAT, 'size': 8, 'precision': 53},
-    {'sql': 'time', 'pandas': 'timedelta64[ns]', 'odbc': pyodbc.SQL_SS_TIME2, 'size': 16, 'precision': 7},
-    {'sql': 'date', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_DATE, 'size': 10, 'precision': 0},
-    {'sql': 'datetime2', 'pandas': 'datetime64[ns]', 'odbc': pyodbc.SQL_TYPE_TIMESTAMP, 'size': 27, 'precision': 7},
-    {'sql': 'varchar', 'pandas': 'string', 'odbc': pyodbc.SQL_VARCHAR, 'size': 0, 'precision': 0},
-    {'sql': 'nvarchar', 'pandas': 'string', 'odbc': pyodbc.SQL_WVARCHAR, 'size': 0, 'precision': 0},
+    {'sql_type': 'bit', 'pandas_type': 'boolean', 'odbc_type': pyodbc.SQL_BIT, 'odbc_size': 1, 'odbc_precision': 0},
+    {'sql_type': 'tinyint', 'pandas_type': 'UInt8', 'odbc_type': pyodbc.SQL_TINYINT, 'odbc_size': 1, 'odbc_precision': 0},
+    {'sql_type': 'smallint', 'pandas_type': 'Int16', 'odbc_type': pyodbc.SQL_SMALLINT, 'odbc_size': 2, 'odbc_precision': 0},
+    {'sql_type': 'int', 'pandas_type': 'Int32', 'odbc_type': pyodbc.SQL_INTEGER, 'odbc_size': 4, 'odbc_precision': 0},
+    {'sql_type': 'bigint', 'pandas_type': 'Int64', 'odbc_type': pyodbc.SQL_BIGINT, 'odbc_size': 8, 'odbc_precision': 0},
+    {'sql_type': 'float', 'pandas_type': 'float64', 'odbc_type': pyodbc.SQL_FLOAT, 'odbc_size': 8, 'odbc_precision': 53},
+    {'sql_type': 'time', 'pandas_type': 'timedelta64[ns]', 'odbc_type': pyodbc.SQL_SS_TIME2, 'odbc_size': 16, 'odbc_precision': 7},
+    {'sql_type': 'date', 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_DATE, 'odbc_size': 10, 'odbc_precision': 0},
+    {'sql_type': 'datetime2', 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_TIMESTAMP, 'odbc_size': 27, 'odbc_precision': 7},
+    {'sql_type': 'varchar', 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_VARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
+    {'sql_type': 'nvarchar', 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_WVARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
 ])
-rules['sql'] = rules['sql'].astype('string')
+rules['sql_type'] = rules['sql_type'].astype('string')
 
 
 def get_schema(connection, table_name, columns):
@@ -53,12 +53,12 @@ def get_schema(connection, table_name, columns):
     for col in columns:
         x = cursor.columns(table=table_name, catalog=catalog, column=col).fetchone()
         if x is None:
-            raise errors.SQLTableDoesNotExist(f'catalog = {catalog}, table_name = {table_name}')
+            raise errors.SQLColumnDoesNotExist(f'catalog = {catalog}, table_name = {table_name}, column={col}')
         schema.append(list(x))
     schema = pd.DataFrame(schema, columns = [x[0] for x in cursor.description])
-    schema = schema.rename(columns={'type_name': 'sql'})
-    schema = schema[['column_name','data_type','sql','is_nullable','ss_is_identity']]
-    schema[['column_name','sql']] = schema[['column_name','sql']].astype('string')
+    schema = schema.rename(columns={'type_name': 'sql_type'})
+    schema = schema[['column_name','data_type','column_size','sql_type','is_nullable','ss_is_identity']]
+    schema[['column_name','sql_type']] = schema[['column_name','sql_type']].astype('string')
     schema['is_nullable'] = schema['is_nullable']=='YES'
     schema['ss_is_identity'] = schema['ss_is_identity']==1
 
@@ -71,12 +71,12 @@ def get_schema(connection, table_name, columns):
     schema['pk_name'] = schema['pk_name'].astype('string')
 
     # add conversion rules
-    schema = schema.merge(rules[['pandas','odbc','size','precision']], left_on='data_type', right_on='odbc', how='left')
+    schema = schema.merge(rules[['pandas_type','odbc_type','odbc_size','odbc_precision']], left_on='data_type', right_on='odbc_type', how='left')
     schema = schema.drop(columns=['data_type'])
 
     # key column_name as index, check for undefined conversion rule
     schema = schema.set_index(keys='column_name')
-    missing = schema[['pandas','odbc','size','precision']].isna().any(axis='columns')
+    missing = schema[['pandas_type','odbc_type','odbc_size','odbc_precision']].isna().any(axis='columns')
     if any(missing):
         missing = missing[missing].index.tolist()
         raise errors.UndefinedConversionRule(f'columns: {missing}')  
@@ -99,7 +99,7 @@ def prepare_cursor(schema, dataframe, cursor):
     cursor (pyodbc.Cursor) : cursor with SQL data type and size parameters set
     '''
 
-    schema = schema[['sql','odbc','size','precision']]
+    schema = schema[['sql_type','odbc_type','odbc_size','odbc_precision']]
     columns = pd.Series(dataframe.columns, name='column_name')
     missing = ~columns.isin(schema.index)
     if any(missing):
@@ -113,7 +113,7 @@ def prepare_cursor(schema, dataframe, cursor):
     string_size(schema, dataframe)
 
     # set SQL data type and size for cursor
-    schema = schema[['odbc','size','precision']].to_numpy().tolist()
+    schema = schema[['odbc_type','odbc_size','odbc_precision']].to_numpy().tolist()
     schema = [tuple(x) for x in schema]
     cursor.setinputsizes(schema)
 
@@ -129,11 +129,12 @@ def string_size(schema, dataframe):
     dataframe (pandas.DataFrame) : dataframe contents
     '''
 
-    infer = schema[schema['sql'].isin(['varchar','nvarchar'])].index
+    infer = schema[schema['sql_type'].isin(['varchar','nvarchar'])].index
     infer = dataframe[infer].apply(lambda x: x.str.len()).max()
-    infer = pd.DataFrame(infer, columns=['size'])
+    infer = pd.DataFrame(infer, columns=['odbc_size'])
+    infer['odbc_size'] = infer['odbc_size'].fillna(1)
     schema.update(infer)
-    schema['size'] = schema['size'].astype('int64')
+    schema['odbc_size'] = schema['odbc_size'].astype('int64')
 
     return schema
 
@@ -154,10 +155,15 @@ def prepare_values(schema, dataframe):
 
     '''
 
+    # create a copy to preserve values in returned
     prepped = dataframe.copy()
 
+    # write index column as it is the primary key
+    if any(prepped.index.names):
+        prepped = prepped.reset_index()
+
     # SQL data type TIME as string since python datetime.time allows 6 decimal places but SQL allows 7
-    dtype = schema[schema['odbc']==pyodbc.SQL_SS_TIME2].index
+    dtype = schema[schema['odbc_type']==pyodbc.SQL_SS_TIME2].index
     truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds%100>0))
     if any(truncation):
         truncation = list(truncation[truncation].index)
@@ -174,7 +180,7 @@ def prepare_values(schema, dataframe):
     prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
 
     # SQL data type DATETIME2 as string since python datetime.datetime allows 6 decimals but SQL allows 7
-    dtype = schema[schema['odbc']==pyodbc.SQL_TYPE_TIMESTAMP].index
+    dtype = schema[schema['odbc_type']==pyodbc.SQL_TYPE_TIMESTAMP].index
     truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond%100>0))
     if any(truncation):
         truncation = list(truncation[truncation].index)
@@ -190,7 +196,7 @@ def prepare_values(schema, dataframe):
     # treat pandas NA,NaT,etc as NULL in SQL
     prepped = prepped.fillna(np.nan).replace([np.nan], [None])
 
-    # values to pyodbc cursor executemany
+    # values for pyodbc cursor executemany
     values = prepped.values.tolist()
 
     return dataframe, values
@@ -244,55 +250,6 @@ def prepare_connection(connection):
     return connection
 
 
-def insert_values(table_name, dataframe, connection, fast_executemany: bool = True):
-    ''' Insert values into a table.
-
-    Parameters
-    ----------
-    table_name (str) : table to insert into
-    dataframe (pandas.DataFrame) : dataframe of values to insert
-    connection (pyodbc.Connection) : connection to database
-
-    Returns
-    -------
-    dataframe (pandas.DataFrame) : values that may have been truncated due to SQL precision limitations
-    schema (pandas.DataFrame) : table column specifications and conversion rules
-    '''
-
-    # create cursor to perform operations
-    cursor = connection.cursor()
-    cursor.fast_executemany = fast_executemany
-
-    # get table schema for setting input data types and sizes
-    schema = get_schema(connection, table_name, columns=dataframe.columns)
-
-    # dynamic SQL object names
-    table_name = escape(cursor, table_name)
-    columns = escape(cursor, dataframe.columns)
-
-    # prepare cursor for input data types and sizes
-    cursor = prepare_cursor(schema, dataframe, cursor)
-
-    # prepare values of dataframe for insert
-    dataframe, values = prepare_values(schema, dataframe)
-
-    # issue insert statement
-    insert = ', '.join(columns)
-    params = ', '.join(['?']*len(columns))
-    statement = f"""
-    INSERT INTO
-    {table_name} (
-        {insert}
-    ) VALUES (
-        {params}
-    )
-    """
-    cursor.executemany(statement, values)
-    cursor.commit()
-
-    return dataframe, schema
-
-
 def read_values(statement, schema, connection):
     ''' Read data from SQL into a pandas dataframe.
 
@@ -312,10 +269,13 @@ def read_values(statement, schema, connection):
 
     # read data from SQL
     result = cursor.execute(statement).fetchall()
-    columns = [col[0] for col in cursor.description]
+    columns = pd.Series([col[0] for col in cursor.description])
 
     # form output using SQL schema and explicit pandas types
-    dtypes = schema.loc[columns,'pandas'].to_dict()
+    if any(~columns.isin(schema.index)):
+        columns = list(columns[~columns.isin(schema.index)])
+        raise AttributeError(f'missing columns from schema: {columns}')
+    dtypes = schema.loc[columns,'pandas_type'].to_dict()
     result = {col: [row[idx] for row in result] for idx,col in enumerate(columns)}
     result = {col: pd.Series(vals, dtype=dtypes[col]) for col,vals in result.items()}
     result = pd.DataFrame(result)

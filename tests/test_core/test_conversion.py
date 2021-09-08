@@ -5,7 +5,6 @@ from mssql_dataframe import connect
 from mssql_dataframe.core import conversion
 from . import sample
 
-table_name = '##_conversion'
 
 @pytest.fixture(scope="module")
 def data():
@@ -46,7 +45,7 @@ def sql(data):
     # create SQL table, including a primary key for SQL read sorting
     create = ',\n'.join([k+' '+v for k,v in create.items()])
     create = f"""
-    CREATE TABLE {table_name} (
+    CREATE TABLE ##test_conversion (
     id BIGINT PRIMARY KEY,
     {create}
     )"""
@@ -68,11 +67,11 @@ def test_rules(data):
         error.args += (missing)
 
     # insure sample contains all conversion rules
-    defined = conversion.rules['sql'].isin([x[1::] for x in data.columns])
+    defined = conversion.rules['sql_type'].isin([x[1::] for x in data.columns])
     try:
         assert all(defined)
     except AssertionError as error:
-        missing = conversion.rules.loc[missing,'sql'].tolist()
+        missing = conversion.rules.loc[missing,'sql_type'].tolist()
         missing = f'columns missing from sample dataframe, SQL column names: {missing}'
         error.args += (missing)
 
@@ -80,26 +79,54 @@ def test_rules(data):
     check = pd.Series(data.dtypes, name='sample')
     check = check.apply(lambda x: x.name)
     check.index = [x[1::] for x in check.index]
-    check = conversion.rules.merge(check, left_on='sql', right_index=True)
-    defined = check['pandas']==check['sample']
+    check = conversion.rules.merge(check, left_on='sql_type', right_index=True)
+    defined = check['pandas_type']==check['sample']
     try:
         assert all(defined)
     except AssertionError as error:
-        missing = check.loc[~defined,'sql'].tolist()
+        missing = check.loc[~defined,'sql_type'].tolist()
         missing = f'columns with wrong data type in sample dataframe, SQL column names: {missing}'
         error.args += (missing)
 
     
 def test_sample(sql, data):
 
-    # insert values
-    dataframe, schema = conversion.insert_values(table_name, dataframe=data, connection=sql)
+    # create cursor to perform operations
+    cursor = sql.cursor()
+    cursor.fast_executemany = True
+
+    # get table schema for setting input data types and sizes
+    schema = conversion.get_schema(connection=sql, table_name='##test_conversion', columns=data.columns)
+
+    # dynamic SQL object names
+    table = conversion.escape(cursor, '##test_conversion')
+    columns = conversion.escape(cursor, data.columns)
+
+    # prepare values of dataframe for insert
+    dataframe, values = conversion.prepare_values(schema, data)
+
+    # prepare cursor for input data types and sizes
+    cursor = conversion.prepare_cursor(schema, dataframe, cursor)
+
+    # issue insert statement
+    insert = ', '.join(columns)
+    params = ', '.join(['?']*len(columns))
+    statement = f"""
+    INSERT INTO
+    {table} (
+        {insert}
+    ) VALUES (
+        {params}
+    )
+    """
+    cursor.executemany(statement, values)
+    cursor.commit()
 
     # read data, excluding ID columns that is only to insure sorting
     columns = ', '.join([x for x in data.columns if x!='id'])
-    statement = f'SELECT {columns} FROM {table_name} ORDER BY id ASC'
+    statement = f'SELECT {columns} FROM {table} ORDER BY id ASC'
     result = conversion.read_values(statement, schema, connection=sql)
 
     # compare result to insert
-    ## note comparing to return from insert_values as values may have changed during insert preperation
+    ## note comparing to dataframe as values may have changed during insert preperation
     assert result.equals(dataframe.drop(columns='id'))

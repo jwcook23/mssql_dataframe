@@ -16,7 +16,7 @@ class create():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.__connection__ = connection
+        self.connection = connection
         
 
     def table(self, table_name: str, columns: dict, notnull: list = [],
@@ -156,13 +156,12 @@ class create():
             args += primary_key_column
 
         # execute statement
-        cursor = self.__connection__.connection.cursor()
+        cursor = self.connection.connection.cursor()
         cursor.execute(statement, args)
         # cursor.commit()
 
 
-    def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None, 
-    row_count: int = 1000):
+    def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None):
         """ Create SQL table by inferring SQL create table parameters from the contents of the DataFrame.
 
         Parameters
@@ -171,7 +170,6 @@ class create():
         table_name (str) : name of table
         dataframe (pandas.DataFrame) : data used to create table
         primary_key (str, default = 'sql') : method of setting the table's primary key, see below for description of options
-        row_count (int, default = 1000) : number of rows for determining data types
 
         primary_key = None : do not set a primary key
         primary_key = 'sql' : create an SQL managed auto-incrementing identity primary key column named '_pk'
@@ -228,9 +226,9 @@ class create():
         # infer SQL specifications from contents of dataframe
         dataframe, dtypes, notnull, pk = infer.sql(dataframe)
         dtypes = conversion.string_size(dtypes, dataframe)
-        if any(dtypes['sql'].isin(['varchar','nvarchar'])):
-            raise NotImplementedError('need to implement size into sql column')
-        dtypes = dtypes['sql'].to_dict()
+        strings = dtypes['sql_type'].isin(['varchar','nvarchar'])
+        dtypes.loc[strings,'sql_type'] = dtypes.loc[strings,'sql_type']+'('+dtypes.loc[strings,'odbc_size'].astype('str')+')'
+        dtypes = dtypes['sql_type'].to_dict()
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':

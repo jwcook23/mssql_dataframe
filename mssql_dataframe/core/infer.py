@@ -1,4 +1,7 @@
-'''Functions for inferring SQL properties from a dataframe containing string values.'''
+'''Functions for inferring best SQL and datarame data types based on dataframe contents.
+
+Also contains functions for determining other SQL properties.
+'''
 
 from datetime import time
 
@@ -42,7 +45,7 @@ def sql(dataframe):
 
 
 def convert_numeric(dataframe):
-    ''' Convert objects to nullable boolean, nullable integer, or nullable float data type.
+    ''' Convert objects or numeric to downcasted nullable boolean, nullable integer, or nullable float data type.
     
     Parameters
     ----------
@@ -53,13 +56,8 @@ def convert_numeric(dataframe):
     dataframe (pandas.DataFrame) : object columns converted to nullable numeric like data type
     '''
 
-    # convert non-nullable integers to nullable integer types
-    convert = {k:v.name for k,v in dataframe.dtypes.items() if v.name.startswith('int')}
-    convert = {k:v[0].upper()+v[1::] for k,v in convert.items()}
-    dataframe = dataframe.astype(convert)
-
-    # attempt conversion of object columns to numeric
-    columns = dataframe.columns[dataframe.dtypes=='object']
+    # attempt conversion of strings/numeric to a downcasted numeric
+    columns = dataframe.select_dtypes(include=['object', 'number'], exclude='timedelta').columns
     dataframe[columns] = dataframe[columns].replace({'True': '1', 'False': '0'})
     for col in columns:
         # skip missing since pd.to_numeric doesn't work with nullable integer types
@@ -72,17 +70,21 @@ def convert_numeric(dataframe):
             name = converted.dtype.name
             # convert to nullable integer type
             if converted.dtype.name.startswith('int'):
-                name = name[0].upper()+name[1::]
+                name = name.capitalize()
             dataframe[col] = dataframe[col].astype(name)
         except:
             continue
 
     # convert Int8 to nullable boolean if only 0,1, or NA
     columns = [k for k,v in dataframe.dtypes.items() if v.name=='Int8']
-    dataframe[columns] = dataframe[columns].astype('boolean', errors='ignore')
+    # insure conversion doesn't change values outside of range to limit of 0 or 1
+    converted = dataframe[columns].astype('boolean')
+    skip = ((dataframe[columns]==converted)==False).any()
+    columns = [x for x in columns if x not in skip[skip].index]
+    dataframe[columns] = dataframe[columns].astype('boolean')
 
-    # # convert Int16 to UInt8 (0-255 to bring inline with SQL TINYINT)
-    columns = [k for k,v in dataframe.dtypes.items() if v.name=='Int16']
+    # # convert Int8/Int16 to UInt8 (0-255 to bring inline with SQL TINYINT)
+    columns = [k for k,v in dataframe.dtypes.items() if v.name=='Int8' or v.name=='Int16']
     # insure conversion doesn't change values outside of range to limit of 0 or 255
     converted = dataframe[columns].astype('UInt8')
     skip = ((dataframe[columns]==converted)==False).any()
@@ -110,7 +112,7 @@ def convert_date(dataframe):
         if dataframe[col].isna().all():
             continue
         dataframe[col] = pd.to_timedelta(dataframe[col], errors='ignore')
-    # attempt conversion of object columns to timedelta
+    # attempt conversion of object columns to datetime
     columns = dataframe.columns[dataframe.dtypes=='object']
     for col in columns:
         if dataframe[col].isna().all():
@@ -168,16 +170,16 @@ def sql_unique(dataframe, dtypes):
     dtypes.index.name = 'column_name'
     dtypes = dtypes.reset_index()
     ## attempt to use smallest sized numeric value
-    check = pd.Series(['tinyint','smallint','int','bigint','float'], name='sql')
-    pk = pd.DataFrame(check).merge(dtypes, left_on='sql', right_on='sql')
+    check = pd.Series(['tinyint','smallint','int','bigint'], name='sql_type')
+    pk = pd.DataFrame(check).merge(dtypes, left_on='sql_type', right_on='sql_type')
     if len(pk)>0:
         pk = dataframe[pk['column_name']].max().idxmin()    
     else:
         pk = None
     ## attempt to use smallest size string value
     if pk is None:
-        check = pd.Series(['varchar','nvarchar'], name='sql')
-        pk = pd.DataFrame(check).merge(dtypes, left_on='sql', right_on='sql')
+        check = pd.Series(['varchar','nvarchar'], name='sql_type')
+        pk = pd.DataFrame(check).merge(dtypes, left_on='sql_type', right_on='sql_type')
         if len(pk)>0:
             pk = dataframe[pk['column_name']].apply(lambda x: x.str.len().max()).idxmin()
         else:
@@ -202,11 +204,11 @@ def sql_dtype(dataframe):
     '''
     
     # determine data type based on conversion rules
-    dtypes = pd.DataFrame(dataframe.dtypes.copy(), columns=['pandas'])
+    dtypes = pd.DataFrame(dataframe.dtypes.copy(), columns=['pandas_type'])
     dtypes.index.name = 'column_name'
     dtypes = dtypes.reset_index()
-    dtypes['pandas'] = dtypes['pandas'].apply(lambda x: x.name)
-    dtypes = dtypes.merge(conversion.rules, left_on='pandas', right_on='pandas', how='left')
+    dtypes['pandas_type'] = dtypes['pandas_type'].apply(lambda x: x.name)
+    dtypes = dtypes.merge(conversion.rules, left_on='pandas_type', right_on='pandas_type', how='left')
     missing = dtypes.isna().any(axis='columns')
     if any(missing):
         missing = dtypes.loc[missing, 'column_name'].to_list()
@@ -235,16 +237,16 @@ def _deduplicate_string(dataframe, dtypes):
     dtypes (pandas.DataFrame) : resolved data types
     '''
 
-    deduplicate = dtypes[dtypes['pandas']=='string']
+    deduplicate = dtypes[dtypes['pandas_type']=='string']
     columns = deduplicate.index.unique()
     for col in columns:
         # if encoding removes characters or all are None then assume nvarchar
         pre = dataframe[col].str.len()
         post = dataframe[col].str.encode('ascii',errors='ignore').str.len().astype('Int64')
         if pre.ne(post).any() or dataframe[col].isna().all():
-            resolved = deduplicate[deduplicate['sql']=='nvarchar'].loc[col]
+            resolved = deduplicate[deduplicate['sql_type']=='nvarchar'].loc[col]
         else:
-            resolved = deduplicate[deduplicate['sql']=='varchar'].loc[col]
+            resolved = deduplicate[deduplicate['sql_type']=='varchar'].loc[col]
         # add resolution into dtypes
         dtypes = dtypes[dtypes.index!=col]
         dtypes = dtypes.append(resolved)
@@ -265,14 +267,14 @@ def _deduplicate_datetime(dataframe, dtypes):
     dtypes (pandas.DataFrame) : resolved data types
     '''
     
-    deduplicate = dtypes[dtypes['pandas']=='datetime64[ns]']
+    deduplicate = dtypes[dtypes['pandas_type']=='datetime64[ns]']
     columns = deduplicate.index.unique()
     for col in columns:
         # if all time components are zero then assume date
         if (dataframe[col].dt.time.fillna(time(0,0))==time(0,0)).all():
-            resolved = deduplicate[deduplicate['sql']=='date'].loc[col]
+            resolved = deduplicate[deduplicate['sql_type']=='date'].loc[col]
         else:
-            resolved = deduplicate[deduplicate['sql']=='datetime2'].loc[col]
+            resolved = deduplicate[deduplicate['sql_type']=='datetime2'].loc[col]
         # add resolution into dtypes
         dtypes = dtypes[dtypes.index!=col]
         dtypes = dtypes.append(resolved)

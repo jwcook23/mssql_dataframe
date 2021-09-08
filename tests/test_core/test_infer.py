@@ -8,22 +8,23 @@ def _check_dtypes(dtypes):
     
     Dataframe column names should be in the form _SQLDataType or _SQLDataType_SomeOtherText.
     '''
-    expected = dtypes['sql'].reset_index()
+    expected = dtypes['sql_type'].reset_index()
     expected['actual'] = expected['column_name'].str.split('_')
     expected['actual'] = expected['actual'].apply(lambda x: x[1])
-    assert (expected['sql']==expected['actual']).all()
+    assert (expected['sql_type']==expected['actual']).all()
 
 
 def _check_dataframe(dataframe, dtypes):
     '''Assert dataframe columns are of the correct type.'''
     expected = dataframe.dtypes.apply(lambda x: x.name)
-    expected.name = 'pandas'
+    expected.name = 'pandas_type'
     expected.index.name = 'column_name'
     expected = expected.reset_index()
     expected = expected.sort_values(by='column_name', ignore_index=True)
-    actual = dtypes['pandas'].reset_index()
+    actual = dtypes['pandas_type'].reset_index()
     actual = actual.sort_values(by='column_name', ignore_index=True)
     assert actual.equals(expected)
+
 
 def test_dtypes():
 
