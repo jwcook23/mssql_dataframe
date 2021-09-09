@@ -44,6 +44,9 @@ class insert():
         # get table schema for setting input data types and sizes
         schema = conversion.get_schema(self.connection.connection, table_name, columns=dataframe.columns)
 
+        # check dataframe contents against SQL schema to correctly raise or avoid exceptions
+        dataframe = conversion.precheck_dataframe(schema, dataframe)
+
         # dynamic SQL object names
         table = conversion.escape(cursor, table_name)
         columns = conversion.escape(cursor, dataframe.columns)

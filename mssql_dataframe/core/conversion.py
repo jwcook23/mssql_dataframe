@@ -11,17 +11,17 @@ from mssql_dataframe.core import errors
 from mssql_dataframe.core.dynamic import escape
 
 rules = pd.DataFrame.from_records([
-    {'sql_type': 'bit', 'pandas_type': 'boolean', 'odbc_type': pyodbc.SQL_BIT, 'odbc_size': 1, 'odbc_precision': 0},
-    {'sql_type': 'tinyint', 'pandas_type': 'UInt8', 'odbc_type': pyodbc.SQL_TINYINT, 'odbc_size': 1, 'odbc_precision': 0},
-    {'sql_type': 'smallint', 'pandas_type': 'Int16', 'odbc_type': pyodbc.SQL_SMALLINT, 'odbc_size': 2, 'odbc_precision': 0},
-    {'sql_type': 'int', 'pandas_type': 'Int32', 'odbc_type': pyodbc.SQL_INTEGER, 'odbc_size': 4, 'odbc_precision': 0},
-    {'sql_type': 'bigint', 'pandas_type': 'Int64', 'odbc_type': pyodbc.SQL_BIGINT, 'odbc_size': 8, 'odbc_precision': 0},
-    {'sql_type': 'float', 'pandas_type': 'float64', 'odbc_type': pyodbc.SQL_FLOAT, 'odbc_size': 8, 'odbc_precision': 53},
-    {'sql_type': 'time', 'pandas_type': 'timedelta64[ns]', 'odbc_type': pyodbc.SQL_SS_TIME2, 'odbc_size': 16, 'odbc_precision': 7},
-    {'sql_type': 'date', 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_DATE, 'odbc_size': 10, 'odbc_precision': 0},
-    {'sql_type': 'datetime2', 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_TIMESTAMP, 'odbc_size': 27, 'odbc_precision': 7},
-    {'sql_type': 'varchar', 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_VARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
-    {'sql_type': 'nvarchar', 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_WVARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
+    {'sql_type': 'bit', 'min_value': False, 'max_value': True, 'pandas_type': 'boolean', 'odbc_type': pyodbc.SQL_BIT, 'odbc_size': 1, 'odbc_precision': 0},
+    {'sql_type': 'tinyint', 'min_value': 0, 'max_value': 255, 'pandas_type': 'UInt8', 'odbc_type': pyodbc.SQL_TINYINT, 'odbc_size': 1, 'odbc_precision': 0},
+    {'sql_type': 'smallint', 'min_value': -2**15, 'max_value': 2**15-1, 'pandas_type': 'Int16', 'odbc_type': pyodbc.SQL_SMALLINT, 'odbc_size': 2, 'odbc_precision': 0},
+    {'sql_type': 'int', 'min_value': -2**31, 'max_value': 2**31-1, 'pandas_type': 'Int32', 'odbc_type': pyodbc.SQL_INTEGER, 'odbc_size': 4, 'odbc_precision': 0},
+    {'sql_type': 'bigint', 'min_value': -2**63, 'max_value': 2**63-1, 'pandas_type': 'Int64', 'odbc_type': pyodbc.SQL_BIGINT, 'odbc_size': 8, 'odbc_precision': 0},
+    {'sql_type': 'float', 'min_value': -1.79**308, 'max_value': 1.79**308, 'pandas_type': 'float64', 'odbc_type': pyodbc.SQL_FLOAT, 'odbc_size': 8, 'odbc_precision': 53},
+    {'sql_type': 'time', 'min_value': pd.Timedelta('00:00:00.0000000') , 'max_value': pd.Timedelta('23:59:59.9999999') , 'pandas_type': 'timedelta64[ns]', 'odbc_type': pyodbc.SQL_SS_TIME2, 'odbc_size': 16, 'odbc_precision': 7},
+    {'sql_type': 'date', 'min_value': (pd.Timestamp.min+pd.DateOffset(days=1)).date(), 'max_value': pd.Timestamp.max.date(), 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_DATE, 'odbc_size': 10, 'odbc_precision': 0},
+    {'sql_type': 'datetime2', 'min_value': pd.Timestamp.min, 'max_value': pd.Timestamp.max, 'pandas_type': 'datetime64[ns]', 'odbc_type': pyodbc.SQL_TYPE_TIMESTAMP, 'odbc_size': 27, 'odbc_precision': 7},
+    {'sql_type': 'varchar', 'min_value': 1, 'max_value': 0, 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_VARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
+    {'sql_type': 'nvarchar', 'min_value': 1, 'max_value': 0, 'pandas_type': 'string', 'odbc_type': pyodbc.SQL_WVARCHAR, 'odbc_size': 0, 'odbc_precision': 0},
 ])
 rules['sql_type'] = rules['sql_type'].astype('string')
 
@@ -53,7 +53,10 @@ def get_schema(connection, table_name, columns):
     for col in columns:
         x = cursor.columns(table=table_name, catalog=catalog, column=col).fetchone()
         if x is None:
-            raise errors.SQLColumnDoesNotExist(f'catalog = {catalog}, table_name = {table_name}, column={col}')
+            if cursor.tables(table=table_name, catalog=catalog).fetchone() is None:
+                raise errors.SQLTableDoesNotExist(f'catalog = {catalog}, table_name = {table_name}')
+            else:
+                raise errors.SQLColumnDoesNotExist(f'catalog = {catalog}, table_name = {table_name}, column={col}')
         schema.append(list(x))
     schema = pd.DataFrame(schema, columns = [x[0] for x in cursor.description])
     schema = schema.rename(columns={'type_name': 'sql_type'})
@@ -71,7 +74,7 @@ def get_schema(connection, table_name, columns):
     schema['pk_name'] = schema['pk_name'].astype('string')
 
     # add conversion rules
-    schema = schema.merge(rules[['pandas_type','odbc_type','odbc_size','odbc_precision']], left_on='data_type', right_on='odbc_type', how='left')
+    schema = schema.merge(rules[['min_value','max_value','pandas_type','odbc_type','odbc_size','odbc_precision']], left_on='data_type', right_on='odbc_type', how='left')
     schema = schema.drop(columns=['data_type'])
 
     # key column_name as index, check for undefined conversion rule
@@ -82,6 +85,50 @@ def get_schema(connection, table_name, columns):
         raise errors.UndefinedConversionRule(f'columns: {missing}')  
 
     return schema
+
+
+def precheck_dataframe(schema, dataframe):
+    ''' Check dataframe contents against SQL schema.
+    
+    Parameters
+    ----------
+    schema (pandas.DataFrame) : contains definitions for data schema
+    dataframe (pandas.DataFrame) : values to be written to SQL
+
+    Returns
+    -------
+    dataframe (pandas.DataFrame) : values to be written to SQL
+    
+    '''
+    # convert dataframe based on SQL type
+    ## ignore errors so insufficent column size can first be checked
+    dataframe = dataframe.astype(schema['pandas_type'].to_dict(), errors='ignore')
+
+    # insufficient column size in SQL table
+    ## set string column max_value based on column_size
+    strings = schema['sql_type'].isin(['varchar','nvarchar'])
+    schema.loc[strings,'max_value'] = schema.loc[strings,'column_size']
+    ## determine min and max of dataframe contents
+    check = dataframe.select_dtypes(include=['number','datetime','timedelta','string'])
+    strings = dataframe.dtypes[dataframe.dtypes=='string'].index
+    check[strings] = check[strings].apply(lambda x: x.str.len())
+    if len(check.columns)>0:
+        check = check.agg([min, max]).transpose()
+        check = check.merge(schema[['min_value','max_value']], left_index=True, right_index=True)
+        invalid = check[(check['min']<check['min_value']) | (check['max']>check['max_value'])]
+        if len(invalid)>0:
+            invalid = invalid.astype('string')
+            invalid['allowed'] = invalid['min_value']+' to '+invalid['max_value']
+            invalid['actual'] = invalid['min']+' to '+invalid['max']
+            raise errors.SQLInsufficientColumnSize(f'column: {list(invalid.index)}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}')
+
+    # uncoercable dataframe data types
+    invalid = dataframe.dtypes!=schema['pandas_type']
+    if any(invalid):
+        invalid = list(invalid[invalid].index)
+        raise errors.DataframeInvalidDataType(f'columns cannot be converted to their equalivant data type based on the SQL type: {invalid}')
+
+    return dataframe
 
 
 def prepare_cursor(schema, dataframe, cursor):
@@ -99,7 +146,7 @@ def prepare_cursor(schema, dataframe, cursor):
     cursor (pyodbc.Cursor) : cursor with SQL data type and size parameters set
     '''
 
-    schema = schema[['sql_type','odbc_type','odbc_size','odbc_precision']]
+    schema = schema[['column_size','min_value','max_value','sql_type','odbc_type','odbc_size','odbc_precision']]
     columns = pd.Series(dataframe.columns, name='column_name')
     missing = ~columns.isin(schema.index)
     if any(missing):
@@ -110,7 +157,7 @@ def prepare_cursor(schema, dataframe, cursor):
     schema = schema.loc[dataframe.columns]
     
     # use dataframe contents to determine size for strings
-    string_size(schema, dataframe)
+    schema = string_size(schema, dataframe)
 
     # set SQL data type and size for cursor
     schema = schema[['odbc_type','odbc_size','odbc_precision']].to_numpy().tolist()
@@ -145,12 +192,13 @@ def prepare_values(schema, dataframe):
     Parameters
     ----------
 
+    schema (pandas.DataFrame) : contains definitions for data schema
     dataframe (pandas.DataFrame) : values to be written to SQL
 
     Returns
     -------
 
-    dataframe (pandas.DataFrame) : values that may have been truncated due to SQL precision limitations
+    dataframe (pandas.DataFrame) : values prepared to be more in line with SQL
     values (list) : values to pass to pyodbc cursor execuatemany
 
     '''
@@ -195,6 +243,11 @@ def prepare_values(schema, dataframe):
 
     # treat pandas NA,NaT,etc as NULL in SQL
     prepped = prepped.fillna(np.nan).replace([np.nan], [None])
+
+    # convert single column of datetime to objects
+    ## otherwise tolist() will produce ints instead of datetimes
+    if prepped.shape[1]==1 and prepped.select_dtypes('datetime').shape[1]==1:
+        prepped = prepped.astype(object)
 
     # values for pyodbc cursor executemany
     values = prepped.values.tolist()
@@ -264,7 +317,11 @@ def read_values(statement, schema, connection):
     result (pandas.DataFrame) : resulting data from performing statement
 
     '''
+    
+    # add output converters
+    connection = prepare_connection(connection)
 
+    # create cursor to fetch data
     cursor = connection.cursor()
 
     # read data from SQL
@@ -279,6 +336,14 @@ def read_values(statement, schema, connection):
     result = {col: [row[idx] for row in result] for idx,col in enumerate(columns)}
     result = {col: pd.Series(vals, dtype=dtypes[col]) for col,vals in result.items()}
     result = pd.DataFrame(result)
+
+    # set primary key columns as index
+    keys = list(schema[schema['pk_seq'].notna()].index)
+    if keys:
+        try:
+            result = result.set_index(keys=list(keys))
+        except KeyError:
+            raise KeyError(f'primary key column missing from query: {keys}')
 
     return result
 

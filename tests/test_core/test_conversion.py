@@ -31,9 +31,6 @@ def sql(data):
     # create database cursor
     db = connect.connect(database_name='tempdb', server_name='localhost')
 
-    # add output converters
-    db.connection = conversion.prepare_connection(db.connection)
-
     # database cursor
     cursor = db.connection.cursor()
 
@@ -98,6 +95,9 @@ def test_sample(sql, data):
     # get table schema for setting input data types and sizes
     schema = conversion.get_schema(connection=sql, table_name='##test_conversion', columns=data.columns)
 
+    # check dataframe contents against SQL schema to correctly raise or avoid exceptions
+    dataframe = conversion.precheck_dataframe(schema, data)
+
     # dynamic SQL object names
     table = conversion.escape(cursor, '##test_conversion')
     columns = conversion.escape(cursor, data.columns)
@@ -123,10 +123,10 @@ def test_sample(sql, data):
     cursor.commit()
 
     # read data, excluding ID columns that is only to insure sorting
-    columns = ', '.join([x for x in data.columns if x!='id'])
+    columns = ', '.join([x for x in data.columns])
     statement = f'SELECT {columns} FROM {table} ORDER BY id ASC'
     result = conversion.read_values(statement, schema, connection=sql)
 
     # compare result to insert
     ## note comparing to dataframe as values may have changed during insert preperation
-    assert result.equals(dataframe.drop(columns='id'))
+    assert result.equals(dataframe.set_index(keys='id'))

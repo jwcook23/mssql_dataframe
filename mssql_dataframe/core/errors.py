@@ -48,3 +48,6 @@ class SQLObjectAdjustment(Warning):
 class DataframeUndefinedColumn(Exception):
     '''Exception for undefined dataframe column.'''
     pass
+
+class DataframeInvalidDataType(Exception):
+    '''Exception for a dataframe column that cannot be converted to it's correct type based on the target SQL type.'''
