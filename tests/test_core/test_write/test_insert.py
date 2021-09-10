@@ -1,9 +1,5 @@
-from datetime import date
-import warnings
-
 import pytest
 import pandas as pd
-import numpy as np
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, conversion
@@ -33,13 +29,16 @@ def test_insert_errors(sql):
     })
 
     with pytest.raises(errors.SQLTableDoesNotExist):
-        sql.insert.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), include_timestamps=False)
+        dataframe = pd.DataFrame({'ColumnA': [1]})
+        sql.insert.insert('error'+table_name, dataframe=dataframe, include_timestamps=False)
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
-        sql.insert.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), include_timestamps=False)
+        dataframe = pd.DataFrame({'ColumnC': [1]})
+        sql.insert.insert(table_name, dataframe=dataframe, include_timestamps=False)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
-        sql.insert.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}), include_timestamps=False)
+        dataframe = pd.DataFrame({'ColumnB': ['aaa']})
+        sql.insert.insert(table_name, dataframe=dataframe, include_timestamps=False)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.insert.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), include_timestamps=False)
@@ -55,7 +54,7 @@ def test_insert_errors(sql):
 
 def test_dataframe(sql):
 
-    table_name = '##test_insert'
+    table_name = '##test_dataframe'
 
     # sample data
     dataframe = pd.DataFrame({
@@ -92,12 +91,10 @@ def test_dataframe(sql):
     sql.create.table(table_name, columns)
 
     # insert data
-    sql.insert.insert(table_name, dataframe)
+    dataframe, schema = sql.insert.insert(table_name, dataframe)
 
     # test result
     statement = f'SELECT * FROM {table_name}'
-    columns = ['_time_insert']+list(dataframe.columns)
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns)
     result = conversion.read_values(statement, schema, sql.connection.connection)
     assert all(result['_time_insert'].notna())
     assert dataframe.equals(result[result.columns.drop('_time_insert')])
@@ -114,23 +111,22 @@ def test_singles(sql):
             'ColumnC': 'DATE',
     }
     sql.create.table(table_name, columns)
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
 
     # single value
     dataframe = pd.DataFrame({'ColumnA': [1]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, schema = sql.insert.insert(table_name, dataframe, include_timestamps=False)
     result = conversion.read_values(f'SELECT ColumnA FROM {table_name}', schema, sql.connection.connection)
     assert all(result['ColumnA']==[1])
 
     # single column
     dataframe = pd.DataFrame({'ColumnB': [2,3,4]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, schema = sql.insert.insert(table_name, dataframe, include_timestamps=False)
     result = conversion.read_values(f'SELECT ColumnB FROM {table_name}', schema, sql.connection.connection)
     assert result['ColumnB'].equals(pd.Series([pd.NA, 2, 3, 4], dtype='Int32'))
 
     # single column of dates
     dataframe = pd.DataFrame({'ColumnC': ['06-22-2021','06-22-2021']}, dtype='datetime64[ns]')
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, schema = sql.insert.insert(table_name, dataframe, include_timestamps=False)
     result = conversion.read_values(f'SELECT ColumnC FROM {table_name}', schema, sql.connection.connection)
     assert result['ColumnC'].equals(pd.Series([pd.NA, pd.NA, pd.NA, pd.NA, '06-22-2021','06-22-2021'], dtype='datetime64[ns]'))
 
@@ -145,11 +141,32 @@ def test_composite_pk(sql):
             'ColumnC': 'BIGINT'
     }
     sql.create.table(table_name, columns, primary_key_column=['ColumnA','ColumnB'])
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
 
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': ['12345'], 'ColumnC': [1]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, schema = sql.insert.insert(table_name, dataframe, include_timestamps=False)
 
     result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection.connection)
     assert all(result.index==pd.MultiIndex.from_tuples([(1,'12345')]))
     assert all(result['ColumnC']==1)
+
+
+def test_add_include_timestamps(sql):
+
+    table_name = '##test_add_include_timestamps'
+
+    # sample data
+    dataframe = pd.DataFrame({
+        '_bit': pd.Series([1, 0, None], dtype='boolean')
+    })
+
+    # create table
+    sql.create.table(table_name, columns={'_bit': 'BIT'})
+
+    # insert data
+    dataframe, schema = sql.insert.insert(table_name, dataframe)
+
+    # test result
+    statement = f'SELECT * FROM {table_name}'
+    result = conversion.read_values(statement, schema, sql.connection.connection)
+    assert all(result['_time_insert'].notna())
+    assert result['_bit'].equals(dataframe['_bit'])

@@ -1,4 +1,6 @@
-from mssql_dataframe.core import create, modify
+import warnings
+
+from mssql_dataframe.core import create, modify, errors
 from insert import insert
 
 class write(insert):
@@ -16,6 +18,10 @@ class write(insert):
         self.__create__ = create.create(connection)
         self.__modify__ = modify.modify(connection)
         self.adjust_sql_objects = adjust_sql_objects
+
+        if self.adjust_sql_objects:
+            warnings.warn('write class initialized with adjust_sql_objects=True', errors.SQLObjectAdjustment)
+
         
         self.insert()
 

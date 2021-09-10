@@ -93,10 +93,7 @@ def test_sample(sql, data):
     cursor.fast_executemany = True
 
     # get table schema for setting input data types and sizes
-    schema = conversion.get_schema(connection=sql, table_name='##test_conversion', columns=data.columns)
-
-    # check dataframe contents against SQL schema to correctly raise or avoid exceptions
-    dataframe = conversion.precheck_dataframe(schema, data)
+    schema, dataframe = conversion.get_schema(connection=sql, table_name='##test_conversion')
 
     # dynamic SQL object names
     table = conversion.escape(cursor, '##test_conversion')

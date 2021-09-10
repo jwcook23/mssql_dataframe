@@ -1,9 +1,7 @@
-from datetime import date
 import warnings
 
 import pytest
 import pandas as pd
-import numpy as np
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, conversion
@@ -13,7 +11,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection
         self.create = create.create(connection)
-        self.insert = insert.insert(connection)
+        self.insert = insert.insert(connection, adjust_sql_objects=True)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -21,218 +19,53 @@ def sql():
     yield package(db)
     db.connection.close()
 
-# @pytest.fixture(scope="module")
-# def sql():
-#     connection = connect.connect(database_name='tempdb', server_name='localhost')
-    # yield SQLServer(connection, adjust_sql_objects=False)
-    # connection.connection.close()
 
+def test_create_table(sql):
 
-# @pytest.fixture(scope="module")
-# def sql_adjustable():
-#     connection = connect.connect(database_name='tempdb', server_name='localhost')
-    # with warnings.catch_warnings(record=True) as warn:
-    #     yield SQLServer(connection, adjust_sql_objects=True)
-    #     connection.connection.close()
-    #     assert len(warn)==1
-    #     assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
-    #     assert 'SQL objects will be created/modified as needed' in str(warn[-1].message)
+    table_name = '##test_create_table' 
 
-
-# def test_insert_errors(sql, sql_adjustable):
-
-#     table_name = '##test_insert_errors'
-#     sql.create.table(table_name, columns={
-#             'ColumnA': 'SMALLINT',
-#             'ColumnB': 'VARCHAR(1)',
-#             'ColumnD': 'DATETIME'
-#     })
-
-    # with pytest.raises(errors.SQLTableDoesNotExist):
-    #     sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), include_timestamps=False)
-
-    # with pytest.raises(errors.SQLTableDoesNotExist):
-    #     sql.write.insert('error'+table_name, dataframe=pd.DataFrame({'ColumnA': ['a'*256]}), include_timestamps=False)
-
-    # with pytest.raises(errors.SQLColumnDoesNotExist):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnC': [1]}), include_timestamps=False)
-
-    # with pytest.raises(errors.SQLInsufficientColumnSize):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnB': ['aaa']}), include_timestamps=False)
-
-    # with pytest.raises(errors.SQLInsufficientColumnSize):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': [100000]}), include_timestamps=False)
-
-    # # string that cannot be converted to their Python equalivant based on SQL data type
-    # with pytest.raises(errors.SQLInvalidDataType):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['abs']}), include_timestamps=False)
-    # with pytest.raises(errors.SQLInvalidDataType):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12-5']}), include_timestamps=False)
-    # with pytest.raises(errors.SQLInvalidDataType):
-    #     sql.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12345-67589']}), include_timestamps=False)
-    # with pytest.raises(errors.SQLInvalidDataType):
-    #     sql_adjustable.write.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12345-67589']}), include_timestamps=False)
-
-
-def test_insert(sql):
-
-    table_name = '##test_insert'
-
-    # sample data
     dataframe = pd.DataFrame({
-        '_bit': pd.Series([1, 0, None], dtype='boolean'),
-        '_tinyint': pd.Series([0, 255, None], dtype='UInt8'),
-        '_smallint': pd.Series([-2**15, 2**15-1, None], dtype='Int16'),
-        '_int': pd.Series([-2**31, 2**31-1, None], dtype='Int32'),
-        '_bigint': pd.Series([-2**63, 2**63-1, None], dtype='Int64'),
-        '_float': pd.Series([-1.79**308, 1.79**308, None], dtype='float'),
-        '_time': pd.Series(['00:00:00.0000000', '23:59:59.9999999', None], dtype='timedelta64[ns]'),
-        '_date': pd.Series([(pd.Timestamp.min+pd.DateOffset(days=1)).date(), pd.Timestamp.max.date(), None], dtype='datetime64[ns]'),
-        '_datetime2': pd.Series([pd.Timestamp.min, pd.Timestamp.max, None], dtype='datetime64[ns]'),
-        '_varchar': pd.Series(['a', 'bbb', None], dtype='string'),
-        '_nvarchar': pd.Series([u'100\N{DEGREE SIGN}F', u'company name\N{REGISTERED SIGN}', None], dtype='string'),
+        "ColumnA": [1,2,3],
+        "ColumnB": ['06/22/2021','06-22-2021','2021-06-22']
     })
 
-    # create table
-    columns = {
-            '_time_insert': 'DATETIME2',
-            '_bit': 'BIT',
-            '_tinyint': 'TINYINT',
-            '_smallint': 'SMALLINT',
-            '_int': 'INT',
-            '_bigint': 'BIGINT',
-            '_float': 'FLOAT',
-            '_time': 'TIME',
-            '_date': 'DATE',
-            '_datetime2': 'DATETIME2',
-            '_varchar': 'VARCHAR',
-            '_nvarchar': 'NVARCHAR'
-    }
-    columns['_varchar'] = columns['_varchar']+'('+str(dataframe['_varchar'].str.len().max())+')'
-    columns['_nvarchar'] = columns['_nvarchar']+'('+str(dataframe['_nvarchar'].str.len().max())+')'
-    sql.create.table(table_name, columns)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, schema = sql.insert.insert(table_name, dataframe=dataframe, include_timestamps=True)
+        assert len(warn)==3
+        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert 'Creating table '+table_name in str(warn[0].message)
+        assert 'Created table '+table_name in str(warn[1].message)
+        assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)
 
-    # insert data
-    sql.insert.insert(table_name, dataframe)
-
-    # test result
-    statement = f'SELECT * FROM {table_name}'
-    columns = ['_time_insert']+list(dataframe.columns)
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns)
-    result = conversion.read_values(statement, schema, sql.connection.connection)
-    assert all(result['_time_insert'].notna())
-    assert dataframe.equals(result[result.columns.drop('_time_insert')])
+        statement = f'SELECT * FROM {table_name}'
+        result = conversion.read_values(statement, schema, sql.connection.connection)
+        expected = pd.DataFrame({
+            'ColumnA': pd.Series([1,2,3], dtype='UInt8'),
+            'ColumnB' : pd.Series([pd.Timestamp(year=2021, month=6, day=22)]*3, dtype='datetime64[ns]')
+        }).set_index(keys='ColumnA')
+        assert result[expected.columns].equals(expected)
+        assert all(result['_time_insert'].notna())
 
 
-def test_insert_singularities(sql):
+def test_insert_add_column(sql):
 
-    table_name = '##test_insert_singularities'
+    table_name = '##test_insert_add_column'
+    sql.create.table(table_name, columns={
+        'ColumnA': 'TINYINT'
+    })
 
-    # create table
-    columns = {
-            'ColumnA': 'TINYINT',
-            'ColumnB': 'INT',
-            'ColumnC': 'DATE',
-    }
-    sql.create.table(table_name, columns)
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [2], 'ColumnC': ['zzz']})
 
-    # single value
-    dataframe = pd.DataFrame({'ColumnA': [1]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
-    result = conversion.read_values(f'SELECT ColumnA FROM {table_name}', schema, sql.connection.connection)
-    assert all(result['ColumnA']==[1])
-
-    # single column
-    dataframe = pd.DataFrame({'ColumnB': [2,3,4]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
-    result = conversion.read_values(f'SELECT ColumnB FROM {table_name}', schema, sql.connection.connection)
-    assert result['ColumnB'].equals(pd.Series([pd.NA, 2, 3, 4], dtype='Int32'))
-
-    # single column of dates
-    dataframe = pd.DataFrame({'ColumnC': ['06-22-2021','06-22-2021']}, dtype='datetime64[ns]')
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
-    result = conversion.read_values(f'SELECT ColumnC FROM {table_name}', schema, sql.connection.connection)
-    assert result['ColumnC'].equals(pd.Series([pd.NA, pd.NA, pd.NA, pd.NA, '06-22-2021','06-22-2021'], dtype='datetime64[ns]'))
-
-
-def test_insert_composite_pk(sql):
-    
-    table_name = '##test_insert_composite_pk'
-
-    columns = columns={
-            'ColumnA': 'TINYINT',
-            'ColumnB': 'VARCHAR(5)',
-            'ColumnC': 'BIGINT'
-    }
-    sql.create.table(table_name, columns, primary_key_column=['ColumnA','ColumnB'])
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
-
-    dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': ['12345'], 'ColumnC': [1]})
-    sql.insert.insert(table_name, dataframe, include_timestamps=False)
-
-    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection.connection)
-    assert all(result.index==pd.MultiIndex.from_tuples([(1,'12345')]))
-    assert all(result['ColumnC']==1)
-
-
-# def test_insert_create_table(sql_adjustable):
-
-#     table_name = '##test_insert_create_table'
-
-#     # SQL will infer '06/22/2021' as a date but not allow for insertion (possibly since fast_executemany=True)
-#     # # insure internally value is first created to datetime which will work
-#     dataframe = pd.DataFrame({
-#         # "ColumnA": [1,2,3],
-#         # "ColumnB": ['06/22/2021','06-22-2021','2023-08-31']
-#         "ColumnB": ['06/22/2021']
-#     })
-
-#     with warnings.catch_warnings(record=True) as warn:
-#         sql_adjustable.write.insert(table_name, dataframe=dataframe, include_timestamps=False)
-#         assert len(warn)==3
-#         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-#         assert 'Creating table '+table_name in str(warn[0].message)
-#         assert 'Created table '+table_name in str(warn[1].message)
-#         assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)        
-#         results = sql_adjustable.read.select(table_name)
-#         assert all(results[['ColumnA']]==dataframe[['ColumnA']])
-#         assert all(results[['ColumnB']]==dataframe[['ColumnB']])
-#         assert all(results['_time_insert'].notna())
-
-    
-# def test_insert_create_table_long_string(sql_adjustable):
-
-#     table_name = '##test_insert_create_table_long_string'
-
-#     dataframe = pd.DataFrame({
-#         "ColumnA": ['a'*256]
-#     })
-
-#     with warnings.catch_warnings(record=True) as warn:
-#         sql_adjustable.write.insert(table_name, dataframe=dataframe)
-#         assert len(warn)==3
-
-
-# def test_insert_add_column(sql_adjustable):
-
-#     table_name = '##test_insert_add_column'
-#     sql_adjustable.create.table(table_name, columns={
-#         'ColumnA': 'TINYINT'
-#     })
-
-#     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [2], 'ColumnC': [3]})
-
-#     with warnings.catch_warnings(record=True) as warn:
-#         sql_adjustable.write.insert(table_name, dataframe=dataframe)
-#         assert len(warn)==3
-#         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-#         assert 'Creating column _time_insert in table '+table_name in str(warn[0].message)        
-#         assert 'Creating column ColumnB in table '+table_name in str(warn[1].message)
-#         assert 'Creating column ColumnC in table '+table_name in str(warn[2].message)
-#         results = sql_adjustable.read.select(table_name)
-#         assert all(results[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-#         assert all(results['_time_insert'].notna())
+    with warnings.catch_warnings(record=True) as warn:
+        sql.insert.insert(table_name, dataframe=dataframe)
+        assert len(warn)==3
+        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert 'Creating column _time_insert in table '+table_name in str(warn[0].message)        
+        assert 'Creating column ColumnB in table '+table_name in str(warn[1].message)
+        assert 'Creating column ColumnC in table '+table_name in str(warn[2].message)
+        results = sql_adjustable.read.select(table_name)
+        assert all(results[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
+        assert all(results['_time_insert'].notna())
 
 
 # def test_insert_alter_column(sql_adjustable): 

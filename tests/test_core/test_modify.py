@@ -35,8 +35,9 @@ def test_column_drop(sql):
     sql.create.table(table_name, columns)
     
     sql.modify.column(table_name, modify='drop', column_name='B')
-    with pytest.raises(errors.SQLColumnDoesNotExist):
-        schema = conversion.get_schema(sql.connection.connection, table_name, ['B'])
+    
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    assert 'B' not in schema.index
 
 
 def test_column_add(sql):
@@ -46,12 +47,12 @@ def test_column_add(sql):
     sql.create.table(table_name, columns)
 
     sql.modify.column(table_name, modify='add', column_name='B', data_type='VARCHAR(20)')
-    schema = conversion.get_schema(sql.connection.connection, table_name, ['A','B'])
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert 'B' in schema.index
     assert schema.at['B','sql_type']=='varchar'
 
     sql.modify.column(table_name, modify='add', column_name='C', data_type='BIGINT')
-    schema = conversion.get_schema(sql.connection.connection, table_name, ['A','B','C'])
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert 'C' in schema.index
     assert schema.at['C','sql_type']=='bigint' 
 
@@ -63,13 +64,13 @@ def test_column_alter(sql):
     sql.create.table(table_name, columns)
 
     sql.modify.column(table_name, modify='alter', column_name='B', data_type='INT')
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert 'B' in schema.index
     assert schema.at['B','sql_type']=='int'
     assert schema.at['B', 'is_nullable']==True
 
     sql.modify.column(table_name, modify='alter', column_name='C', data_type='INT', notnull=True)
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert 'C' in schema.index
     assert schema.at['C','sql_type']=='int'
     assert schema.at['C', 'is_nullable']==False
@@ -92,12 +93,12 @@ def test_primary_key_one_column(sql):
     sql.create.table(table_name, columns, notnull=["A","B"])
 
     sql.modify.primary_key(table_name, modify='add', columns='A', primary_key_name = '_pk_1')
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert schema.at['A','pk_seq']==1
     assert sum(schema['pk_seq'].notna())==1
 
     sql.modify.primary_key(table_name, modify='drop', columns='A',  primary_key_name = '_pk_1')
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert all(schema['pk_seq'].isna())
 
 
@@ -108,13 +109,13 @@ def test_primary_key_two_columns(sql):
     sql.create.table(table_name, columns, notnull=["A","B"])
 
     sql.modify.primary_key(table_name, modify='add', columns=['A','B'], primary_key_name = '_pk_1')
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert schema.at['A','pk_seq']==1
     assert schema.at['B','pk_seq']==2
     assert sum(schema['pk_seq'].notna())==2
 
     sql.modify.primary_key(table_name, modify='drop', columns=['A','B'],  primary_key_name = '_pk_1')
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert all(schema['pk_seq'].isna())
 
 
@@ -125,13 +126,13 @@ def test_alter_primary_key_column(sql):
     primary_key_column = '_pk'
     sql.create.table(table_name, columns, primary_key_column = "_pk")
 
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     primary_key_name = schema.at[primary_key_column, 'pk_name']
 
     sql.modify.primary_key(table_name, modify='drop', columns=primary_key_column, primary_key_name=primary_key_name)
     sql.modify.column(table_name, modify='alter', column_name=primary_key_column, data_type='INT', notnull=True)
     sql.modify.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
 
-    schema = conversion.get_schema(sql.connection.connection, table_name, columns.keys())
+    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert schema.at[primary_key_column,'sql_type']=='int'
     assert schema.at[primary_key_column,'pk_seq']==1
