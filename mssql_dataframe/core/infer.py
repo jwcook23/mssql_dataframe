@@ -22,12 +22,12 @@ def sql(dataframe):
     Returns
     -------
     dataframe (pandas.DataFrame) : object columns converted to best fit pandas data type
-    dtypes (dict) : derived SQL data type where key is the column name and value is the SQL type
-    notnull (pandas.Index) : columns that should not be null
+    schema (pandas.DataFrame) : derived SQL schema
+    not_nullable (pandas.Index) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
 
     '''
-
+    
     # numeric like: bit, tinyint, smallint, int, bigint, float
     dataframe = convert_numeric(dataframe)
 
@@ -38,10 +38,10 @@ def sql(dataframe):
     dataframe = convert_string(dataframe)
 
     # determine SQL properties
-    dtypes = sql_dtype(dataframe)
-    notnull, pk = sql_unique(dataframe, dtypes)
+    schema = sql_schema(dataframe)
+    not_nullable, pk = sql_unique(dataframe, schema)
 
-    return dataframe, dtypes, notnull, pk
+    return dataframe, schema, not_nullable, pk
 
 
 def convert_numeric(dataframe):
@@ -75,12 +75,15 @@ def convert_numeric(dataframe):
         except:
             continue
 
-    # convert Int8 to nullable boolean if only 0,1, or NA
+    # convert Int8 to nullable boolean if multiple values of only 0,1, or NA
     columns = [k for k,v in dataframe.dtypes.items() if v.name=='Int8']
     # insure conversion doesn't change values outside of range to limit of 0 or 1
     converted = dataframe[columns].astype('boolean')
     skip = ((dataframe[columns]==converted)==False).any()
-    columns = [x for x in columns if x not in skip[skip].index]
+    # insure there are multiple instances of 0 or 1
+    multiple = dataframe[columns].isin([0,1]).sum()>1
+    # convert if rules upheld
+    columns = [x for x in columns if x not in skip[skip].index and x in multiple[multiple].index]
     dataframe[columns] = dataframe[columns].astype('boolean')
 
     # # convert Int8/Int16 to UInt8 (0-255 to bring inline with SQL TINYINT)
@@ -88,6 +91,7 @@ def convert_numeric(dataframe):
     # insure conversion doesn't change values outside of range to limit of 0 or 255
     converted = dataframe[columns].astype('UInt8')
     skip = ((dataframe[columns]==converted)==False).any()
+    # convert if rules are upheld
     columns = [x for x in columns if x not in skip[skip].index]
     dataframe[columns] = dataframe[columns].astype('UInt8')
 
@@ -140,7 +144,7 @@ def convert_string(dataframe):
     return dataframe
 
 
-def sql_unique(dataframe, dtypes):
+def sql_unique(dataframe, schema):
     ''' Determine if columns should be nullable in SQL and determine best fitting primary key column.
     
     Parameters
@@ -149,29 +153,29 @@ def sql_unique(dataframe, dtypes):
 
     Returns
     -------
-    notnull (pandas.Index) : columns that should not be null
+    not_nullable (pandas.Index) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
     
     '''
 
     # determine columns not nullable
-    notnull = dataframe.notna().all()
-    notnull = notnull[notnull].index
+    not_nullable = dataframe.notna().all()
+    not_nullable = not_nullable[not_nullable].index
 
     # primary key can't be null
-    dataframe = dataframe[notnull]
+    dataframe = dataframe[not_nullable]
 
     # primary key must be all unique values
     unique = dataframe.nunique()==len(dataframe)
     dataframe = dataframe[unique[unique].index]
 
     # primary key 
-    dtypes = dtypes.loc[dataframe.columns]
-    dtypes.index.name = 'column_name'
-    dtypes = dtypes.reset_index()
+    schema = schema.loc[dataframe.columns]
+    schema.index.name = 'column_name'
+    schema = schema.reset_index()
     ## attempt to use smallest sized numeric value
     check = pd.Series(['tinyint','smallint','int','bigint'], name='sql_type')
-    pk = pd.DataFrame(check).merge(dtypes, left_on='sql_type', right_on='sql_type')
+    pk = pd.DataFrame(check).merge(schema, left_on='sql_type', right_on='sql_type')
     if len(pk)>0:
         pk = dataframe[pk['column_name']].max().idxmin()    
     else:
@@ -179,16 +183,16 @@ def sql_unique(dataframe, dtypes):
     ## attempt to use smallest size string value
     if pk is None:
         check = pd.Series(['varchar','nvarchar'], name='sql_type')
-        pk = pd.DataFrame(check).merge(dtypes, left_on='sql_type', right_on='sql_type')
+        pk = pd.DataFrame(check).merge(schema, left_on='sql_type', right_on='sql_type')
         if len(pk)>0:
             pk = dataframe[pk['column_name']].apply(lambda x: x.str.len().max()).idxmin()
         else:
             pk = None
 
-    return notnull, pk
+    return not_nullable, pk
 
 
-def sql_dtype(dataframe):
+def sql_schema(dataframe):
     ''' Determine SQL data type based on pandas data type.
     
     Parameters
@@ -199,45 +203,45 @@ def sql_dtype(dataframe):
     Returns
     -------
 
-    dtypes (dict) : derived SQL data type where key is the column name and value is the SQL type
+    schema (pandas.DataFrame) : derived SQL schema
 
     '''
     
     # determine data type based on conversion rules
-    dtypes = pd.DataFrame(dataframe.dtypes.copy(), columns=['pandas_type'])
-    dtypes.index.name = 'column_name'
-    dtypes = dtypes.reset_index()
-    dtypes['pandas_type'] = dtypes['pandas_type'].apply(lambda x: x.name)
-    dtypes = dtypes.merge(conversion.rules, left_on='pandas_type', right_on='pandas_type', how='left')
-    missing = dtypes.isna().any(axis='columns')
+    schema = pd.DataFrame(dataframe.dtypes.copy(), columns=['pandas_type'])
+    schema.index.name = 'column_name'
+    schema = schema.reset_index()
+    schema['pandas_type'] = schema['pandas_type'].apply(lambda x: x.name)
+    schema = schema.merge(conversion.rules, left_on='pandas_type', right_on='pandas_type', how='left')
+    missing = schema.isna().any(axis='columns')
     if any(missing):
-        missing = dtypes.loc[missing, 'column_name'].to_list()
+        missing = schema.loc[missing, 'column_name'].to_list()
         raise errors.UndefinedConversionRule(f'columns: {missing}') 
-    dtypes = dtypes.set_index(keys='column_name')
+    schema = schema.set_index(keys='column_name')
 
     # determine SQL type for pandas string
-    dtypes = _deduplicate_string(dataframe, dtypes)
+    schema = _deduplicate_string(dataframe, schema)
 
     # determine SQL type for pandas datetime64[ns]
-    dtypes = _deduplicate_datetime(dataframe, dtypes)
+    schema = _deduplicate_datetime(dataframe, schema)
 
-    return dtypes
+    return schema
 
 
-def _deduplicate_string(dataframe, dtypes):
+def _deduplicate_string(dataframe, schema):
     ''' Determine if pandas string should be SQL varchar or nvarchar.
 
     Parameters
     ----------
     dataframe (pandas.DataFrame) : data to resolve
-    dtypes (pandas.DataFrame) : conversion information for each column
+    schema (pandas.DataFrame) : conversion information for each column
 
     Return
     ------
-    dtypes (pandas.DataFrame) : resolved data types
+    schema (pandas.DataFrame) : resolved data types
     '''
 
-    deduplicate = dtypes[dtypes['pandas_type']=='string']
+    deduplicate = schema[schema['pandas_type']=='string']
     columns = deduplicate.index.unique()
     for col in columns:
         # if encoding removes characters or all are None then assume nvarchar
@@ -247,27 +251,27 @@ def _deduplicate_string(dataframe, dtypes):
             resolved = deduplicate[deduplicate['sql_type']=='nvarchar'].loc[col]
         else:
             resolved = deduplicate[deduplicate['sql_type']=='varchar'].loc[col]
-        # add resolution into dtypes
-        dtypes = dtypes[dtypes.index!=col]
-        dtypes = dtypes.append(resolved)
+        # add resolution into schema
+        schema = schema[schema.index!=col]
+        schema = schema.append(resolved)
 
-    return dtypes
+    return schema
 
 
-def _deduplicate_datetime(dataframe, dtypes):
+def _deduplicate_datetime(dataframe, schema):
     ''' Determine if pandas datetime should be SQL date or datetime2.
 
     Parameters
     ----------
     dataframe (pandas.DataFrame) : data to resolve
-    dtypes (pandas.DataFrame) : conversion information for each column
+    schema (pandas.DataFrame) : conversion information for each column
 
     Return
     ------
-    dtypes (pandas.DataFrame) : resolved data types
+    schema (pandas.DataFrame) : resolved data types
     '''
     
-    deduplicate = dtypes[dtypes['pandas_type']=='datetime64[ns]']
+    deduplicate = schema[schema['pandas_type']=='datetime64[ns]']
     columns = deduplicate.index.unique()
     for col in columns:
         # if all time components are zero then assume date
@@ -275,8 +279,8 @@ def _deduplicate_datetime(dataframe, dtypes):
             resolved = deduplicate[deduplicate['sql_type']=='date'].loc[col]
         else:
             resolved = deduplicate[deduplicate['sql_type']=='datetime2'].loc[col]
-        # add resolution into dtypes
-        dtypes = dtypes[dtypes.index!=col]
-        dtypes = dtypes.append(resolved)
+        # add resolution into schema
+        schema = schema[schema.index!=col]
+        schema = schema.append(resolved)
 
-    return dtypes
+    return schema

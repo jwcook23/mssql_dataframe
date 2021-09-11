@@ -19,7 +19,7 @@ class create():
         self.connection = connection
         
 
-    def table(self, table_name: str, columns: dict, notnull: list = [],
+    def table(self, table_name: str, columns: dict, not_nullable: list = [],
     primary_key_column: str = None, sql_primary_key: bool = False):
         """Create SQL table by explicitly specifying SQL create table parameters.
 
@@ -28,7 +28,7 @@ class create():
 
         table_name (str) : name of table to create
         columns (dict) : keys = column names, values = data types and optionally size/precision
-        notnull (list|str, default=[]) : list of columns to set as not null or a single column
+        not_nullable (list|str, default=[]) : list of columns to set as not null or a single column
         primary_key_column (str|list, default=None) : column(s) to set as the primary key
         sql_primary_key (bool, default=False) : create an INT SQL identity column as the primary key named _pk
 
@@ -44,10 +44,10 @@ class create():
         create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
 
         #### table with a primary key and another not null column
-        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, notnull="B", primary_key_column="A")
+        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", primary_key_column="A")
 
         #### table with an SQL identity primary key
-        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, notnull="B", sql_primary_key=True)
+        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", sql_primary_key=True)
 
         """
         
@@ -68,8 +68,8 @@ class create():
         # check inputs
         if sql_primary_key and primary_key_column is not None:
             raise ValueError('if sql_primary_key==True then primary_key_column has to be None')
-        if isinstance(notnull, str):
-            notnull = [notnull]
+        if isinstance(not_nullable, str):
+            not_nullable = [not_nullable]
         if isinstance(primary_key_column, str):
             primary_key_column = [primary_key_column]
 
@@ -99,7 +99,7 @@ class create():
             ["QUOTENAME(@ColumnName_"+x+")" for x in alias_names],
             ["QUOTENAME(@ColumnType_"+x+")" for x in alias_names],
             ["@ColumnSize_"+x+"" if x is not None else "" for x in size_vars],
-            ["'NOT NULL'" if x in notnull else "" for x in column_names]
+            ["'NOT NULL'" if x in not_nullable else "" for x in column_names]
         ))
         syntax = "+','+\n".join(
             ["+' '+".join([x for x in col if len(x)>0]) for col in syntax]
@@ -224,18 +224,15 @@ class create():
             primary_key_column = None
 
         # infer SQL specifications from contents of dataframe
-        dataframe, dtypes, notnull, pk = infer.sql(dataframe)
-        dtypes = conversion.string_size(dtypes, dataframe)
-        strings = dtypes['sql_type'].isin(['varchar','nvarchar'])
-        dtypes.loc[strings,'sql_type'] = dtypes.loc[strings,'sql_type']+'('+dtypes.loc[strings,'odbc_size'].astype('str')+')'
-        dtypes = dtypes['sql_type'].to_dict()
+        dataframe, schema, not_nullable, pk = infer.sql(dataframe)
+        _, dtypes = conversion.sql_spec(schema, dataframe)
 
         # infer primary key column after best fit data types have been determined
         if primary_key=='infer':
             primary_key_column = pk
 
         # create final SQL table
-        self.table(table_name, dtypes, notnull=notnull, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
+        self.table(table_name, dtypes, not_nullable=not_nullable, primary_key_column=primary_key_column, sql_primary_key=sql_primary_key)
 
         # issue message for derived table
         pk_name = primary_key_column
@@ -250,7 +247,7 @@ class create():
         msg = f'''
         Created table {table_name}
         Primary key: {pk_name}
-        Non-null columns: {notnull}
+        Non-null columns: {not_nullable}
         Data types: {dtypes}
         '''
         warnings.warn(msg, errors.SQLObjectAdjustment)

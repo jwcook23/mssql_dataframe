@@ -16,7 +16,7 @@ class modify():
         self.__connection__ = connection
 
 
-    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, notnull: bool = False):
+    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, is_nullable: bool = True):
         """Add, alter, or drop a column in an existing SQL table.
 
         Parameters
@@ -26,7 +26,7 @@ class modify():
         modify (str) : method of modification, see below for description of options
         column_name (str) : name of column
         data_type (str) : if modify='add' or modify='alter', data type and optionally size/precision
-        notnull (bool, default=False) : if modify='alter', specification for if the column is nullable
+        is_nullable (bool, default=True) : if modify='alter', specification for if the column is nullable
 
         modify = 'add' : adds the column to the table
         modify = 'alter' : change the data type or nullability of the column
@@ -46,7 +46,7 @@ class modify():
 
         #### alter a column
 
-        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', notnull=True)
+        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', is_nullable=False)
 
         #### drop a column
 
@@ -107,10 +107,10 @@ class modify():
                 size_column = "+' '+@ColumnSize"
                 parameter_size = ", @ColumnSize VARCHAR(MAX)"
                 value_size = ", @ColumnSize=@ColumnSize"
-            if notnull:
-                null_column = "+' NOT NULL'"
-            else:
+            if is_nullable:
                 null_column = ""
+            else:
+                null_column = "+' NOT NULL'"
             
             args += [dtypes_sql, size]
 

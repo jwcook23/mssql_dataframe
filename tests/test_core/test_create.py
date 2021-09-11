@@ -62,8 +62,8 @@ def test_table_pk(sql):
     table_name = "##test_table_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "FLOAT"}
     primary_key_column = "A"
-    notnull = "B"
-    sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column)
+    not_nullable = "B"
+    sql.create.table(table_name, columns, not_nullable=not_nullable, primary_key_column=primary_key_column)
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
 
     assert len(schema)==3
@@ -84,8 +84,8 @@ def test_table_composite_pk(sql):
     table_name = "##test_table_composite_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "FLOAT"}
     primary_key_column = ["A","B"]
-    notnull = "B"
-    sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column)
+    not_nullable = "B"
+    sql.create.table(table_name, columns, not_nullable=not_nullable, primary_key_column=primary_key_column)
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
 
     assert len(schema)==3
@@ -107,8 +107,8 @@ def test_table_pk_input_error(sql):
         table_name = "##test_table_pk_input_error"
         columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
         primary_key_column = "A"
-        notnull = "B"
-        sql.create.table(table_name, columns, notnull=notnull, primary_key_column=primary_key_column, sql_primary_key=True)
+        not_nullable = "B"
+        sql.create.table(table_name, columns, not_nullable=not_nullable, primary_key_column=primary_key_column, sql_primary_key=True)
 
 
 def test_table_sqlpk(sql):
@@ -144,13 +144,13 @@ def test_table_from_dataframe_simple(sql):
 
     assert len(schema)==1
     assert all(schema.index=='ColumnA')
-    assert all(schema['sql_type']=='bit')
+    assert all(schema['sql_type']=='tinyint')
     assert all(schema['is_nullable']==False)
     assert all(schema['ss_is_identity']==False)
     assert all(schema['pk_seq'].isna())
     assert all(schema['pk_name'].isna())
-    assert all(schema['pandas_type']=='boolean')
-    assert all(schema['odbc_type']==pyodbc.SQL_BIT)
+    assert all(schema['pandas_type']=='UInt8')
+    assert all(schema['odbc_type']==pyodbc.SQL_TINYINT)
     assert all(schema['odbc_size']==1)
     assert all(schema['odbc_precision']==0)
 

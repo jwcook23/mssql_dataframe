@@ -63,9 +63,16 @@ class insert():
             if attempt==self.adjust_sql_attempts-1:
                 raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
 
+        # column names from dataframe contents
+        if any(dataframe.index.names):
+            # named index columns will also have values returned from conversion.prepare_values
+            columns = list(dataframe.index.names)+list(dataframe.columns)
+        else:
+            columns = dataframe.columns
+
         # dynamic SQL object names
         table = dynamic.escape(cursor, table_name)
-        columns = dynamic.escape(cursor, dataframe.columns)
+        columns = dynamic.escape(cursor, columns)
 
         # prepare values of dataframe for insert
         dataframe, values = conversion.prepare_values(schema, dataframe)
@@ -76,10 +83,10 @@ class insert():
         # issue insert statement
         if include_timestamps:
             insert = "_time_insert, "+', '.join(columns)
-            params = "GETDATE(), "+", ".join(["?"]*len(dataframe.columns))
+            params = "GETDATE(), "+", ".join(["?"]*len(columns))
         else:
             insert = ', '.join(columns)
-            params = ", ".join(["?"]*len(dataframe.columns))
+            params = ", ".join(["?"]*len(columns))
         statement = f"""
         INSERT INTO
         {table} (
@@ -117,7 +124,7 @@ class insert():
         include_timestamps = ['_time_insert','_time_update']
         if isinstance(failure, errors.SQLColumnDoesNotExist) and all(columns.isin(include_timestamps)):
             for col in columns:
-                warnings.warn('Creating column {} in table {} with data type DATETIME2.'.format(col, table_name), errors.SQLObjectAdjustment)
+                warnings.warn(f'Creating column {col} in table {table_name} with data type DATETIME2.', errors.SQLObjectAdjustment)
                 self.modify.column(table_name, modify='add', column_name=col, data_type='DATETIME2')
 
         elif self.adjust_sql_objects==False:
@@ -129,20 +136,56 @@ class insert():
 
         elif isinstance(failure, errors.SQLColumnDoesNotExist):
             # infer the data types for new columns
-            new, dtypes, _, _ = infer.sql(dataframe[columns])
-            # add size to string columns
-            dtypes = conversion.string_size(dtypes, new)
-            strings = dtypes[dtypes['sql_type'].isin(['varchar','nvarchar'])].index
-            dtypes['odbc_size'] = dtypes['odbc_size'].astype('string')
-            dtypes.loc[strings,'sql_type'] = dtypes.loc[strings,'sql_type']+'('+dtypes.loc[strings,'odbc_size']+')'
-            dtypes = dtypes['sql_type'].to_dict()
+            new, schema, _, _ = infer.sql(dataframe.loc[:,columns])
+            # determine the SQL data type for each column
+            _, dtypes = conversion.sql_spec(schema, new)
             # add each column
             for col, spec in dtypes.items():
-                self.modify.column(table_name, modify='add', column_name=col, data_type=spec, notnull=False)
+                warnings.warn(f'Creating column {col} in table {table_name} with data type {spec}.', errors.SQLObjectAdjustment)
+                self.modify.column(table_name, modify='add', column_name=col, data_type=spec, is_nullable=True)
             # add potentially adjusted columns back into dataframe
             dataframe[new.columns] = new
 
         elif isinstance(failure, errors.SQLInsufficientColumnSize):
-            pass
+            # temporarily set named index (primary key) as columns
+            index = dataframe.index.names
+            if any(index):
+                dataframe = dataframe.reset_index()
+            # infer the data types for insufficient size columns
+            new, schema, _, _ = infer.sql(dataframe.loc[:,columns])
+            schema, dtypes = conversion.sql_spec(schema, new)
+            # get current table schema
+            previous, _ = conversion.get_schema(self.connection.connection, table_name)
+            strings = previous['sql_type'].isin(['varchar','nvarchar'])
+            previous.loc[strings,'odbc_size'] = previous.loc[strings,'column_size']
+            # insure change within the same sql data type category after inferring dtypes
+            unchanged = previous.loc[schema.index,['sql_type','odbc_size']]==schema[['sql_type','odbc_size']]
+            unchanged = unchanged.all(axis='columns')
+            if any(unchanged):
+                unchanged = list(unchanged[unchanged].index)
+                raise errors.SQLRecastColumnUnchanged(f'Handling SQLInsufficientColumnSize did not result in type or size change for columns: {unchanged}')
+            # insure change doesn't result in different sql data category
+            changed = previous.loc[schema.index,['sql_category']]!=schema[['sql_category']]
+            if any(changed['sql_category']):
+                changed = list(changed[changed['sql_category']].index)
+                raise errors.SQLRecastColumnChangedCategory(f'Handling SQLInsufficientColumnSize resulted in data type category change for columns: {changed}')
+            # drop primary key constraint prior to altering columns, if needed
+            primary_key_columns = previous.loc[previous['pk_seq'].notna(), 'pk_seq'].sort_values(ascending=True).index
+            if len(primary_key_columns)==0:
+                primary_key_name = None
+            else:
+                primary_key_name = previous.loc[primary_key_columns[0],'pk_name']
+                self.modify.primary_key(table_name, modify='drop', columns=primary_key_columns, primary_key_name=primary_key_name)
+            # alter each column
+            for col, spec in dtypes.items():
+                is_nullable = previous.at[col,'is_nullable']
+                warnings.warn(f'Altering column {col} in table {table_name} to data type {spec} with is_nullable={is_nullable}.', errors.SQLObjectAdjustment)
+                self.modify.column(table_name, modify='alter', column_name=col, data_type=spec, is_nullable=is_nullable)
+            # readd primary key if needed
+            if primary_key_name:
+                self.modify.primary_key(table_name, modify='add', columns=list(primary_key_columns), primary_key_name=primary_key_name)
+            # reset primary key columns as dataframe's index
+            if any(index):
+                dataframe = dataframe.set_index(keys=index)
 
         return dataframe

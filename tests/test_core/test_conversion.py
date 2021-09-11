@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import conversion
+from mssql_dataframe.core import conversion, dynamic
 from . import sample
 
 
@@ -96,8 +96,8 @@ def test_sample(sql, data):
     schema, dataframe = conversion.get_schema(connection=sql, table_name='##test_conversion')
 
     # dynamic SQL object names
-    table = conversion.escape(cursor, '##test_conversion')
-    columns = conversion.escape(cursor, data.columns)
+    table = dynamic.escape(cursor, '##test_conversion')
+    columns = dynamic.escape(cursor, data.columns)
 
     # prepare values of dataframe for insert
     dataframe, values = conversion.prepare_values(schema, data)

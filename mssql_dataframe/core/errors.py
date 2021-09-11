@@ -34,6 +34,14 @@ class SQLInsufficientColumnSize(Exception):
     '''Exception for insufficient column size to insert a numeric or string.'''
     pass
 
+class SQLRecastColumnUnchanged(Exception):
+    '''Exception for SQLInsufficientColumnSize handling not resulting in change of type or size.'''
+    pass
+
+class SQLRecastColumnChangedCategory(Exception):
+    '''Exception for SQLInsufficientColumnSize handling resulting in change of data type category.'''
+    pass
+
 class SQLInvalidLengthObjectName(Exception):
     '''Exception for an SQL object name that is too long.'''
     pass

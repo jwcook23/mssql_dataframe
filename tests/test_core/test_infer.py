@@ -3,7 +3,7 @@ import pandas as pd
 from mssql_dataframe.core import infer
 from . import sample
 
-def _check_dtypes(dtypes):
+def _check_schema(dtypes):
     '''Assert expected dtypes are inferred. 
     
     Dataframe column names should be in the form _SQLDataType or _SQLDataType_SomeOtherText.
@@ -36,12 +36,12 @@ def test_dtypes():
     dataframe['_time'] = dataframe['_time'].str.replace('0 days ','')
 
     # infer SQL properties
-    dataframe, dtypes, notnull, pk = infer.sql(dataframe)
+    dataframe, schema, not_nullable, pk = infer.sql(dataframe)
 
     # assert inferred results
-    _check_dtypes(dtypes)
-    _check_dataframe(dataframe, dtypes)
-    assert len(notnull)==0
+    _check_schema(schema)
+    _check_dataframe(dataframe, schema)
+    assert len(not_nullable)==0
     assert pk is None
 
 
@@ -55,18 +55,18 @@ def test_pk():
 
     # infer SQL properties
     df = dataframe
-    df, dtypes, notnull, pk = infer.sql(df)
-    _check_dtypes(dtypes)
-    _check_dataframe(df, dtypes)
-    assert df.columns.isin(notnull).all()
+    df, schema, not_nullable, pk = infer.sql(df)
+    _check_schema(schema)
+    _check_dataframe(df, schema)
+    assert df.columns.isin(not_nullable).all()
     assert pk=='_tinyint_smaller'
 
     # infer SQL properties without numeric
     df = dataframe.select_dtypes(['datetime','string'])
-    df, dtypes, notnull, pk = infer.sql(df)
-    _check_dtypes(dtypes)
-    _check_dataframe(df, dtypes)
-    assert df.columns.isin(notnull).all()
+    df, schema, not_nullable, pk = infer.sql(df)
+    _check_schema(schema)
+    _check_dataframe(df, schema)
+    assert df.columns.isin(not_nullable).all()
     assert pk=='_varchar_smaller'
 
 
@@ -77,8 +77,8 @@ def test_default():
     dataframe['_nvarchar_default'] = None
 
     # infer SQL properties
-    dataframe, dtypes, notnull, pk = infer.sql(dataframe)
-    _check_dtypes(dtypes)
-    _check_dataframe(dataframe, dtypes)
-    assert len(notnull)==0
+    dataframe, schema, not_nullable, pk = infer.sql(dataframe)
+    _check_schema(schema)
+    _check_dataframe(dataframe, schema)
+    assert len(not_nullable)==0
     assert pk is None

@@ -69,7 +69,7 @@ def test_column_alter(sql):
     assert schema.at['B','sql_type']=='int'
     assert schema.at['B', 'is_nullable']==True
 
-    sql.modify.column(table_name, modify='alter', column_name='C', data_type='INT', notnull=True)
+    sql.modify.column(table_name, modify='alter', column_name='C', data_type='INT', is_nullable=False)
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
     assert 'C' in schema.index
     assert schema.at['C','sql_type']=='int'
@@ -80,7 +80,7 @@ def test_primary_key_input_error(sql):
 
     table_name = '##test_primary_key_input_error'
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
-    sql.create.table(table_name, columns, notnull=["A","B"])
+    sql.create.table(table_name, columns, not_nullable=["A","B"])
 
     with pytest.raises(ValueError):
         sql.modify.primary_key(table_name, modify='create', columns=['A','B'], primary_key_name = '_pk_1') 
@@ -90,7 +90,7 @@ def test_primary_key_one_column(sql):
 
     table_name = '##test_primary_key_one_column'
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
-    sql.create.table(table_name, columns, notnull=["A","B"])
+    sql.create.table(table_name, columns, not_nullable=["A","B"])
 
     sql.modify.primary_key(table_name, modify='add', columns='A', primary_key_name = '_pk_1')
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
@@ -106,7 +106,7 @@ def test_primary_key_two_columns(sql):
 
     table_name = '##test_primary_key_two_columns'
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
-    sql.create.table(table_name, columns, notnull=["A","B"])
+    sql.create.table(table_name, columns, not_nullable=["A","B"])
 
     sql.modify.primary_key(table_name, modify='add', columns=['A','B'], primary_key_name = '_pk_1')
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
@@ -130,7 +130,7 @@ def test_alter_primary_key_column(sql):
     primary_key_name = schema.at[primary_key_column, 'pk_name']
 
     sql.modify.primary_key(table_name, modify='drop', columns=primary_key_column, primary_key_name=primary_key_name)
-    sql.modify.column(table_name, modify='alter', column_name=primary_key_column, data_type='INT', notnull=True)
+    sql.modify.column(table_name, modify='alter', column_name=primary_key_column, data_type='INT', is_nullable=False)
     sql.modify.primary_key(table_name, modify='add', columns=primary_key_column, primary_key_name=primary_key_name)
 
     schema, _ = conversion.get_schema(sql.connection.connection, table_name)
