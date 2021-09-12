@@ -117,7 +117,6 @@ def test_sample(sql, data):
     )
     """
     cursor.executemany(statement, values)
-    cursor.commit()
 
     # read data, excluding ID columns that is only to insure sorting
     columns = ', '.join([x for x in data.columns])

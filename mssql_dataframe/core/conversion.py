@@ -212,8 +212,12 @@ def prepare_cursor(schema, dataframe, cursor):
 
     schema = schema[['column_size','min_value','max_value','sql_type','odbc_type','odbc_size','odbc_precision']]
 
-    # insure columns are sorted correctly 
-    schema = schema.loc[dataframe.columns]
+    # insure columns are sorted correctly
+    columns = list(dataframe.columns)
+    index = dataframe.index.names
+    if any(index):
+        columns = list(index)+columns
+    schema = schema.loc[columns]
     
     # use dataframe contents to determine size for strings
     schema, _ = sql_spec(schema, dataframe)

@@ -53,6 +53,7 @@ def test_insert_add_column(sql):
     sql.create.table(table_name, columns={
         'ColumnA': 'TINYINT'
     })
+    sql.connection.connection.commit()
 
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [2], 'ColumnC': ['zzz']})
 
@@ -108,6 +109,7 @@ def test_alter_column(sql):
         'ColumnB': 'VARCHAR(1)',
         'ColumnC': 'TINYINT'
     })
+    sql.connection.connection.commit()
 
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': ['aaa'], 'ColumnC': [100000]})
 
@@ -145,6 +147,9 @@ def test_alter_primary_key(sql):
     dataframe, schema = sql.insert.insert(table_name, dataframe, include_timestamps=False)
     _, dtypes = conversion.sql_spec(schema, dataframe)
     assert dtypes=={'ColumnA': 'tinyint', 'ColumnB': 'tinyint', 'ColumnC': 'varchar(1)'}
+    assert schema.at['ColumnA','pk_seq']==1
+    assert schema.at['ColumnB','pk_seq']==2
+    assert pd.isna(schema.at['ColumnC','pk_seq'])
 
     # insert that alters primary key
     new = pd.DataFrame({
@@ -160,31 +165,42 @@ def test_alter_primary_key(sql):
 
         statement = f'SELECT * FROM {table_name}'
         result = conversion.read_values(statement, schema, sql.connection.connection)
-        assert all(results==dataframe.append(new))
+        assert result.equals(dataframe.append(new))
+        _, dtypes = conversion.sql_spec(schema, new)
+        assert dtypes=={'ColumnA': 'smallint', 'ColumnB': 'tinyint', 'ColumnC': 'varchar(1)'}
+        assert schema.at['ColumnA','pk_seq']==1
+        assert schema.at['ColumnB','pk_seq']==2
+        assert pd.isna(schema.at['ColumnC','pk_seq'])
 
 
-# def test_insert_add_and_alter_column(sql_adjustable):
+def test_add_and_alter_column(sql):
 
-    # table_name = '##test_insert_add_and_alter_column'
-    # dataframe = pd.DataFrame({
-    #     'ColumnA': [0,1,2,3],
-    #     'ColumnB': [0,1,2,3]
-    # })
-    # with warnings.catch_warnings(record=True) as warn:
-    #     sql_adjustable.create.table_from_dataframe(table_name, dataframe, primary_key='index', row_count=1)
-    #     assert len(warn)==1
-    #     assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-    #     assert 'Created table' in str(warn[0].message)
+    table_name = '##test_add_and_alter_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [0,1,2,3],
+        'ColumnB': [0,1,2,3]
+    })
+    with warnings.catch_warnings(record=True) as warn:
+        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        sql.connection.connection.commit()
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
 
-    # dataframe['ColumnB'] = [256,257,258,259]
-    # dataframe['ColumnC'] = [0,1,2,3]
-    # with warnings.catch_warnings(record=True) as warn:
-    #     sql_adjustable.write.insert(table_name, dataframe)
-    #     assert len(warn)==3
-    #     assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-    #     assert 'Creating column _time_insert in table '+table_name in str(warn[0].message)        
-    #     assert 'Creating column ColumnC in table '+table_name in str(warn[1].message)
-    #     assert 'Altering column ColumnB in table '+table_name in str(warn[2].message)        
-    #     results = sql_adjustable.read.select(table_name)
-    #     assert all(results[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-    #     assert all(results['_time_insert'].notna())
+    dataframe['ColumnB'] = [256,257,258,259]
+    dataframe['ColumnC'] = [0,1,2,3]
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        assert len(warn)==3
+        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert str(warn[0].message)==f'Creating column _time_insert in table {table_name} with data type DATETIME2.'        
+        assert str(warn[1].message)==f'Creating column ColumnC in table {table_name} with data type tinyint.'
+        assert str(warn[2].message)==f'Altering column ColumnB in table {table_name} to data type smallint with is_nullable=False.'
+        
+        statement = f'SELECT * FROM {table_name}'
+        result = conversion.read_values(statement, schema, sql.connection.connection)
+        assert result[dataframe.columns].equals(dataframe)
+        assert all(result['_time_insert'].notna())
+
+        _, dtypes = conversion.sql_spec(schema, dataframe)
+        assert dtypes=={'_index': 'tinyint', 'ColumnA': 'tinyint', 'ColumnB': 'smallint', '_time_insert': 'datetime2', 'ColumnC': 'tinyint'}

@@ -125,7 +125,6 @@ class modify():
         args = [x for x in args if x is not None]
         cursor = self.__connection__.connection.cursor()
         cursor.execute(statement, *args)
-        # cursor.commit()
 
 
     def primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
@@ -202,4 +201,3 @@ class modify():
 
         cursor = self.__connection__.connection.cursor()
         cursor.execute(statement, *args)
-        # cursor.commit()

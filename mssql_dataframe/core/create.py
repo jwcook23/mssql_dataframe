@@ -158,7 +158,6 @@ class create():
         # execute statement
         cursor = self.connection.connection.cursor()
         cursor.execute(statement, args)
-        # cursor.commit()
 
 
     def table_from_dataframe(self, table_name: str, dataframe: pd.DataFrame, primary_key : Literal[None,'sql','index','infer'] = None):

@@ -13,7 +13,6 @@ class connect():
     database_name (str, default='master') : name of database to connect to
     server_name (str, default='localhost') : name of server to connect to
     driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
-    fast_executemany (bool, default=True) : increases performance of executemany operations
     username (str, default=None) : if not given, use Windows account credentials to connect
     password (str, default=None) : if not given, use Windows account credentials to connect
 
@@ -41,8 +40,7 @@ class connect():
 
 
     def __init__(self, database_name: str = 'master', server_name: str = 'localhost',
-        driver: str = None, fast_executemany: bool = True,
-        username: str = None, password: str = None):
+        driver: str = None, username: str = None, password: str = None):
 
         driver = self._get_driver(driver)
 
@@ -56,8 +54,6 @@ class connect():
                 driver=driver, server=server_name, database=database_name,
                 autocommit=False, UID=username, PWD=password
             )
-        
-        self.fast_executemany = fast_executemany
 
     @staticmethod
     def _get_driver(driver_search):

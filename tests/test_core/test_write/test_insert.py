@@ -27,6 +27,7 @@ def test_insert_errors(sql):
             'ColumnB': 'VARCHAR(1)',
             'ColumnD': 'DATETIME'
     })
+    sql.connection.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         dataframe = pd.DataFrame({'ColumnA': [1]})
@@ -161,6 +162,7 @@ def test_add_include_timestamps(sql):
 
     # create table
     sql.create.table(table_name, columns={'_bit': 'BIT'})
+    sql.connection.connection.commit()
 
     # insert data
     dataframe, schema = sql.insert.insert(table_name, dataframe)
