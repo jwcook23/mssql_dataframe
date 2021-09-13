@@ -20,9 +20,9 @@ def sql():
     db.connection.close()
 
 
-def test_create_table(sql):
+def test_insert_create_table(sql):
 
-    table_name = '##test_create_table' 
+    table_name = '##test_insert_create_table' 
 
     dataframe = pd.DataFrame({
         "ColumnA": [1,2,3],
@@ -71,9 +71,9 @@ def test_insert_add_column(sql):
         assert all(result['_time_insert'].notna())
 
 
-def test_alter_column_unchanged(sql):
+def test_insert_alter_column_unchanged(sql):
 
-    table_name = '##test_alter_column_unchanged'
+    table_name = '##test_insert_alter_column_unchanged'
     sql.create.table(table_name, columns={
         'ColumnA': 'TINYINT',
         'ColumnB': 'VARCHAR(1)',
@@ -86,9 +86,9 @@ def test_alter_column_unchanged(sql):
         sql.insert.handle(failure, table_name, dataframe)
 
 
-def test_alter_column_data_category(sql):
+def test_insert_alter_column_data_category(sql):
 
-    table_name = '##test_alter_column_data_category'
+    table_name = '##test_insert_alter_column_data_category'
     sql.create.table(table_name, columns={
         'ColumnA': 'TINYINT',
         'ColumnB': 'VARCHAR(1)',
@@ -101,9 +101,9 @@ def test_alter_column_data_category(sql):
         sql.insert.handle(failure, table_name, dataframe)
 
 
-def test_alter_column(sql): 
+def test_insert_alter_column(sql): 
 
-    table_name = '##test_alter_column'
+    table_name = '##test_insert_alter_column'
     sql.create.table(table_name, columns={
         'ColumnA': 'TINYINT',
         'ColumnB': 'VARCHAR(1)',
@@ -130,10 +130,10 @@ def test_alter_column(sql):
         assert dtypes=={'ColumnA': 'tinyint', 'ColumnB': 'varchar(3)', 'ColumnC': 'int', '_time_insert': 'datetime2'}
 
 
-def test_alter_primary_key(sql):
+def test_insert_alter_primary_key(sql):
 
     # inital insert
-    table_name = '##test_alter_primary_key'
+    table_name = '##test_insert_alter_primary_key'
     dataframe = pd.DataFrame({
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3],
@@ -161,7 +161,7 @@ def test_alter_primary_key(sql):
         new, schema = sql.insert.insert(table_name, new, include_timestamps=False)
         assert len(warn)==1
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
-        assert str(warn[0].message)=='Altering column ColumnA in table ##test_alter_primary_key to data type smallint with is_nullable=False.'
+        assert str(warn[0].message)=='Altering column ColumnA in table ##test_insert_alter_primary_key to data type smallint with is_nullable=False.'
 
         statement = f'SELECT * FROM {table_name}'
         result = conversion.read_values(statement, schema, sql.connection.connection)
@@ -173,9 +173,9 @@ def test_alter_primary_key(sql):
         assert pd.isna(schema.at['ColumnC','pk_seq'])
 
 
-def test_add_and_alter_column(sql):
+def test_insert_add_and_alter_column(sql):
 
-    table_name = '##test_add_and_alter_column'
+    table_name = '##test_insert_add_and_alter_column'
     dataframe = pd.DataFrame({
         'ColumnA': [0,1,2,3],
         'ColumnB': [0,1,2,3]

@@ -52,9 +52,9 @@ def test_insert_errors(sql):
         sql.insert.insert(table_name, dataframe=pd.DataFrame({'ColumnA': ['12345-67589']}), include_timestamps=False)
 
 
-def test_dataframe(sql):
+def test_insert_dataframe(sql):
 
-    table_name = '##test_dataframe'
+    table_name = '##test_insert_dataframe'
 
     # sample data
     dataframe = pd.DataFrame({
@@ -100,9 +100,9 @@ def test_dataframe(sql):
     assert dataframe.equals(result[result.columns.drop('_time_insert')])
 
 
-def test_singles(sql):
+def test_insert_singles(sql):
 
-    table_name = '##test_singles'
+    table_name = '##test_insert_singles'
 
     # create table
     columns = {
@@ -131,7 +131,7 @@ def test_singles(sql):
     assert result['ColumnC'].equals(pd.Series([pd.NA, pd.NA, pd.NA, pd.NA, '06-22-2021','06-22-2021'], dtype='datetime64[ns]'))
 
 
-def test_composite_pk(sql):
+def test_insert_composite_pk(sql):
     
     table_name = '##test_insert_composite_pk'
 
@@ -150,9 +150,9 @@ def test_composite_pk(sql):
     assert all(result['ColumnC']==1)
 
 
-def test_add_include_timestamps(sql):
+def test_insert_add_include_timestamps(sql):
 
-    table_name = '##test_add_include_timestamps'
+    table_name = '##test_insert_add_include_timestamps'
 
     # sample data
     dataframe = pd.DataFrame({
