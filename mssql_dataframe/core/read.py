@@ -2,7 +2,7 @@ from typing import Literal
 
 import pandas as pd
 
-from mssql_dataframe.core import dynamic, conversion
+from mssql_dataframe.core import dynamic, conversion, errors
 
 
 class read():
@@ -15,7 +15,7 @@ class read():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.__connection__ = connection
+        self.connection = connection
 
 
     def select(self, table_name: str, column_names: list = None, where: str = None,
@@ -54,28 +54,36 @@ class read():
 
         """
 
-        cursor = self.__connection__.connection.cursor()
+        # cursor = self.connection.connection.cursor()
         
-        schema = conversion.get_schema(self.__connection__, table_name, column_names)
-        primary_key = list(schema[schema['is_primary_key']].index)
+        # get table schema for conversion to pandas
+        schema, _ = conversion.get_schema(self.connection.connection, table_name)
 
-        # sanitize table and column names for safe sql
-        table_clean = dynamic.escape(cursor, table_name)
+        # always read in primary key columns for dataframe index
+        primary_key_columns = list(schema.loc[schema['pk_seq'].notna(),'pk_seq'].sort_values(ascending=True).index)
+
+        # dynamic table and column names, and column_name development
+        table_name = dynamic.escape(self.connection.connection.cursor(), table_name)
         if column_names is None:
             column_names = '*'
         else:
             if isinstance(column_names, str):
                 column_names = [column_names]
-            # always read in the primary_key
-            column_names = [x for x in primary_key if x not in column_names]+column_names
-            column_names = dynamic.escape(cursor, column_names)
+            elif isinstance(column_names, pd.Index):
+                column_names = list(column_names)
+            column_names = primary_key_columns + column_names
+            column_names = list(set(column_names))
+            missing = [x for x in column_names if x not in schema.index]
+            if len(missing)>0:
+                raise errors.SQLColumnDoesNotExist(f'Column does not exist in table {table_name}:', missing)
+            column_names = dynamic.escape(self.connection.connection.cursor(), column_names)
             column_names = "\n,".join(column_names)
 
         # format optional where_statement
         if where is None:
             where_statement, where_args = ("", None)
         else:
-            where_statement, where_args = dynamic.where(cursor, where)
+            where_statement, where_args = dynamic.where(self.connection.connection.cursor(), where)
 
         # format optional limit
         if limit is None:
@@ -92,40 +100,22 @@ class read():
         elif order_direction not in options:
             raise ValueError("order direction must be one of: "+str(options))
         elif order_column is not None:
-            order = "ORDER BY "+dynamic.escape(cursor, order_column)+" "+order_direction
+            order = "ORDER BY "+dynamic.escape(self.connection.connection.cursor(), order_column)+" "+order_direction
         else:
             order = ""
 
 
         # select values
-        statement = """
+        statement = f"""
         SELECT {limit}
             {column_names}
         FROM
             {table_name}
             {where_statement}
             {order}
-        """.format(limit=limit,
-            column_names=column_names, 
-            table_name=table_clean, 
-            where_statement=where_statement, 
-            order=order
-        )
+        """
 
         # read sql query
-        # if where_args is None:
-        #     dataframe = helpers.read_query(self.__connection__, statement, schema=schema)
-        # else:
-        #     dataframe = helpers.read_query(self.__connection__, statement, where_args, schema=schema)
-        dataframe = conversion.read_values(statement, schema, self.__connection.connection)
-
-        # set dataframe index as primary key
-        if len(primary_key)>0:
-            dtype_pk = dataframe.dtypes[primary_key]
-            dataframe = dataframe.set_index(keys=primary_key)
-            # change datatype of single index primary key (multi-index can be object only)
-            if len(primary_key)==1:
-                # use lowercase version to represent non-nullable datatype (ex: int64 for Int64)
-                dataframe.index = dataframe.index.astype(dtype_pk[0].name.lower())
+        dataframe = conversion.read_values(statement, schema, self.connection.connection, where_args)
 
         return dataframe

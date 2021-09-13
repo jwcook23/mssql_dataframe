@@ -24,8 +24,7 @@ def test_insert_errors(sql):
 
     sql.create.table(table_name, columns={
             'ColumnA': 'SMALLINT',
-            'ColumnB': 'VARCHAR(1)',
-            'ColumnD': 'DATETIME'
+            'ColumnB': 'VARCHAR(1)'
     })
     sql.connection.connection.commit()
 

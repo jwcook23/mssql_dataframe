@@ -117,18 +117,17 @@ def get_schema(connection, table_name, dataframe: pd.DataFrame = None, additiona
     schema['pk_name'] = schema['pk_name'].astype('string')
 
     # add conversion rules
-    schema = schema.merge(
-        rules[['sql_category','min_value','max_value','pandas_type','odbc_type','odbc_size','odbc_precision']], 
-        left_on='data_type', right_on='odbc_type', how='left'
-    )
-    schema = schema.drop(columns=['data_type'])
+    identity = schema['sql_type']=='int identity'
+    schema.loc[identity,'sql_type'] = 'int'
+    schema = schema.merge(rules, left_on='sql_type', right_on='sql_type', how='left')
+    schema.loc[identity,'sql_type'] = 'int identity'
 
     # key column_name as index, check for undefined conversion rule
     schema = schema.set_index(keys='column_name')
-    missing = schema[['pandas_type','odbc_type','odbc_size','odbc_precision']].isna().any(axis='columns')
+    missing = schema[rules.columns].isna().any(axis='columns')
     if any(missing):
         missing = missing[missing].index.tolist()
-        raise errors.UndefinedConversionRule(f'columns: {missing}')  
+        raise errors.UndefinedConversionRule('SQL data type conversion to pandas is not defined for columns:',missing)  
 
     # check contents of dataframe against SQL schema & convert
     if dataframe is not None:
@@ -183,7 +182,7 @@ def _precheck_dataframe(schema, dataframe):
             raise errors.SQLInsufficientColumnSize(f'columns: {columns}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}', columns)
 
     # uncoercable dataframe data types
-    invalid = dataframe.dtypes!=schema['pandas_type']
+    invalid = dataframe.dtypes.loc[schema.index]!=schema['pandas_type']
     if any(invalid):
         invalid = list(invalid[invalid].index)
         raise errors.DataframeInvalidDataType(f'columns cannot be converted to their equalivant data type based on the SQL type: {invalid}')
@@ -244,6 +243,9 @@ def sql_spec(schema, dataframe):
     schema (pandas.DataFrame) : column 'odbc_size' set according to size of contents for string columns
     dtypes (dict) : dictionary mapping of each column SQL data type
     '''
+
+    if any(dataframe.index.names):
+        dataframe = dataframe.reset_index()
 
     strings = schema[schema['sql_type'].isin(['varchar','nvarchar'])].index
 
@@ -383,7 +385,7 @@ def prepare_connection(connection):
     return connection
 
 
-def read_values(statement, schema, connection):
+def read_values(statement, schema, connection, args: list = None):
     ''' Read data from SQL into a pandas dataframe.
 
     Parameters
@@ -391,6 +393,7 @@ def read_values(statement, schema, connection):
     statement (str) : statement to execute to get data
     schema (pandas.DataFrame) : output from get_schema function for setting dataframe data types
     connection (pyodbc.Connection) : connection to database
+    args (list, default=None) : arguments to pass for parameter placeholders
 
     Returns
     -------
@@ -405,7 +408,10 @@ def read_values(statement, schema, connection):
     cursor = connection.cursor()
 
     # read data from SQL
-    result = cursor.execute(statement).fetchall()
+    if args is None:
+        result = cursor.execute(statement).fetchall()
+    else:
+        result = cursor.execute(statement, *args).fetchall()
     columns = pd.Series([col[0] for col in cursor.description])
 
     # form output using SQL schema and explicit pandas types
@@ -421,7 +427,7 @@ def read_values(statement, schema, connection):
     keys = list(schema[schema['pk_seq'].notna()].index)
     if keys:
         try:
-            result = result.set_index(keys=list(keys))
+            result = result.set_index(keys=keys)
         except KeyError:
             raise KeyError(f'primary key column missing from query: {keys}')
 
