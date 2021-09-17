@@ -65,6 +65,7 @@ def get_schema(connection, table_name, dataframe: pd.DataFrame = None, additiona
     Returns
     -------
     schema (pandas.DataFrame) : table column specifications and conversion rules
+    dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
 
     '''
 

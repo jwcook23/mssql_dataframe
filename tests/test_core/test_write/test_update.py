@@ -55,15 +55,12 @@ def test_update_primary_key(sql):
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe['ColumnC'] = [5,6]
-    # with warnings.catch_warnings(record=True) as warn:
-    #     sql.update.update(table_name, dataframe[['ColumnC']])
-    #     assert len(warn)==1
-    #     assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-    #     assert 'Creating column _time_update' in str(warn[0].message)
-    # result = sql.read.select(table_name)
-    # assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-    # assert all(result['_time_update'].notna())
-    # assert '_time_insert' not in result.columns
+    sql.update.update(table_name, dataframe=dataframe[['ColumnC']], include_timestamps=False)
+
+    result = sql.read.select(table_name)
+    assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
+    assert all(result['_time_update'].notna())
+    assert '_time_insert' not in result.columns
 
 
 # def test_update_two_match_columns(sql):
