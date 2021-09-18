@@ -6,6 +6,7 @@ Also contains functions for determining other SQL properties.
 from datetime import time
 
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.core import conversion, errors
 

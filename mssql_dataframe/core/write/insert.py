@@ -1,6 +1,7 @@
 import warnings
 
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.core import errors, conversion, dynamic, infer, modify, create
 
@@ -250,6 +251,7 @@ class insert():
 
         Returns
         -------
+
         
         '''
         if isinstance(match_columns,str):
@@ -263,27 +265,20 @@ class insert():
             match_columns = list(schema[schema['pk_seq'].notna()].index)
             if not match_columns:
                 raise errors.SQLUndefinedPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
-        # check check match_column presence is SQL table
-        if sum(schema.index.isin(match_columns))!=len(match_columns):
-            raise errors.SQLColumnDoesNotExist('one of match_columns {} is not found in SQL table {}'.format(match_columns,table_name))
-        # check match_column presence in dataframe, use dataframe index if needed
-        if any(dataframe.index.names):
-            dataframe = dataframe.reset_index()
-        if sum(dataframe.columns.isin(match_columns))!=len(match_columns):
-            raise errors.DataframeUndefinedColumn('one of match_columns {} is not found in the input dataframe'.format(match_columns))
+        # match_column presence is SQL table
+        missing = [x for x in match_columns if x not in schema.index]
+        if missing:
+            raise errors.SQLColumnDoesNotExist(f'match_columns not found in SQL table {table_name}', missing)
+        # match_column presence in dataframe
+        missing = [x for x in match_columns if x not in list(dataframe.index.names)+list(dataframe.columns)]
+        if missing:
+            raise errors.DataframeUndefinedColumn('match_columns not found in dataframe', missing)
 
-        # # check for new columns instead of relying on _attempt_write to prevent error for both temp table and target table
-        # undefined_columns = list(dataframe.columns[~dataframe.columns.isin(schema.index)])
-        # if any(undefined_columns):
-        #     error_class = errors.SQLColumnDoesNotExist(f'Invalid column name: {undefined_columns}')
-        #     dataframe,_ = self.__handle_error(table_name, dataframe, error_class, undefined_columns)
-        #     schema = helpers.get_schema(self.__connection__, table_name)
+        # insert data into source temporary table
+        temp_name = '##__source_'+table_name
+        _, dtypes = conversion.sql_spec(schema.loc[dataframe.columns], dataframe)
+        not_nullable = list(schema[schema['is_nullable']==False].index)
+        self.create.table(temp_name, dtypes, not_nullable, primary_key_column=match_columns)
+        self.insert(temp_name, dataframe, include_timestamps=False)
 
-        # # insert data into temporary table to use for updating/merging
-        # table_temp = "##__"+operation+"_"+table_name
-        # temp = schema[schema.index.isin(list(dataframe.columns)+[dataframe.index.name])]
-        # columns, not_null, primary_key_column, _ = helpers.flatten_schema(temp)
-        # self.__create__.table(table_temp, columns, not_null, primary_key_column, sql_primary_key=False)
-        # self.insert(table_temp, dataframe, include_timestamps=False)
-
-        # return dataframe, match_columns, table_temp
+        return dataframe, match_columns, temp_name

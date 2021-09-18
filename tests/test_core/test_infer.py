@@ -1,4 +1,5 @@
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.core import infer
 from . import sample

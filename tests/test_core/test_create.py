@@ -3,6 +3,7 @@ import warnings
 
 import pytest
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 import pyodbc
 
 from mssql_dataframe import connect

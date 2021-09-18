@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, dynamic

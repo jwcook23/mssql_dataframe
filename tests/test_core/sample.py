@@ -13,6 +13,7 @@ Truncation: truncated values due to SQL precision limit
 '''
 
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 dataframe = pd.DataFrame({
     '_bit': pd.Series([False, True, None, None], dtype='boolean'),

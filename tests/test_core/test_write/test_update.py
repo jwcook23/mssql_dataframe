@@ -2,6 +2,7 @@ import warnings
 
 import pytest
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, conversion
@@ -47,7 +48,7 @@ def test_update_primary_key(sql):
         'ColumnC': [3,4]
     })
     with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
@@ -72,7 +73,7 @@ def test_update_primary_key(sql):
 #         'ColumnC': [3,4]
 #     })
 #     with warnings.catch_warnings(record=True) as warn:
-#         sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
 #         assert len(warn)==1
 #         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
 #         assert 'Created table' in str(warn[0].message)
@@ -102,7 +103,7 @@ def test_update_primary_key(sql):
 #     })
 #     dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
 #     with warnings.catch_warnings(record=True) as warn:
-#         sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
 #         assert len(warn)==1
 #         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
 #         assert 'Created table' in str(warn[0].message)
@@ -124,7 +125,7 @@ def test_update_primary_key(sql):
 #         'ColumnC': [3,4]
 #     })
 #     with warnings.catch_warnings(record=True) as warn:
-#         sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
 #         assert len(warn)==1
 #         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
 #         assert 'Created table' in str(warn[0].message)

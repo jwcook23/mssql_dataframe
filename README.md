@@ -18,6 +18,7 @@ See EXAMPLES.md for full examples.
 
 ``` python
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer

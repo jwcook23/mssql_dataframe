@@ -1,4 +1,5 @@
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 import pytest
 
 from mssql_dataframe import connect

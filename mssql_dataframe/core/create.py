@@ -2,6 +2,7 @@ from typing import Literal
 import warnings
 
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.core import dynamic, errors, conversion, infer
 

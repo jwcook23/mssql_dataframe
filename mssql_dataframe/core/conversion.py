@@ -5,6 +5,7 @@ import struct
 
 import pyodbc
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 import numpy as np
 
 from mssql_dataframe.core import errors
@@ -101,7 +102,7 @@ def get_schema(connection, table_name, dataframe: pd.DataFrame = None, additiona
         missing = columns[~columns.isin(schema['column_name'])]
         if len(missing)>0:
             missing = list(missing)
-            raise errors.SQLColumnDoesNotExist(f'catalog = {catalog}, table_name = {table_name}, columns={missing}', missing)     
+            raise errors.SQLColumnDoesNotExist(f'catalog = {catalog}, table_name = {table_name}, columns={missing}', missing)
     ## format schema
     schema = schema.rename(columns={'type_name': 'sql_type'})
     schema = schema[['column_name','data_type','column_size','sql_type','is_nullable','ss_is_identity']]
@@ -168,7 +169,7 @@ def _precheck_dataframe(schema, dataframe):
     strings = schema['sql_type'].isin(['varchar','nvarchar'])
     schema.loc[strings,'max_value'] = schema.loc[strings,'column_size']
     ## determine min and max of dataframe contents
-    check = dataframe.select_dtypes(include=['number','datetime','timedelta','string'])
+    check = dataframe.select_dtypes(include=['number','datetime','timedelta','string']).copy()
     strings = dataframe.dtypes[dataframe.dtypes=='string'].index
     check[strings] = check[strings].apply(lambda x: x.str.len())
     if len(check.columns)>0:

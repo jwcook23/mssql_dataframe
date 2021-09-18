@@ -18,6 +18,7 @@ With `adjust_sql_objects=True` exceptions will still be raised in certian cases 
 ```python
 import time
 import pandas as pd
+pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer
