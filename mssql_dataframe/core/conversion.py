@@ -245,7 +245,7 @@ def sql_spec(schema, dataframe):
     schema (pandas.DataFrame) : column 'odbc_size' set according to size of contents for string columns
     dtypes (dict) : dictionary mapping of each column SQL data type
     '''
-
+    
     if any(dataframe.index.names):
         dataframe = dataframe.reset_index()
 

@@ -39,15 +39,19 @@ class update(insert):
 
         """
         
+        # prevent setwithcopy errors incase a subset of columns from an original dataframe are being updated
+        dataframe = dataframe.copy()
+
         # create cursor to perform operations
         cursor = self.connection.connection.cursor()
 
         # get target table schema, while checking for errors and adjusting data for inserting
         if include_timestamps:
-            additional_columns = ['_time_insert','_time_update']
+            additional_columns = ['_time_update']
         else:
             additional_columns = None
-        schema, dataframe, match_columns, temp_name = self.source(table_name, dataframe, cursor, match_columns, additional_columns)
+        schema, dataframe, match_columns, temp_name = self.source(table_name, dataframe, 
+            cursor, match_columns, additional_columns, updating_table=True)
 
         # develop basic update syntax
         statement = """

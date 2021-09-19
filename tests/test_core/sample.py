@@ -16,7 +16,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = 'raise'
 
 dataframe = pd.DataFrame({
-    '_bit': pd.Series([False, True, None, None], dtype='boolean'),
+    '_bit': pd.Series([False, True, None, False], dtype='boolean'),
     '_tinyint': pd.Series([0, 255, None, None], dtype='UInt8'),
     '_smallint': pd.Series([-2**15, 2**15-1, None, None], dtype='Int16'),
     '_int': pd.Series([-2**31, 2**31-1, None, None], dtype='Int32'),

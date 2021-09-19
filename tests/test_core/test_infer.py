@@ -50,7 +50,7 @@ def test_pk():
 
     # setup test data
     dataframe = sample.dataframe
-    dataframe = dataframe[dataframe.notna().all(axis='columns')]
+    dataframe = dataframe[dataframe.notna().all(axis='columns')].copy()
     dataframe['_tinyint_smaller'] = pd.Series(range(0,len(dataframe)), dtype='UInt8')
     dataframe['_varchar_smaller'] = dataframe['_varchar'].str.slice(0,1)
 

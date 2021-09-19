@@ -88,17 +88,14 @@ def test_update_two_match_columns(sql):
     dataframe['ColumnC'] = [5,6]
     with warnings.catch_warnings(record=True) as warn:
         updated, schema = sql.update.update(table_name, dataframe, match_columns=['_pk','ColumnA'])
-        assert len(warn)==2
+        assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
-        assert str(warn[0].message)=='Creating column _time_insert in table ##test_update_two_match_columns with data type DATETIME2.'
-        assert str(warn[1].message)=='Creating column _time_update in table ##test_update_two_match_columns with data type DATETIME2.'
+        assert str(warn[0].message)=='Creating column _time_update in table ##test_update_two_match_columns with data type DATETIME2.'
 
     # test result
     statement = f'SELECT * FROM {table_name}'
     result = conversion.read_values(statement, schema, sql.connection.connection)
     assert updated.equals(result[updated.columns])
-    assert result['_time_insert'].isna().all()
     assert result['_time_update'].notna().all()
 
 
