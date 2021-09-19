@@ -21,22 +21,23 @@ def sql():
     db.connection.close()
 
 
-# def test_update_errors(sql):
+def test_update_errors(sql):
 
-#     table_name = '##test_update_errors'
-#     sql.create.table(table_name, columns={
-#             'ColumnA': 'TINYINT',
-#             'ColumnB': 'VARCHAR(1)'
-#     })
+    table_name = '##test_update_errors'
+    sql.create.table(table_name, columns={
+            'ColumnA': 'TINYINT',
+            'ColumnB': 'VARCHAR(1)'
+    })
+    sql.connection.connection.commit()
  
-#     with pytest.raises(errors.SQLTableDoesNotExist):
-#         sql.write.update('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
+    with pytest.raises(errors.SQLTableDoesNotExist):
+        sql.update.update('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
 
-#     with pytest.raises(errors.SQLColumnDoesNotExist):
-#         sql.write.update(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
+    with pytest.raises(errors.SQLColumnDoesNotExist):
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
 
-#     with pytest.raises(errors.SQLInsufficientColumnSize):
-#         sql.write.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
+    with pytest.raises(errors.SQLInsufficientColumnSize):
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
 
 
 def test_update_primary_key(sql):
@@ -52,89 +53,76 @@ def test_update_primary_key(sql):
         assert len(warn)==1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert 'Created table' in str(warn[0].message)
-    sql.update.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe['ColumnC'] = [5,6]
-    sql.update.update(table_name, dataframe=dataframe[['ColumnC']], include_timestamps=False)
+    updated, schema = sql.update.update(table_name, dataframe=dataframe[['ColumnC']], include_timestamps=False)
+    dataframe['ColumnC'] = updated['ColumnC']
 
-    result = sql.read.select(table_name)
-    assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-    assert all(result['_time_update'].notna())
+    # test result
+    statement = f'SELECT * FROM {table_name}'
+    result = conversion.read_values(statement, schema, sql.connection.connection)
+    assert dataframe.equals(result[dataframe.columns])
+    assert '_time_update' not in result.columns
     assert '_time_insert' not in result.columns
 
 
-# def test_update_two_match_columns(sql):
+def test_update_two_match_columns(sql):
 
-#     table_name = '##test_update_two_match_columns'
-#     dataframe = pd.DataFrame({
-#         'ColumnA': [1,2],
-#         'ColumnB': ['a','b'],
-#         'ColumnC': [3,4]
-#     })
-#     with warnings.catch_warnings(record=True) as warn:
-#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
-#         assert len(warn)==1
-#         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-#         assert 'Created table' in str(warn[0].message)
-#     sql.write.insert(table_name, dataframe, include_timestamps=False)
+    table_name = '##test_update_two_match_columns'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    })
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='sql')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+    dataframe, schema = sql.update.insert(table_name, dataframe, include_timestamps=False)
 
-#     # update values in table, using the primary key created in SQL and ColumnA
-#     dataframe = sql.read.select(table_name)
-#     dataframe['ColumnC'] = [5,6]
-#     with warnings.catch_warnings(record=True) as warn:
-#         sql.write.update(table_name, dataframe, match_columns=['_pk','ColumnA'])
-#         assert len(warn)==1
-#         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-#         assert 'Creating column _time_update' in str(warn[0].message)
-#     result = sql.read.select(table_name)
-#     assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-#     assert all(result['_time_update'].notna())
-#     assert '_time_insert' not in result.columns
+    # update values in table, using the primary key created in SQL and ColumnA
+    dataframe = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection.connection)
+    dataframe['ColumnC'] = [5,6]
+    with warnings.catch_warnings(record=True) as warn:
+        updated, schema = sql.update.update(table_name, dataframe, match_columns=['_pk','ColumnA'])
+        assert len(warn)==2
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[1].message, errors.SQLObjectAdjustment)
+        assert str(warn[0].message)=='Creating column _time_insert in table ##test_update_two_match_columns with data type DATETIME2.'
+        assert str(warn[1].message)=='Creating column _time_update in table ##test_update_two_match_columns with data type DATETIME2.'
 
-
-# def test_update_composite_pk(sql):
-
-#     table_name = '##test_update_composite_pk'
-#     dataframe = pd.DataFrame({
-#         'ColumnA': [1,2],
-#         'ColumnB': ['a','b'],
-#         'ColumnC': [3,4]
-#     })
-#     dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
-#     with warnings.catch_warnings(record=True) as warn:
-#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
-#         assert len(warn)==1
-#         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-#         assert 'Created table' in str(warn[0].message)
-#     sql.write.insert(table_name, dataframe, include_timestamps=False)
-
-#     # update values in table, using the primary key created in SQL and ColumnA
-#     dataframe['ColumnC'] = [5,6]
-#     sql.write.update(table_name, dataframe, include_timestamps=False)
-#     result = sql.read.select(table_name)
-#     assert all(result[['ColumnC']]==dataframe[['ColumnC']])
+    # test result
+    statement = f'SELECT * FROM {table_name}'
+    result = conversion.read_values(statement, schema, sql.connection.connection)
+    assert updated.equals(result[updated.columns])
+    assert result['_time_insert'].isna().all()
+    assert result['_time_update'].notna().all()
 
 
-# def test_update_exclude_timestamps(sql):
+def test_update_composite_pk(sql):
 
-#     table_name = '##test_update_exclude_timestamps'
-#     dataframe = pd.DataFrame({
-#         'ColumnA': [1,2],
-#         'ColumnB': ['a','b'],
-#         'ColumnC': [3,4]
-#     })
-#     with warnings.catch_warnings(record=True) as warn:
-#         dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
-#         assert len(warn)==1
-#         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
-#         assert 'Created table' in str(warn[0].message)
-#     sql.write.insert(table_name, dataframe, include_timestamps=False)
+    table_name = '##test_update_composite_pk'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    })
+    dataframe = dataframe.set_index(keys=['ColumnA','ColumnB'])
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
 
-#     # update values in table, using the SQL primary key that came from the dataframe's index
-#     dataframe['ColumnC'] = [5,6]
-#     sql.write.update(table_name, dataframe[['ColumnC']], include_timestamps=False)
-#     result = sql.read.select(table_name)
-#     assert all(result[['ColumnA','ColumnB','ColumnC']]==dataframe[['ColumnA','ColumnB','ColumnC']])
-#     assert '_time_update' not in result.columns
-#     assert '_time_insert' not in result.columns
+    # update values in table, using the primary key created in SQL and ColumnA
+    dataframe['ColumnC'] = [5,6]
+    updated, schema = sql.update.update(table_name, dataframe, include_timestamps=False)
+
+    # test result
+    statement = f'SELECT * FROM {table_name}'
+    result = conversion.read_values(statement, schema, sql.connection.connection)
+    assert result.equals(updated)

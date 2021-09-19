@@ -81,6 +81,9 @@ class create():
         size_vars = [alias_names[idx] if x is not None else None for idx,x in enumerate(size)]
 
         if primary_key_column is not None:
+            missing = [x for x in primary_key_column if x not in columns]
+            if missing:
+                raise KeyError('primary_key_column is not in input varble columns', missing)
             alias_pk = [str(x) for x in list(range(0,len(primary_key_column)))]
         else:
             alias_pk = []

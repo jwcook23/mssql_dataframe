@@ -47,7 +47,7 @@ class update(insert):
             additional_columns = ['_time_insert','_time_update']
         else:
             additional_columns = None
-        dataframe, match_columns, temp_name = self.source(table_name, dataframe, cursor, match_columns, additional_columns)
+        schema, dataframe, match_columns, temp_name = self.source(table_name, dataframe, cursor, match_columns, additional_columns)
 
         # develop basic update syntax
         statement = """
@@ -121,3 +121,5 @@ class update(insert):
         temp_name = dynamic.escape(cursor, temp_name)
         cursor.execute('DROP TABLE '+temp_name)
         cursor.commit()
+
+        return dataframe, schema

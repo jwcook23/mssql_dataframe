@@ -82,7 +82,7 @@ def convert_numeric(dataframe):
     converted = dataframe[columns].astype('boolean')
     skip = ((dataframe[columns]==converted)==False).any()
     # insure there are multiple instances of 0 or 1
-    multiple = dataframe[columns].isin([0,1]).sum()>1
+    multiple = dataframe[columns].isin([0,1]).sum()>2
     # convert if rules upheld
     columns = [x for x in columns if x not in skip[skip].index and x in multiple[multiple].index]
     dataframe[columns] = dataframe[columns].astype('boolean')

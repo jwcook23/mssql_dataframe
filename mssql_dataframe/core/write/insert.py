@@ -276,9 +276,13 @@ class insert():
 
         # insert data into source temporary table
         temp_name = '##__source_'+table_name
-        _, dtypes = conversion.sql_spec(schema.loc[dataframe.columns], dataframe)
+        columns = list(dataframe.columns)
+        if dataframe.index.names is not None:
+            columns = list(dataframe.index.names)+columns
+        _, dtypes = conversion.sql_spec(schema.loc[columns], dataframe)
+        dtypes = {k:v.replace('int identity','int') for k,v in dtypes.items()}
         not_nullable = list(schema[schema['is_nullable']==False].index)
         self.create.table(temp_name, dtypes, not_nullable, primary_key_column=match_columns)
-        self.insert(temp_name, dataframe, include_timestamps=False)
+        _, _ = self.insert(temp_name, dataframe, include_timestamps=False)
 
-        return dataframe, match_columns, temp_name
+        return schema, dataframe, match_columns, temp_name
