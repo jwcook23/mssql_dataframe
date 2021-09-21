@@ -6,7 +6,7 @@ from mssql_dataframe.core.write.insert import insert
 
 
 class update(insert):
-
+    
 
     def update(self, table_name: str, dataframe: pd.DataFrame, match_columns: list = None,
     include_timestamps: bool = True):

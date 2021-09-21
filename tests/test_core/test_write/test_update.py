@@ -68,6 +68,35 @@ def test_update_primary_key(sql):
     assert '_time_insert' not in result.columns
 
 
+def test_update_nonpk_column(sql):
+
+    table_name = '##test_update_nonpk_column'
+    dataframe = pd.DataFrame({
+        'ColumnA': [1,2],
+        'ColumnB': ['a','b'],
+        'ColumnC': [3,4]
+    }).set_index(keys='ColumnA')
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key='index')
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
+
+    # update values in table, using the SQL primary key that came from the dataframe's index
+    dataframe['ColumnB'] = ['c','d']
+    updated, schema = sql.update.update(table_name, dataframe=dataframe[['ColumnB','ColumnC']],
+        match_columns=['ColumnC'], include_timestamps=False)
+    dataframe['ColumnB'] = updated['ColumnB']
+
+    # test result
+    statement = f'SELECT * FROM {table_name}'
+    result = conversion.read_values(statement, schema, sql.connection.connection)
+    assert dataframe.equals(result[dataframe.columns])
+    assert '_time_update' not in result.columns
+    assert '_time_insert' not in result.columns
+
+
 def test_update_two_match_columns(sql):
 
     table_name = '##test_update_two_match_columns'
