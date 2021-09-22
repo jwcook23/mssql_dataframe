@@ -226,6 +226,9 @@ def sql_schema(dataframe):
     # determine SQL type for pandas datetime64[ns]
     schema = _deduplicate_datetime(dataframe, schema)
 
+    # insure schema is in same order ad dataframe columns
+    schema = schema.loc[dataframe.columns]
+
     return schema
 
 
