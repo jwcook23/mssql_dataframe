@@ -61,7 +61,7 @@ class merge(insert):
         else:
             additional_columns = None
         schema, dataframe, match_columns, temp_name = self.source(table_name, dataframe, 
-            cursor, match_columns, additional_columns, updating_table=True)
+            cursor, match_columns, additional_columns)
         
         # develop basic merge syntax
         statement = """

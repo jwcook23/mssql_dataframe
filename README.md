@@ -1,3 +1,13 @@
+<!-- TODO:  document cursor commit where needed-->
+<!-- TODO: remove mssql_dataframe.errors that aren't used -->
+<!-- TODO: make internal only functions private -->
+<!-- TODO: PEP8 and PEP257 standards (pep8.org), documetnation, black formatting -->
+<!-- TODO: type hints, including returns -->
+
+<!-- TODO: merge keep deleted in another table-->
+<!-- TODO: support decimal and numeric types (pandas type extensions) -->
+<!-- TODO: for SQL>2016, use JSON instead of temp table -->
+
 # mssql_dataframe
 
 ![Tests Status](./reports/tests.svg?dummy=8484744)

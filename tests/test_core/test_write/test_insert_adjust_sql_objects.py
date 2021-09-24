@@ -119,8 +119,8 @@ def test_insert_alter_column(sql):
         assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert str(warn[0].message)==f'Creating column _time_insert in table {table_name} with data type DATETIME2.'
-        assert str(warn[1].message)==f'Altering column ColumnC in table {table_name} to data type int with is_nullable=True.'
-        assert str(warn[2].message)==f'Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=True.'
+        assert str(warn[1].message)==f'Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=True.'
+        assert str(warn[2].message)==f'Altering column ColumnC in table {table_name} to data type int with is_nullable=True.'
 
         statement = f'SELECT * FROM {table_name}'
         result = conversion.read_values(statement, schema, sql.connection.connection)

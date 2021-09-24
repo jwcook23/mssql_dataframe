@@ -228,6 +228,7 @@ def sql_schema(dataframe):
 
     # insure schema is in same order ad dataframe columns
     schema = schema.loc[dataframe.columns]
+    schema.index.name = 'column_name'
 
     return schema
 

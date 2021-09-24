@@ -6,15 +6,13 @@ pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, conversion
-from mssql_dataframe.core.write import update
-
-from mssql_dataframe.core.write import update
+from mssql_dataframe.core.write import merge
 
 class package:
     def __init__(self, connection):
         self.connection = connection
         self.create = create.create(connection)
-        self.update = update.update(connection, adjust_sql_objects=True)
+        self.merge = merge.merge(connection, adjust_sql_objects=True)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -23,7 +21,7 @@ def sql():
     db.connection.close()
 
 
-def test_merge_create_table(sql_adjustable):
+def test_merge_create_table(sql):
 
     table_name = "##test_merge_create_table"
     dataframe = pd.DataFrame({
@@ -33,12 +31,13 @@ def test_merge_create_table(sql_adjustable):
         })
 
     with warnings.catch_warnings(record=True) as warn:
-        sql_adjustable.write.merge(table_name, dataframe, match_columns=['_pk'])
+        sql.merge.merge(table_name, dataframe, match_columns=['_pk'])
         assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert 'Creating table '+table_name in str(warn[0].message)
         assert 'Created table '+table_name in str(warn[1].message)
         assert 'Creating column _time_insert in table '+table_name in str(warn[2].message)
+
         results = sql_adjustable.read.select(table_name)
         assert all(results[['_pk','ColumnA','ColumnB']]==dataframe)
         assert all(results['_time_insert'].notna())

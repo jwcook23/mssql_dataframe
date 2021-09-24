@@ -90,8 +90,8 @@ def test_update_alter_column(sql):
         assert len(warn)==3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert str(warn[0].message)==f'Creating column _time_update in table {table_name} with data type DATETIME2.'
-        assert str(warn[1].message)==f'Altering column ColumnC in table {table_name} to data type smallint with is_nullable=False.'
-        assert str(warn[2].message)==f'Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=False.'
+        assert str(warn[1].message)==f'Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=False.'
+        assert str(warn[2].message)==f'Altering column ColumnC in table {table_name} to data type smallint with is_nullable=False.'
 
         result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection.connection)
         assert result[dataframe.columns].equals(dataframe)
