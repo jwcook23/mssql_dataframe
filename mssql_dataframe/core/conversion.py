@@ -164,6 +164,10 @@ def _precheck_dataframe(schema, dataframe):
     ## ignore errors so insufficent column size can first be checked
     dataframe = dataframe.astype(schema['pandas_type'].to_dict(), errors='ignore')
 
+    # TODO: prevent the above from automatically downcasting integers (100000 to 16)
+    # perhaps first convert to the largest appropriate type category, then later to actual type
+    # skip = ((dataframe[columns]==converted)==False).any()
+
     # insufficient column size in SQL table
     ## set string column max_value based on column_size
     strings = schema['sql_type'].isin(['varchar','nvarchar'])
@@ -189,9 +193,11 @@ def _precheck_dataframe(schema, dataframe):
         invalid = list(invalid[invalid].index)
         raise errors.DataframeInvalidDataType(f'columns cannot be converted to their equalivant data type based on the SQL type: {invalid}')
 
-    # reset primary key column as dataframe's index
-    if any(index):
-        dataframe = dataframe.set_index(keys=index)
+    # set primary key column as dataframe's index
+    if any(schema['pk_seq'].notna()):
+        pk = schema['pk_seq'].sort_values()
+        pk = list(pk[pk.notna()].index)
+        dataframe = dataframe.set_index(keys=pk)
 
     return dataframe
 

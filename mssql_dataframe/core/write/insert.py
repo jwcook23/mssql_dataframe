@@ -235,7 +235,7 @@ class insert():
                 cursor.rollback()
                 if attempt==self.adjust_sql_attempts:
                     raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
-                self.handle(failure, table_name, dataframe, updating_table)
+                dataframe = self.handle(failure, table_name, dataframe, updating_table)
                 cursor.commit()
             except Exception as err:
                 cursor.rollback()

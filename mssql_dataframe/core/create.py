@@ -254,9 +254,9 @@ class create():
         Data types: {dtypes}
         '''
         warnings.warn(msg, errors.SQLObjectAdjustment)
-
-        # reset index after it was set as a column for table creation
-        if primary_key=='index':
+        
+        # set primary key column as dataframe index
+        if primary_key_column is not None:
             dataframe = dataframe.set_index(keys=primary_key_column)
     
         return dataframe
