@@ -160,32 +160,41 @@ def _precheck_dataframe(schema, dataframe):
     # only apply to columns in dataframe
     schema = schema[schema.index.isin(dataframe.columns)].copy()
 
-    # convert dataframe based on SQL type
-    ## ignore errors so insufficent column size can first be checked
-    dataframe = dataframe.astype(schema['pandas_type'].to_dict(), errors='ignore')
+    # convert objects to the largest sql_category type to allow for size check (avoids downcast such as UInt8 value of 10000 to 16)
+    convert = dataframe.columns[dataframe.dtypes=='object']
+    try:
+        ## exact numeric
+        columns = convert[schema.loc[convert,'sql_category']=='exact numeric']
+        dataframe[columns] = dataframe[columns].astype('Int64')
+        ## approximate numeric
+        columns = convert[schema.loc[convert,'sql_category']=='approximate numeric']
+        dataframe[columns] = dataframe[columns].astype('float64')
+        ## date time
+        columns = convert[schema.loc[convert,'sql_category']=='date time']
+        dataframe[columns] = dataframe[columns].astype('string')
+        ## character string
+        columns = convert[schema.loc[convert,'sql_category']=='character string']
+        dataframe[columns] = dataframe[columns].astype('string')
+    except TypeError:
+        raise errors.DataframeInvalidDataType('Dataframe columns cannot be converted based on their SQL data type', list(columns))
 
-    # TODO: prevent the above from automatically downcasting integers (100000 to 16)
-    # perhaps first convert to the largest appropriate type category, then later to actual type
-    # skip = ((dataframe[columns]==converted)==False).any()
-
-    # insufficient column size in SQL table
-    ## set string column max_value based on column_size
-    strings = schema['sql_type'].isin(['varchar','nvarchar'])
+    # check for insufficient column size, using min and max of dataframe contents
+    check = dataframe.copy()
+    strings = check.columns[check.dtypes=='string']
     schema.loc[strings,'max_value'] = schema.loc[strings,'column_size']
-    ## determine min and max of dataframe contents
-    check = dataframe.select_dtypes(include=['number','datetime','timedelta','string']).copy()
-    strings = dataframe.dtypes[dataframe.dtypes=='string'].index
     check[strings] = check[strings].apply(lambda x: x.str.len())
-    if len(check.columns)>0:
-        check = check.agg([min, max]).transpose()
-        check = check.merge(schema[['min_value','max_value']], left_index=True, right_index=True)
-        invalid = check[(check['min']<check['min_value']) | (check['max']>check['max_value'])]
-        if len(invalid)>0:
-            invalid = invalid.astype('string')
-            invalid['allowed'] = invalid['min_value']+' to '+invalid['max_value']
-            invalid['actual'] = invalid['min']+' to '+invalid['max']
-            columns = list(invalid.index)
-            raise errors.SQLInsufficientColumnSize(f'columns: {columns}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}', columns)
+    check = check.agg([min, max]).transpose()
+    check = check.merge(schema[['min_value','max_value']], left_index=True, right_index=True)
+    invalid = check[(check['min']<check['min_value']) | (check['max']>check['max_value'])]
+    if len(invalid)>0:
+        invalid = invalid.astype('string')
+        invalid['allowed'] = invalid['min_value']+' to '+invalid['max_value']
+        invalid['actual'] = invalid['min']+' to '+invalid['max']
+        columns = list(invalid.index)
+        raise errors.SQLInsufficientColumnSize(f'columns: {columns}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}', columns)
+
+    # convert dataframe based on SQL type
+    dataframe = dataframe.astype(schema['pandas_type'].to_dict(), errors='ignore')
 
     # uncoercable dataframe data types
     invalid = dataframe.dtypes.loc[schema.index]!=schema['pandas_type']
