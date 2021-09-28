@@ -16,9 +16,6 @@ def data():
 
     df = sample.dataframe
 
-    # increase sample size
-    df = pd.concat([df]*10000).reset_index(drop=True)
-
     # add id column to guarantee SQL read return order
     df.index.name = 'id'
     df = df.reset_index()

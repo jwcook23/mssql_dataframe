@@ -6,7 +6,7 @@ pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, create, conversion
-from mssql_dataframe.core.write import insert
+from mssql_dataframe.core.write import insert, _exceptions
 
 class package:
     def __init__(self, connection):
@@ -84,7 +84,10 @@ def test_insert_alter_column_unchanged(sql):
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': ['a'], 'ColumnC': [1]})  
     failure = errors.SQLInsufficientColumnSize('manually testing expection for ColumnB, ColumnC', ['ColumnB','ColumnC'])
     with pytest.raises(errors.SQLRecastColumnUnchanged):
-        sql.insert._handle(failure, table_name, dataframe, updating_table=False)
+        _exceptions.handle(
+            failure, table_name, dataframe, updating_table=False, adjust_sql_objects=sql.insert.adjust_sql_objects,
+            modifier=sql.insert._modify, creator=sql.insert._create
+        )
 
 
 def test_insert_alter_column_data_category(sql):
@@ -99,7 +102,10 @@ def test_insert_alter_column_data_category(sql):
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [1], 'ColumnC': ['a']})  
     failure = errors.SQLInsufficientColumnSize('manually testing expection for ColumnB, ColumnC', ['ColumnB','ColumnC'])
     with pytest.raises(errors.SQLRecastColumnChangedCategory):
-        sql.insert._handle(failure, table_name, dataframe, updating_table=False)
+        _exceptions.handle(
+            failure, table_name, dataframe, updating_table=False, adjust_sql_objects=sql.insert.adjust_sql_objects,
+            modifier=sql.insert._modify, creator=sql.insert._create
+        )
 
 
 def test_insert_alter_column(sql): 
