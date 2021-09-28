@@ -10,12 +10,12 @@ class insert():
 
     def __init__(self, connection, adjust_sql_objects: bool = False):
 
-        self.connection = connection
+        self._connection = connection
         self.adjust_sql_objects = adjust_sql_objects
         self.adjust_sql_attempts = 3
 
-        self.modify = modify.modify(self.connection)
-        self.create = create.create(self.connection)
+        self._modify = modify.modify(self._connection)
+        self._create = create.create(self._connection)
 
 
     def insert(self,table_name: str, dataframe: pd.DataFrame, include_timestamps: bool = True):
@@ -46,7 +46,7 @@ class insert():
         """
 
         # create cursor to perform operations
-        cursor = self.connection.connection.cursor()
+        cursor = self._connection.connection.cursor()
         cursor.fast_executemany = True
 
         # get target table schema, while checking for errors and adjusting data for inserting
@@ -54,7 +54,7 @@ class insert():
             additional_columns = ['_time_insert']
         else:
             additional_columns = None
-        schema, dataframe = self.target(table_name, dataframe, cursor, additional_columns)
+        schema, dataframe = self._target_table(table_name, dataframe, cursor, additional_columns)
 
         # column names from dataframe contents
         if any(dataframe.index.names):
@@ -94,7 +94,7 @@ class insert():
         return dataframe, schema
 
 
-    def handle(self, failure, table_name: str, dataframe: pd.DataFrame, updating_table: bool):
+    def _handle(self, failure, table_name: str, dataframe: pd.DataFrame, updating_table: bool):
         '''Handle a failed write attempt.
         
         Parameters
@@ -120,7 +120,7 @@ class insert():
         if isinstance(failure, errors.SQLColumnDoesNotExist) and all(columns.isin(include_timestamps)):
             for col in columns:
                 warnings.warn(f'Creating column {col} in table {table_name} with data type DATETIME2.', errors.SQLObjectAdjustment)
-                self.modify.column(table_name, modify='add', column_name=col, data_type='DATETIME2')
+                self._modify.column(table_name, modify='add', column_name=col, data_type='DATETIME2')
 
         elif self.adjust_sql_objects==False:
             raise failure
@@ -129,26 +129,26 @@ class insert():
             if updating_table:
                 raise failure
             else:
-                dataframe = self.create_table(table_name, dataframe)
+                dataframe = self._create_table(table_name, dataframe)
 
         elif isinstance(failure, errors.SQLColumnDoesNotExist):
-            dataframe = self.add_columns(table_name, dataframe, columns)
+            dataframe = self._add_columns(table_name, dataframe, columns)
 
         elif isinstance(failure, errors.SQLInsufficientColumnSize):
-            dataframe = self.alter_columns(table_name, dataframe, columns)
+            dataframe = self._alter_columns(table_name, dataframe, columns)
 
         return dataframe
 
     
-    def create_table(self, table_name, dataframe):
+    def _create_table(self, table_name, dataframe):
 
         warnings.warn('Creating table {}'.format(table_name), errors.SQLObjectAdjustment)
-        dataframe = self.create.table_from_dataframe(table_name, dataframe, primary_key='infer')
+        dataframe = self._create.table_from_dataframe(table_name, dataframe, primary_key='infer')
 
         return dataframe
 
 
-    def add_columns(self, table_name, dataframe, columns):
+    def _add_columns(self, table_name, dataframe, columns):
 
         # infer the data types for new columns
         new, schema, _, _ = infer.sql(dataframe.loc[:,columns])
@@ -157,14 +157,14 @@ class insert():
         # add each column
         for col, spec in dtypes.items():
             warnings.warn(f'Creating column {col} in table {table_name} with data type {spec}.', errors.SQLObjectAdjustment)
-            self.modify.column(table_name, modify='add', column_name=col, data_type=spec, is_nullable=True)
+            self._modify.column(table_name, modify='add', column_name=col, data_type=spec, is_nullable=True)
         # add potentially adjusted columns back into dataframe
         dataframe[new.columns] = new
 
         return dataframe
 
 
-    def alter_columns(self, table_name, dataframe, columns):
+    def _alter_columns(self, table_name, dataframe, columns):
 
         # temporarily set named index (primary key) as columns
         index = dataframe.index.names
@@ -174,7 +174,7 @@ class insert():
         new, schema, _, _ = infer.sql(dataframe.loc[:,columns])
         schema, dtypes = conversion.sql_spec(schema, new)
         # get current table schema
-        previous, _ = conversion.get_schema(self.connection.connection, table_name)
+        previous, _ = conversion.get_schema(self._connection.connection, table_name)
         strings = previous['sql_type'].isin(['varchar','nvarchar'])
         previous.loc[strings,'odbc_size'] = previous.loc[strings,'column_size']
         # insure change within the same sql data type category after inferring dtypes
@@ -194,15 +194,15 @@ class insert():
             primary_key_name = None
         else:
             primary_key_name = previous.loc[primary_key_columns[0],'pk_name']
-            self.modify.primary_key(table_name, modify='drop', columns=primary_key_columns, primary_key_name=primary_key_name)
+            self._modify.primary_key(table_name, modify='drop', columns=primary_key_columns, primary_key_name=primary_key_name)
         # alter each column
         for col, spec in dtypes.items():
             is_nullable = previous.at[col,'is_nullable']
             warnings.warn(f'Altering column {col} in table {table_name} to data type {spec} with is_nullable={is_nullable}.', errors.SQLObjectAdjustment)
-            self.modify.column(table_name, modify='alter', column_name=col, data_type=spec, is_nullable=is_nullable)
+            self._modify.column(table_name, modify='alter', column_name=col, data_type=spec, is_nullable=is_nullable)
         # readd primary key if needed
         if primary_key_name:
-            self.modify.primary_key(table_name, modify='add', columns=list(primary_key_columns), primary_key_name=primary_key_name)
+            self._modify.primary_key(table_name, modify='add', columns=list(primary_key_columns), primary_key_name=primary_key_name)
         # reset primary key columns as dataframe's index
         if any(index):
             dataframe = dataframe.set_index(keys=index)
@@ -210,7 +210,7 @@ class insert():
         return dataframe
 
 
-    def target(self, table_name, dataframe, cursor, additional_columns: list = None, updating_table: bool=False):
+    def _target_table(self, table_name, dataframe, cursor, additional_columns: list = None, updating_table: bool=False):
         ''' Get target schema, potentially handle errors, and adjust dataframe contents before inserting into target table.
 
         Parameters
@@ -229,13 +229,13 @@ class insert():
 
         for attempt in range(0, self.adjust_sql_attempts+1):
             try:
-                schema, dataframe = conversion.get_schema(self.connection.connection, table_name, dataframe, additional_columns)
+                schema, dataframe = conversion.get_schema(self._connection.connection, table_name, dataframe, additional_columns)
                 break
             except (errors.SQLTableDoesNotExist, errors.SQLColumnDoesNotExist, errors.SQLInsufficientColumnSize) as failure:
                 cursor.rollback()
                 if attempt==self.adjust_sql_attempts:
                     raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
-                dataframe = self.handle(failure, table_name, dataframe, updating_table)
+                dataframe = self._handle(failure, table_name, dataframe, updating_table)
                 cursor.commit()
             except Exception as err:
                 cursor.rollback()
@@ -244,7 +244,7 @@ class insert():
         return schema, dataframe
 
 
-    def source(self, table_name, dataframe, cursor, match_columns: list = None, additional_columns: list = None,
+    def _source_table(self, table_name, dataframe, cursor, match_columns: list = None, additional_columns: list = None,
         updating_table: bool = False):
         '''Create a source table with data in SQL for update and merge operations.
         
@@ -266,7 +266,7 @@ class insert():
             match_columns = [match_columns]
 
         # get target table schema, while checking for errors and adjusting data for inserting
-        schema, dataframe = self.target(table_name, dataframe, cursor, additional_columns, updating_table)
+        schema, dataframe = self._target_table(table_name, dataframe, cursor, additional_columns, updating_table)
 
         # use primary key if match_columns is not given
         if match_columns is None:
@@ -290,7 +290,7 @@ class insert():
         _, dtypes = conversion.sql_spec(schema.loc[columns], dataframe)
         dtypes = {k:v.replace('int identity','int') for k,v in dtypes.items()}
         not_nullable = list(schema[schema['is_nullable']==False].index)
-        self.create.table(temp_name, dtypes, not_nullable, primary_key_column=match_columns)
+        self._create.table(temp_name, dtypes, not_nullable, primary_key_column=match_columns)
         _, _ = self.insert(temp_name, dataframe, include_timestamps=False)
 
         return schema, dataframe, match_columns, temp_name

@@ -84,7 +84,7 @@ def test_insert_alter_column_unchanged(sql):
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': ['a'], 'ColumnC': [1]})  
     failure = errors.SQLInsufficientColumnSize('manually testing expection for ColumnB, ColumnC', ['ColumnB','ColumnC'])
     with pytest.raises(errors.SQLRecastColumnUnchanged):
-        sql.insert.handle(failure, table_name, dataframe, updating_table=False)
+        sql.insert._handle(failure, table_name, dataframe, updating_table=False)
 
 
 def test_insert_alter_column_data_category(sql):
@@ -99,7 +99,7 @@ def test_insert_alter_column_data_category(sql):
     dataframe = pd.DataFrame({'ColumnA': [1], 'ColumnB': [1], 'ColumnC': ['a']})  
     failure = errors.SQLInsufficientColumnSize('manually testing expection for ColumnB, ColumnC', ['ColumnB','ColumnC'])
     with pytest.raises(errors.SQLRecastColumnChangedCategory):
-        sql.insert.handle(failure, table_name, dataframe, updating_table=False)
+        sql.insert._handle(failure, table_name, dataframe, updating_table=False)
 
 
 def test_insert_alter_column(sql): 

@@ -16,7 +16,7 @@ class read():
         connection (mssql_dataframe.connect) : connection for executing statement
         '''
 
-        self.connection = connection
+        self._connection = connection
 
 
     def select(self, table_name: str, column_names: list = None, where: str = None,
@@ -54,17 +54,15 @@ class read():
         read.select('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
 
         """
-
-        # cursor = self.connection.connection.cursor()
         
         # get table schema for conversion to pandas
-        schema, _ = conversion.get_schema(self.connection.connection, table_name)
+        schema, _ = conversion.get_schema(self._connection.connection, table_name)
 
         # always read in primary key columns for dataframe index
         primary_key_columns = list(schema.loc[schema['pk_seq'].notna(),'pk_seq'].sort_values(ascending=True).index)
 
         # dynamic table and column names, and column_name development
-        table_name = dynamic.escape(self.connection.connection.cursor(), table_name)
+        table_name = dynamic.escape(self._connection.connection.cursor(), table_name)
         if column_names is None:
             column_names = '*'
         else:
@@ -77,14 +75,14 @@ class read():
             missing = [x for x in column_names if x not in schema.index]
             if len(missing)>0:
                 raise errors.SQLColumnDoesNotExist(f'Column does not exist in table {table_name}:', missing)
-            column_names = dynamic.escape(self.connection.connection.cursor(), column_names)
+            column_names = dynamic.escape(self._connection.connection.cursor(), column_names)
             column_names = "\n,".join(column_names)
 
         # format optional where_statement
         if where is None:
             where_statement, where_args = ("", None)
         else:
-            where_statement, where_args = dynamic.where(self.connection.connection.cursor(), where)
+            where_statement, where_args = dynamic.where(self._connection.connection.cursor(), where)
 
         # format optional limit
         if limit is None:
@@ -101,7 +99,7 @@ class read():
         elif order_direction not in options:
             raise ValueError("order direction must be one of: "+str(options))
         elif order_column is not None:
-            order = "ORDER BY "+dynamic.escape(self.connection.connection.cursor(), order_column)+" "+order_direction
+            order = "ORDER BY "+dynamic.escape(self._connection.connection.cursor(), order_column)+" "+order_direction
         else:
             order = ""
 
@@ -117,6 +115,6 @@ class read():
         """
 
         # read sql query
-        dataframe = conversion.read_values(statement, schema, self.connection.connection, where_args)
+        dataframe = conversion.read_values(statement, schema, self._connection.connection, where_args)
 
         return dataframe
