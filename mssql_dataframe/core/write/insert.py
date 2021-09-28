@@ -8,11 +8,11 @@ from mssql_dataframe.core import errors, conversion, dynamic, infer, modify, cre
 
 class insert():
 
-    def __init__(self, connection, adjust_sql_objects: bool = False, adjust_sql_attempts: int = 3):
+    def __init__(self, connection, adjust_sql_objects: bool = False):
 
         self.connection = connection
         self.adjust_sql_objects = adjust_sql_objects
-        self.adjust_sql_attempts = adjust_sql_attempts
+        self.adjust_sql_attempts = 3
 
         self.modify = modify.modify(self.connection)
         self.create = create.create(self.connection)
