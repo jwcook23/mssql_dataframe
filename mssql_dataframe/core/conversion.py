@@ -314,7 +314,7 @@ def prepare_values(schema, dataframe):
     truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds%100>0))
     if any(truncation):
         truncation = list(truncation[truncation].index)
-        warnings.warn(f'Nanosecond precision for columns {truncation} will be truncated as TIME allows 7 max decimal places..')
+        warnings.warn(f'Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type TIME allows 7 max decimal places.')
         nanosecond = dataframe[dtype].apply(lambda x: pd.to_timedelta((x.dt.nanoseconds//100)*100))
         dataframe[dtype] = dataframe[dtype].apply(lambda x: x.dt.floor(freq='us'))
         dataframe[dtype] = dataframe[dtype]+nanosecond
@@ -331,7 +331,7 @@ def prepare_values(schema, dataframe):
     truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond%100>0))
     if any(truncation):
         truncation = list(truncation[truncation].index)
-        warnings.warn(f'Nanosecond precision for columns {truncation} will be truncated as DATETIME2 allows 7 max decimal places.')
+        warnings.warn(f'Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type DATETIME2 allows 7 max decimal places.')
         nanosecond = dataframe[dtype].apply(lambda x: pd.to_timedelta((x.dt.nanosecond//100)*100))
         dataframe[dtype] = dataframe[dtype].apply(lambda x: x.dt.floor(freq='us'))
         dataframe[dtype] = dataframe[dtype]+nanosecond

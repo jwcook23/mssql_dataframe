@@ -7,13 +7,6 @@ class EnvironmentODBCDriverNotFound(Exception):
 class UndefinedConversionRule(Exception):
     '''Exception for undefined conversion rule between pandas, ODBC, and SQL.'''
 
-class SQLGeneral(Exception):
-    '''General error to prevent exposing SQL server specific error messages.'''
-    pass
-
-class SQLInvalidInsertFormat(Exception):
-    '''Exception for value in an incorrect format such as a date string of mm/dd/yyyy.'''
-
 class SQLTableDoesNotExist(Exception):
     '''Exception for SQL table that does not exist.'''
     pass
@@ -45,9 +38,6 @@ class SQLRecastColumnChangedCategory(Exception):
 class SQLInvalidLengthObjectName(Exception):
     '''Exception for an SQL object name that is too long.'''
     pass
-
-class SQLInvalidDataType(Exception):
-    '''Exception for invalid SQL data type.'''
 
 class SQLObjectAdjustment(Warning):
     '''Warning for creating of modifying an SQL object'''

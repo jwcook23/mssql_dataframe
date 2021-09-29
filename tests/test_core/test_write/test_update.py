@@ -34,10 +34,10 @@ def test_update_errors(sql):
         sql.update.update('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
-        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'], include_timestamps=False)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
-        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'], include_timestamps=False)
 
 
 def test_update_primary_key(sql):

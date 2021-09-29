@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 pd.options.mode.chained_assignment = 'raise'
 import pytest
@@ -98,7 +100,12 @@ def test_sample(sql, data):
     columns = dynamic.escape(cursor, data.columns)
 
     # prepare values of dataframe for insert
-    dataframe, values = conversion.prepare_values(schema, data)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, values = conversion.prepare_values(schema, data)
+        assert len(warn)==2
+        assert all([isinstance(x.message, UserWarning) for x in warn])
+        assert str(warn[0].message)=="Nanosecond precision for dataframe columns ['_time'] will be truncated as SQL data type TIME allows 7 max decimal places."
+        assert str(warn[1].message)=="Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
 
     # prepare cursor for input data types and sizes
     cursor = conversion.prepare_cursor(schema, dataframe, cursor)

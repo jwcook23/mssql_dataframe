@@ -31,16 +31,16 @@ def test_merge_errors(sql):
     sql.connection.connection.commit()
  
     with pytest.raises(errors.SQLTableDoesNotExist):
-        sql.merge.merge('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}))
+        sql.merge.merge('error'+table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), include_timestamps=False)
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
-        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'])
+        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [0],'ColumnC': [1]}), match_columns=['ColumnA'], include_timestamps=False)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
-        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'])
+        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'], include_timestamps=False)
 
     with pytest.raises(ValueError):
-        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), upsert=True, delete_conditions=["ColumnB"])
+        sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), upsert=True, delete_conditions=["ColumnB"], include_timestamps=False)
 
 
 def test_merge_keep_unmatched(sql):

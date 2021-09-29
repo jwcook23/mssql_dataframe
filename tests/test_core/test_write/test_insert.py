@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 import pandas as pd
 pd.options.mode.chained_assignment = 'raise'
@@ -92,7 +94,11 @@ def test_insert_dataframe(sql):
     sql.create.table(table_name, columns)
 
     # insert data
-    dataframe, schema = sql.insert.insert(table_name, dataframe)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, UserWarning)
+        assert str(warn[0].message)=="Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
 
     # test result
     statement = f'SELECT * FROM {table_name}'
@@ -165,7 +171,11 @@ def test_insert_add_include_timestamps(sql):
     sql.connection.connection.commit()
 
     # insert data
-    dataframe, schema = sql.insert.insert(table_name, dataframe)
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert str(warn[0].message)==f'Creating column _time_insert in table {table_name} with data type DATETIME2.'
 
     # test result
     statement = f'SELECT * FROM {table_name}'
