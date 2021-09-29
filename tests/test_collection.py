@@ -4,7 +4,7 @@ from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer
 from mssql_dataframe.core import errors
 
-attributes = ['connection','create','modify','read','insert','update','merge']
+attributes = ['connection','create','modify','read','write']
 
 def test_SQLServer():
     
@@ -16,8 +16,8 @@ def test_SQLServer():
         assert len(warn)==0
         sql = SQLServer(db, adjust_sql_objects=False)
         assert isinstance(sql, SQLServer)
-        assert all([hasattr(sql,x) for x in attributes])
-        
+        assert list(vars(sql).keys())==attributes
+    
     # adjust_sql_objects==True
     with warnings.catch_warnings(record=True) as warn:
         adjustable = SQLServer(db, adjust_sql_objects=True)
@@ -25,4 +25,4 @@ def test_SQLServer():
         assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
         assert str(warn[0].message)=='SQL objects will be created/modified as needed as adjust_sql_objects=True'
         assert isinstance(adjustable, SQLServer)
-        assert all([hasattr(adjustable,x) for x in attributes])
+        assert list(vars(sql).keys())==attributes

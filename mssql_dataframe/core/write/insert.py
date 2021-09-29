@@ -12,8 +12,12 @@ class insert():
 
         self._connection = connection
         self.adjust_sql_objects = adjust_sql_objects
-        self.adjust_sql_attempts = 3
 
+        # max attempts for creating/modifing SQL tables
+        # value of 3 will: add include_timestamps columns and/or add other columns and/or increase column size
+        self._adjust_sql_attempts = 3
+
+        # handle failures if adjust_sql_objects==True
         self._modify = modify.modify(self._connection)
         self._create = create.create(self._connection)
 
@@ -111,14 +115,14 @@ class insert():
         dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
         '''
 
-        for attempt in range(0, self.adjust_sql_attempts+1):
+        for attempt in range(0, self._adjust_sql_attempts+1):
             try:
                 schema, dataframe = conversion.get_schema(self._connection.connection, table_name, dataframe, additional_columns)
                 break
             except (errors.SQLTableDoesNotExist, errors.SQLColumnDoesNotExist, errors.SQLInsufficientColumnSize) as failure:
                 cursor.rollback()
-                if attempt==self.adjust_sql_attempts:
-                    raise RecursionError(f'adjust_sql_attempts={self.adjust_sql_attempts} reached')
+                if attempt==self._adjust_sql_attempts:
+                    raise RecursionError(f'adjust_sql_attempts={self._adjust_sql_attempts} reached')
                 dataframe = _exceptions.handle(failure, table_name, dataframe, updating_table, self.adjust_sql_objects, self._modify, self._create)
                 cursor.commit()
             except Exception as err:

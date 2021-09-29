@@ -2,7 +2,8 @@ import warnings
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import create, errors, modify, read
-from mssql_dataframe.core.write import insert, update, merge
+from mssql_dataframe.core.write.write import write
+
 
 class SQLServer():
     """
@@ -28,17 +29,14 @@ class SQLServer():
 
     """
 
-
     def __init__(self, connection: connect.connect, adjust_sql_objects: bool = False):
     
         # initialize mssql_dataframe functionality with shared connection
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.modify = modify.modify(connection)
         self.read = read.read(connection)
-        self.insert = insert.insert(connection)
-        self.update = update.update(connection)
-        self.merge = merge.merge(connection)
+        self.write = write(connection, adjust_sql_objects)
 
         if adjust_sql_objects:
             warnings.warn("SQL objects will be created/modified as needed as adjust_sql_objects=True", errors.SQLObjectAdjustment)
