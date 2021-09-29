@@ -1,7 +1,8 @@
 import pandas as pd
 pd.options.mode.chained_assignment = 'raise'
+import pytest
 
-from mssql_dataframe.core import infer
+from mssql_dataframe.core import infer, errors
 from . import sample
 
 def _check_schema(dtypes):
@@ -83,3 +84,12 @@ def test_default():
     _check_dataframe(dataframe, schema)
     assert len(not_nullable)==0
     assert pk is None
+
+
+def test_sql_schema_errors():
+
+    dataframe = pd.DataFrame({
+        'ColumnA': pd.Series([1,2,3], dtype='category')
+    })
+    with pytest.raises(errors.UndefinedConversionRule):
+        infer.sql_schema(dataframe)

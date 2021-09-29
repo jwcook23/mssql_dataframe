@@ -161,14 +161,10 @@ class insert():
             match_columns = list(schema[schema['pk_seq'].notna()].index)
             if not match_columns:
                 raise errors.SQLUndefinedPrimaryKey('SQL table {} has no primary key. Either set the primary key or specify the match_columns'.format(table_name))
-        # match_column presence is SQL table
-        missing = [x for x in match_columns if x not in schema.index]
-        if missing:
-            raise errors.SQLColumnDoesNotExist(f'match_columns not found in SQL table {table_name}', missing)
         # match_column presence in dataframe
         missing = [x for x in match_columns if x not in list(dataframe.index.names)+list(dataframe.columns)]
         if missing:
-            raise errors.DataframeUndefinedColumn('match_columns not found in dataframe', missing)
+            raise errors.DataframeColumnDoesNotExist('match_columns not found in dataframe', missing)
 
         # insert data into source temporary table
         temp_name = '##__source_'+table_name

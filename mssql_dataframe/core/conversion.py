@@ -194,13 +194,7 @@ def _precheck_dataframe(schema, dataframe):
         raise errors.SQLInsufficientColumnSize(f'columns: {columns}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}', columns)
 
     # convert dataframe based on SQL type
-    dataframe = dataframe.astype(schema['pandas_type'].to_dict(), errors='ignore')
-
-    # uncoercable dataframe data types
-    invalid = dataframe.dtypes.loc[schema.index]!=schema['pandas_type']
-    if any(invalid):
-        invalid = list(invalid[invalid].index)
-        raise errors.DataframeInvalidDataType(f'columns cannot be converted to their equalivant data type based on the SQL type: {invalid}')
+    dataframe = dataframe.astype(schema['pandas_type'].to_dict())
 
     # set primary key column as dataframe's index
     if any(schema['pk_seq'].notna()):

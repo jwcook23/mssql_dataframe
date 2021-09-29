@@ -43,9 +43,9 @@ def test_merge_errors(sql):
         sql.merge.merge(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), upsert=True, delete_conditions=["ColumnB"], include_timestamps=False)
 
 
-def test_merge_keep_unmatched(sql):
+def test_merge_upsert(sql):
     
-    table_name = "##test_merge_keep_unmatched"
+    table_name = "##test_merge_upsert"
     dataframe = pd.DataFrame({
         'ColumnA': [3,4]
     })
@@ -56,7 +56,7 @@ def test_merge_keep_unmatched(sql):
         assert 'Created table' in str(warn[0].message)
     dataframe, schema = sql.merge.insert(table_name, dataframe, include_timestamps=False)
 
-    # delete
+    # delete, but keep in SQL since upserting
     dataframe = dataframe[dataframe.index!=0].copy()
     # update
     dataframe.loc[dataframe.index==1,'ColumnA'] = 5
@@ -64,10 +64,11 @@ def test_merge_keep_unmatched(sql):
     dataframe = dataframe.append(pd.Series([6], index=['ColumnA'], name=2))
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
-    dataframe, schema = sql.merge.merge(table_name, dataframe, upsert=False, include_timestamps=False)
+    dataframe, schema = sql.merge.merge(table_name, dataframe, upsert=True, include_timestamps=False)
 
     result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection.connection)
-    assert dataframe.equals(result)
+    assert dataframe.equals(result.loc[[1,2]])
+    assert result.loc[0].equals(pd.Series([3], dtype='UInt8',index=['ColumnA']))
     assert '_time_update' not in result.columns
     assert '_time_insert' not in result.columns
 
@@ -141,6 +142,41 @@ def test_merge_two_match_columns(sql):
     assert result[dataframe.columns].equals(dataframe)
     assert all(result['_time_update'].notna()==[True,False])
     assert all(result['_time_insert'].notna()==[False,True])
+
+
+def test_merge_non_pk_column(sql):
+
+    table_name = "##test_merge_non_pk_column"
+    dataframe = pd.DataFrame({
+        'State': ['A','B'],
+        'ColumnA': [3,4],
+        'ColumnB': ['a','b']
+    })
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
+        assert len(warn)==1
+        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert 'Created table' in str(warn[0].message)
+    dataframe, schema = sql.merge.insert(table_name, dataframe, include_timestamps=False)
+
+    # delete
+    dataframe = dataframe[dataframe.index!=0]
+    dataframe = dataframe.reset_index(drop=True)
+    # update
+    dataframe.loc[dataframe.index==1,'ColumnA'] = 5
+    # insert
+    dataframe = dataframe.append(pd.DataFrame({'State': ['C'], 'ColumnA': [6], 'ColumnB': ['d']}, index=[1]))
+
+    # merge values into table, using a single column that is not the primary key
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe, schema = sql.merge.merge(table_name, dataframe, match_columns=['State'])
+        assert len(warn)==2
+        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert str(warn[0].message)==f'Creating column _time_update in table {table_name} with data type DATETIME2.'
+        assert str(warn[1].message)==f'Creating column _time_insert in table {table_name} with data type DATETIME2.'
+
+    result = conversion.read_values(f'SELECT * FROM {table_name} ORDER BY _time_update DESC', schema, sql.connection.connection)
+    assert result[dataframe.columns].equals(dataframe)
 
 
 def test_merge_composite_pk(sql):

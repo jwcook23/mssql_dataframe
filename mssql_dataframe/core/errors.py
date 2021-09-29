@@ -43,7 +43,7 @@ class SQLObjectAdjustment(Warning):
     '''Warning for creating of modifying an SQL object'''
     pass
 
-class DataframeUndefinedColumn(Exception):
+class DataframeColumnDoesNotExist(Exception):
     '''Exception for undefined dataframe column.'''
     pass
 

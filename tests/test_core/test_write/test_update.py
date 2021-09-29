@@ -39,6 +39,15 @@ def test_update_errors(sql):
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [100000],'ColumnB': ['aaa']}), match_columns=['ColumnA'], include_timestamps=False)
 
+    with pytest.raises(errors.SQLUndefinedPrimaryKey):
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [1],'ColumnB': ['a']}), include_timestamps=False)
+
+    with pytest.raises(errors.SQLColumnDoesNotExist):
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [1],'ColumnB': ['a'], 'ColumnC':[1]}), match_columns=['ColumnC'], include_timestamps=False)
+
+    with pytest.raises(errors.DataframeColumnDoesNotExist):
+        sql.update.update(table_name, dataframe=pd.DataFrame({'ColumnA': [1]}), match_columns=['ColumnB'], include_timestamps=False)
+
 
 def test_update_primary_key(sql):
 
@@ -86,7 +95,7 @@ def test_update_nonpk_column(sql):
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe['ColumnB'] = ['c','d']
     updated, schema = sql.update.update(table_name, dataframe=dataframe[['ColumnB','ColumnC']],
-        match_columns=['ColumnC'], include_timestamps=False)
+        match_columns='ColumnC', include_timestamps=False)
     dataframe['ColumnB'] = updated['ColumnB']
 
     # test result

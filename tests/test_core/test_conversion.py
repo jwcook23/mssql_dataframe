@@ -3,6 +3,7 @@ import warnings
 import pandas as pd
 pd.options.mode.chained_assignment = 'raise'
 import pytest
+import pyodbc
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import conversion, dynamic
@@ -131,3 +132,28 @@ def test_sample(sql, data):
     # compare result to insert
     ## note comparing to dataframe as values may have changed during insert preperation
     assert result.equals(dataframe.set_index(keys='id'))
+
+
+def test_prepare_values_errors():
+
+    schema = pd.DataFrame({
+        'odbc_type': pd.Series([pyodbc.SQL_SS_TIME2])
+    })
+    schema.index = ['ColumnA']
+    dataframe = pd.DataFrame({
+        'ColumnA': [pd.Timedelta(days=2)]
+    })
+    # error for a time value outside of allowed range
+    with pytest.raises(ValueError):
+        conversion.prepare_values(schema, dataframe)
+
+
+def test_read_values_errors(sql):
+    
+    schema, _ = conversion.get_schema(connection=sql, table_name='##test_conversion')
+    # error for a column missingin schema definition
+    with pytest.raises(AttributeError):
+        conversion.read_values(statement='SELECT * FROM ##test_conversion', schema=schema[schema.index!='id'], connection=sql)
+    # error for primary key missing from query statement
+    with pytest.raises(KeyError):
+        conversion.read_values(statement='SELECT _bit FROM ##test_conversion', schema=schema, connection=sql)

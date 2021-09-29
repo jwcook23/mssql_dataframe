@@ -38,6 +38,15 @@ def sample():
     return dataframe
 
 
+def test_table_errors(sql):
+
+    table_name = '##test_table_column'
+
+    with pytest.raises(KeyError):
+        columns = {"A": "VARCHAR"}
+        sql.create.table(table_name, columns, primary_key_column="Z")
+
+
 def test_table_column(sql):
 
     table_name = '##test_table_column'
