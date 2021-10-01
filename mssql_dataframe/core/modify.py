@@ -3,20 +3,25 @@ from typing import Literal
 from mssql_dataframe.core import dynamic
 
 
-class modify():
-
+class modify:
     def __init__(self, connection):
-        '''Class for modifying SQL table columns.
-        
+        """Class for modifying SQL table columns.
+
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
-        '''
+        """
 
         self._connection = connection
 
-
-    def column(self, table_name: str, modify: Literal['add','alter','drop'], column_name: str, data_type: str = None, is_nullable: bool = True):
+    def column(
+        self,
+        table_name: str,
+        modify: Literal["add", "alter", "drop"],
+        column_name: str,
+        data_type: str = None,
+        is_nullable: bool = True,
+    ):
         """Add, alter, or drop a column in an existing SQL table.
 
         Parameters
@@ -39,7 +44,7 @@ class modify():
 
         Example
         -------
-        
+
         #### add a column
 
         modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
@@ -54,10 +59,10 @@ class modify():
 
         """
 
-        options = ['add','alter','drop']
+        options = ["add", "alter", "drop"]
         if modify not in options:
-            raise ValueError("modify must be one of: "+str(options))
-        
+            raise ValueError("modify must be one of: " + str(options))
+
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
             DECLARE @TableName SYSNAME = ?;
@@ -65,18 +70,18 @@ class modify():
             {declare_type}
             {declare_size}
 
-            SET @SQLStatement = 
+            SET @SQLStatement =
                 N'ALTER TABLE '+QUOTENAME(@TableName)+
                 {syntax} +QUOTENAME(@ColumnName) {type_column} {size_column} {null_column}+';'
 
-            EXEC sp_executesql 
+            EXEC sp_executesql
                 @SQLStatement,
                 N'@TableName SYSNAME, @ColumnName SYSNAME {parameter_type} {parameter_size}',
                 @TableName=@TableName, @ColumnName=@ColumnName {value_type} {value_size};
         """
 
         args = [table_name, column_name]
-        if modify=='drop':
+        if modify == "drop":
             syntax = "'DROP COLUMN'"
             declare_type = ""
             declare_size = ""
@@ -87,10 +92,10 @@ class modify():
             parameter_size = ""
             value_type = ""
             value_size = ""
-        elif modify=='add' or modify=='alter':
-            if modify=='add':
+        elif modify == "add" or modify == "alter":
+            if modify == "add":
                 syntax = "'ADD'"
-            elif modify=='alter':
+            elif modify == "alter":
                 syntax = "'ALTER COLUMN'"
             declare_type = "DECLARE @ColumnType SYSNAME = ?;"
             type_column = "+' '+QUOTENAME(@ColumnType)"
@@ -111,24 +116,34 @@ class modify():
                 null_column = ""
             else:
                 null_column = "+' NOT NULL'"
-            
+
             args += [dtypes_sql, size]
 
         statement = statement.format(
-            declare_type=declare_type, declare_size=declare_size,
-            syntax=syntax, 
-            type_column=type_column, size_column=size_column, null_column=null_column,
-            parameter_type=parameter_type, parameter_size=parameter_size,
-            value_type=value_type, value_size=value_size
+            declare_type=declare_type,
+            declare_size=declare_size,
+            syntax=syntax,
+            type_column=type_column,
+            size_column=size_column,
+            null_column=null_column,
+            parameter_type=parameter_type,
+            parameter_size=parameter_size,
+            value_type=value_type,
+            value_size=value_size,
         )
 
         args = [x for x in args if x is not None]
         cursor = self._connection.connection.cursor()
         cursor.execute(statement, *args)
 
-
-    def primary_key(self, table_name: str, modify: Literal['add','drop'], columns: list, primary_key_name: str):
-        '''Add or drop the primary key from a table.
+    def primary_key(
+        self,
+        table_name: str,
+        modify: Literal["add", "drop"],
+        columns: list,
+        primary_key_name: str,
+    ):
+        """Add or drop the primary key from a table.
 
         Parameters
         ----------
@@ -155,13 +170,13 @@ class modify():
 
         sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
 
-        '''
+        """
 
-        options = ['add','drop']
+        options = ["add", "drop"]
         if modify not in options:
-            raise ValueError("modify must be one of: "+str(options))
+            raise ValueError("modify must be one of: " + str(options))
 
-        if isinstance(columns,str):
+        if isinstance(columns, str):
             columns = [columns]
 
         statement = """
@@ -170,33 +185,46 @@ class modify():
             DECLARE @PrimaryKeyName SYSNAME = ?;
             {declare}
 
-            SET @SQLStatement = 
+            SET @SQLStatement =
                 N'ALTER TABLE '+QUOTENAME(@TableName)+
                 {syntax} + QUOTENAME(@PrimaryKeyName) {keys} +';'
-            EXEC sp_executesql 
+            EXEC sp_executesql
                 @SQLStatement,
                 N'@TableName SYSNAME, @PrimaryKeyName SYSNAME {parameter}',
                 @TableName=@TableName, @PrimaryKeyName=@PrimaryKeyName {value};
         """
 
         args = [table_name, primary_key_name]
-        if modify=='add':
+        if modify == "add":
             args += columns
-            declare = "\n".join(["DECLARE @PK"+str(idx)+" SYSNAME = ?;" for idx,_ in enumerate(columns)])
+            declare = "\n".join(
+                [
+                    "DECLARE @PK" + str(idx) + " SYSNAME = ?;"
+                    for idx, _ in enumerate(columns)
+                ]
+            )
             syntax = "'ADD CONSTRAINT '"
-            keys = "+','+".join(["QUOTENAME(@PK"+str(idx)+")" for idx,_ in enumerate(columns)])
-            keys = "+'PRIMARY KEY ('+"+keys+"+')'"
-            parameter = " ".join([", @PK"+str(idx)+" SYSNAME" for idx,_ in enumerate(columns)])
-            value = " ".join([", @PK"+str(idx)+"=@PK"+str(idx) for idx,_ in enumerate(columns)])
-        elif modify=='drop':
+            keys = "+','+".join(
+                ["QUOTENAME(@PK" + str(idx) + ")" for idx, _ in enumerate(columns)]
+            )
+            keys = "+'PRIMARY KEY ('+" + keys + "+')'"
+            parameter = " ".join(
+                [", @PK" + str(idx) + " SYSNAME" for idx, _ in enumerate(columns)]
+            )
+            value = " ".join(
+                [
+                    ", @PK" + str(idx) + "=@PK" + str(idx)
+                    for idx, _ in enumerate(columns)
+                ]
+            )
+        elif modify == "drop":
             declare = ""
             syntax = "'DROP CONSTRAINT '"
             keys = ""
             parameter = ""
             value = ""
-        statement = statement.format(declare=declare, 
-            syntax=syntax, keys=keys, 
-            parameter=parameter, value=value
+        statement = statement.format(
+            declare=declare, syntax=syntax, keys=keys, parameter=parameter, value=value
         )
 
         cursor = self._connection.connection.cursor()

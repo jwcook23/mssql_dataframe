@@ -1,26 +1,32 @@
+from mssql_dataframe.core import dynamic, conversion, errors
+
 from typing import Literal
 
 import pandas as pd
-pd.options.mode.chained_assignment = 'raise'
 
-from mssql_dataframe.core import dynamic, conversion, errors
+pd.options.mode.chained_assignment = "raise"
 
 
-class read():
-
+class read:
     def __init__(self, connection):
-        '''Class for reading from SQL tables.
-        
+        """Class for reading from SQL tables.
+
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
-        '''
+        """
 
         self._connection = connection
 
-
-    def select(self, table_name: str, column_names: list = None, where: str = None,
-    limit: int = None, order_column: str=None, order_direction: Literal[None,'ASC','DESC'] = None) -> pd.DataFrame:
+    def select(
+        self,
+        table_name: str,
+        column_names: list = None,
+        where: str = None,
+        limit: int = None,
+        order_column: str = None,
+        order_direction: Literal[None, "ASC", "DESC"] = None,
+    ) -> pd.DataFrame:
         """Select data from SQL into a dataframe.
 
         Parameters
@@ -37,7 +43,7 @@ class read():
         -------
 
         dataframe (pandas.DataFrame): tabular data from select statement
-        
+
         None
 
         Examples
@@ -54,17 +60,21 @@ class read():
         read.select('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
 
         """
-        
+
         # get table schema for conversion to pandas
         schema, _ = conversion.get_schema(self._connection.connection, table_name)
 
         # always read in primary key columns for dataframe index
-        primary_key_columns = list(schema.loc[schema['pk_seq'].notna(),'pk_seq'].sort_values(ascending=True).index)
+        primary_key_columns = list(
+            schema.loc[schema["pk_seq"].notna(), "pk_seq"]
+            .sort_values(ascending=True)
+            .index
+        )
 
         # dynamic table and column names, and column_name development
         table_name = dynamic.escape(self._connection.connection.cursor(), table_name)
         if column_names is None:
-            column_names = '*'
+            column_names = "*"
         else:
             if isinstance(column_names, str):
                 column_names = [column_names]
@@ -73,36 +83,48 @@ class read():
             column_names = primary_key_columns + column_names
             column_names = list(set(column_names))
             missing = [x for x in column_names if x not in schema.index]
-            if len(missing)>0:
-                raise errors.SQLColumnDoesNotExist(f'Column does not exist in table {table_name}:', missing)
-            column_names = dynamic.escape(self._connection.connection.cursor(), column_names)
+            if len(missing) > 0:
+                raise errors.SQLColumnDoesNotExist(
+                    f"Column does not exist in table {table_name}:", missing
+                )
+            column_names = dynamic.escape(
+                self._connection.connection.cursor(), column_names
+            )
             column_names = "\n,".join(column_names)
 
         # format optional where_statement
         if where is None:
             where_statement, where_args = ("", None)
         else:
-            where_statement, where_args = dynamic.where(self._connection.connection.cursor(), where)
+            where_statement, where_args = dynamic.where(
+                self._connection.connection.cursor(), where
+            )
 
         # format optional limit
         if limit is None:
             limit = ""
-        elif not isinstance(limit,int):
+        elif not isinstance(limit, int):
             raise ValueError("limit must be an integer")
         else:
-            limit = "TOP("+str(limit)+")"
+            limit = "TOP(" + str(limit) + ")"
 
         # format optional order
-        options = [None,'ASC','DESC']
-        if (order_column is None and order_direction is not None) or (order_column is not None and order_direction is None):
+        options = [None, "ASC", "DESC"]
+        if (order_column is None and order_direction is not None) or (
+            order_column is not None and order_direction is None
+        ):
             raise ValueError("order_column and order_direction must both be specified")
         elif order_direction not in options:
-            raise ValueError("order direction must be one of: "+str(options))
+            raise ValueError("order direction must be one of: " + str(options))
         elif order_column is not None:
-            order = "ORDER BY "+dynamic.escape(self._connection.connection.cursor(), order_column)+" "+order_direction
+            order = (
+                "ORDER BY "
+                + dynamic.escape(self._connection.connection.cursor(), order_column)
+                + " "
+                + order_direction
+            )
         else:
             order = ""
-
 
         # select values
         statement = f"""
@@ -115,6 +137,8 @@ class read():
         """
 
         # read sql query
-        dataframe = conversion.read_values(statement, schema, self._connection.connection, where_args)
+        dataframe = conversion.read_values(
+            statement, schema, self._connection.connection, where_args
+        )
 
         return dataframe

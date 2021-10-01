@@ -1,18 +1,12 @@
 <!-- TODO:  document cursor commit where needed-->
-<!-- TODO: remove mssql_dataframe.errors that aren't used -->
-<!-- TODO: make internal only functions private -->
-<!-- TODO: PEP8 and PEP257 standards (pep8.org), documetnation, black formatting -->
 <!-- TODO: type hints, including returns -->
-
-<!-- TODO: merge keep deleted in another table-->
-<!-- TODO: support decimal and numeric types (pandas type extensions) -->
-<!-- TODO: for SQL>2016, use JSON instead of temp table -->
 
 # mssql_dataframe
 
 ![Tests Status](./reports/tests.svg?dummy=8484744)
 ![Coverage Status](./reports/coverage.svg?dummy=8484744)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
@@ -103,3 +97,8 @@ See CONTRIBUTING.md
 ## See Also
 
 A similiar project is [pangres](https://github.com/ThibTrip/pangres), but doesn't include SQL Server / Transact-SQL. The primary motivation for creating a new project is differences in Transact-SQL syntax, specifically MERGE in T-SQL vs UPSERT in other SQL flavors.
+
+## Future Plans
+
+1. merge with the open to retain deleted records in another table
+2. support for decimal and numeric SQL types

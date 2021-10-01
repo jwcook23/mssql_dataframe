@@ -5,11 +5,11 @@ from mssql_dataframe.core import create, errors, modify, read
 from mssql_dataframe.core.write.write import write
 
 
-class SQLServer():
+class SQLServer:
     """
     Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
-    If adjust_sql_objects is True, SQL objects may be modified. The exepection is internal tracking columns 
+    If adjust_sql_objects is True, SQL objects may be modified. The exepection is internal tracking columns
     _time_insert and _time_update which will always be created if include_timestamps=True for write methods.
 
     Parameters
@@ -30,7 +30,7 @@ class SQLServer():
     """
 
     def __init__(self, connection: connect.connect, adjust_sql_objects: bool = False):
-    
+
         # initialize mssql_dataframe functionality with shared connection
         self.connection = connection.connection
         self.create = create.create(connection)
@@ -39,4 +39,7 @@ class SQLServer():
         self.write = write(connection, adjust_sql_objects)
 
         if adjust_sql_objects:
-            warnings.warn("SQL objects will be created/modified as needed as adjust_sql_objects=True", errors.SQLObjectAdjustment)
+            warnings.warn(
+                "SQL objects will be created/modified as needed as adjust_sql_objects=True",
+                errors.SQLObjectAdjustment,
+            )

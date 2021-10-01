@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
-pd.options.mode.chained_assignment = 'raise'
+
+pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
 from mssql_dataframe.core import errors, dynamic
@@ -9,7 +10,7 @@ from mssql_dataframe.core import errors, dynamic
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
-    db = connect.connect(database_name='tempdb', server_name='localhost')
+    db = connect.connect(database_name="tempdb", server_name="localhost")
 
     # database cursor
     cursor = db.connection.cursor()
@@ -18,10 +19,17 @@ def cursor():
 
 def test_escape(cursor):
     # list of values
-    inputs = ["TableName","##TableName","ColumnName","'; select true; --", "abc[]def", "user's custom name"]
+    inputs = [
+        "TableName",
+        "##TableName",
+        "ColumnName",
+        "'; select true; --",
+        "abc[]def",
+        "user's custom name",
+    ]
     clean = dynamic.escape(cursor, inputs)
     assert isinstance(inputs, list)
-    assert len(clean)==len(inputs)
+    assert len(clean) == len(inputs)
 
     # single string
     inputs = "SingleString"
@@ -29,14 +37,14 @@ def test_escape(cursor):
     assert isinstance(inputs, str)
 
     # dataframe columns (pandas index)
-    dataframe = pd.DataFrame(columns=["A","B"])
+    dataframe = pd.DataFrame(columns=["A", "B"])
     clean = dynamic.escape(cursor, dataframe.columns)
-    assert len(clean)==dataframe.shape[1]
+    assert len(clean) == dataframe.shape[1]
 
     # schema specification list
-    inputs = ["test.dbo.table","tempdb..##table"]
+    inputs = ["test.dbo.table", "tempdb..##table"]
     clean = dynamic.escape(cursor, inputs)
-    assert len(clean)==len(inputs)
+    assert len(clean) == len(inputs)
 
     # schema specification single string
     inputs = "test.dbo.table"
@@ -45,20 +53,26 @@ def test_escape(cursor):
 
     # value that is too long
     with pytest.raises(errors.SQLInvalidLengthObjectName):
-        dynamic.escape(cursor, inputs='a'*1000)
+        dynamic.escape(cursor, inputs="a" * 1000)
 
 
 def test_where(cursor):
-    where = 'ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL'
+    where = "ColumnA >5 AND ColumnB=2 and ColumnANDC IS NOT NULL"
     where_statement, where_args = dynamic.where(cursor, where)
-    assert where_statement=='WHERE [ColumnA] > ? AND [ColumnB] = ? and [ColumnANDC] IS NOT NULL'
-    assert where_args==['5','2']
+    assert (
+        where_statement
+        == "WHERE [ColumnA] > ? AND [ColumnB] = ? and [ColumnANDC] IS NOT NULL"
+    )
+    assert where_args == ["5", "2"]
 
-    where = 'ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL'
+    where = "ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL"
     where_statement, where_args = dynamic.where(cursor, where)
-    assert where_statement=='WHERE [ColumnB] > ? AND [ColumnC] IS NOT NULL OR [ColumnD] IS NULL'
-    assert where_args==['4']
+    assert (
+        where_statement
+        == "WHERE [ColumnB] > ? AND [ColumnC] IS NOT NULL OR [ColumnD] IS NULL"
+    )
+    assert where_args == ["4"]
 
-    conditions = 'no operator present'
+    conditions = "no operator present"
     with pytest.raises(errors.SQLInvalidSyntax):
         dynamic.where(cursor, conditions)

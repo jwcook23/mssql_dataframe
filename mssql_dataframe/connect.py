@@ -3,7 +3,7 @@ import pyodbc
 from mssql_dataframe.core import errors
 
 
-class connect():
+class connect:
     """
     Connect to local, remote, or cloud SQL Server using ODBC connection.
 
@@ -38,21 +38,33 @@ class connect():
 
     """
 
-
-    def __init__(self, database_name: str = 'master', server_name: str = 'localhost',
-        driver: str = None, username: str = None, password: str = None):
+    def __init__(
+        self,
+        database_name: str = "master",
+        server_name: str = "localhost",
+        driver: str = None,
+        username: str = None,
+        password: str = None,
+    ):
 
         driver = self._get_driver(driver)
 
         if username is None:
             self.connection = pyodbc.connect(
-                driver=driver, server=server_name, database=database_name,
-                autocommit=False, trusted_connection='yes'
+                driver=driver,
+                server=server_name,
+                database=database_name,
+                autocommit=False,
+                trusted_connection="yes",
             )
         else:
             self.connection = pyodbc.connect(
-                driver=driver, server=server_name, database=database_name,
-                autocommit=False, UID=username, PWD=password
+                driver=driver,
+                server=server_name,
+                database=database_name,
+                autocommit=False,
+                UID=username,
+                PWD=password,
             )
 
     @staticmethod
@@ -62,7 +74,7 @@ class connect():
 
         Parameters
         ----------
-        
+
         driver_search (str) : name of ODBC driver, if None, automatically determine
 
         Returns
@@ -70,14 +82,13 @@ class connect():
 
         driver (str) : name of ODBC driver
         """
-        installed = [x for x in pyodbc.drivers() if x.endswith(' for SQL Server')]
+        installed = [x for x in pyodbc.drivers() if x.endswith(" for SQL Server")]
         if driver_search is None:
-            driver = [x for x in installed if x.endswith(' for SQL Server')]
-        else: 
-            driver = [x for x in installed if x==driver_search]
+            driver = [x for x in installed if x.endswith(" for SQL Server")]
+        else:
+            driver = [x for x in installed if x == driver_search]
         if not driver:
-            raise errors.EnvironmentODBCDriverNotFound('Unable to find ODBC driver.')
+            raise errors.EnvironmentODBCDriverNotFound("Unable to find ODBC driver.")
         driver = max(driver)
 
         return driver
-

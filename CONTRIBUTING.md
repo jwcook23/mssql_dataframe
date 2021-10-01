@@ -18,10 +18,10 @@ Run all terminal commands in the top level mssql_dataframe folder.
     .\env\Scripts\activate
     ```
 
-3. Install/update required testing and coverage packages
+3. Install/update required testing, formatting, and coverage packages
 
     ``` cmd
-    pip install --upgrade pytest pytest-cov genbadge[tests,coverage]
+    pip install --upgrade pytest pytest-cov pytest-flake8 genbadge[tests,coverage] black
     ```
 
 4. Install mssql_dataframe in editable mode
