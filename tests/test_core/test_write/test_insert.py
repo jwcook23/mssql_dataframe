@@ -12,7 +12,7 @@ from mssql_dataframe.core.write import insert
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.insert = insert.insert(connection)
 
@@ -31,7 +31,7 @@ def test_insert_errors(sql):
     sql.create.table(
         table_name, columns={"ColumnA": "SMALLINT", "ColumnB": "VARCHAR(1)"}
     )
-    sql.connection.connection.commit()
+    sql.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         dataframe = pd.DataFrame({"ColumnA": [1]})
@@ -145,7 +145,7 @@ def test_insert_dataframe(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert all(result["_time_insert"].notna())
     assert dataframe.equals(result[result.columns.drop("_time_insert")])
 
@@ -168,7 +168,7 @@ def test_insert_singles(sql):
         table_name, dataframe, include_timestamps=False
     )
     result = conversion.read_values(
-        f"SELECT ColumnA FROM {table_name}", schema, sql.connection.connection
+        f"SELECT ColumnA FROM {table_name}", schema, sql.connection
     )
     assert all(result["ColumnA"] == [1])
 
@@ -178,7 +178,7 @@ def test_insert_singles(sql):
         table_name, dataframe, include_timestamps=False
     )
     result = conversion.read_values(
-        f"SELECT ColumnB FROM {table_name}", schema, sql.connection.connection
+        f"SELECT ColumnB FROM {table_name}", schema, sql.connection
     )
     assert result["ColumnB"].equals(pd.Series([pd.NA, 2, 3, 4], dtype="Int32"))
 
@@ -190,7 +190,7 @@ def test_insert_singles(sql):
         table_name, dataframe, include_timestamps=False
     )
     result = conversion.read_values(
-        f"SELECT ColumnC FROM {table_name}", schema, sql.connection.connection
+        f"SELECT ColumnC FROM {table_name}", schema, sql.connection
     )
     assert result["ColumnC"].equals(
         pd.Series(
@@ -217,7 +217,7 @@ def test_insert_composite_pk(sql):
     )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert all(result.index == pd.MultiIndex.from_tuples([(1, "12345")]))
     assert all(result["ColumnC"] == 1)
@@ -232,7 +232,7 @@ def test_insert_add_include_timestamps(sql):
 
     # create table
     sql.create.table(table_name, columns={"_bit": "BIT"})
-    sql.connection.connection.commit()
+    sql.connection.commit()
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:
@@ -246,6 +246,6 @@ def test_insert_add_include_timestamps(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert all(result["_time_insert"].notna())
     assert result["_bit"].equals(dataframe["_bit"])

@@ -47,7 +47,7 @@ class update(insert):
         dataframe = dataframe.copy()
 
         # create cursor to perform operations
-        cursor = self._connection.connection.cursor()
+        cursor = self._connection.cursor()
 
         # get target table schema, while checking for errors and adjusting data for inserting
         if include_timestamps:

@@ -13,7 +13,7 @@ from mssql_dataframe.core import conversion, create, errors
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
 
 
@@ -57,7 +57,7 @@ def test_table_column(sql):
     table_name = "##test_table_column"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 1
     assert all(schema.index == "A")
@@ -84,7 +84,7 @@ def test_table_pk(sql):
         not_nullable=not_nullable,
         primary_key_column=primary_key_column,
     )
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 3
     assert all(schema.index == ["A", "B", "C"])
@@ -116,7 +116,7 @@ def test_table_composite_pk(sql):
         not_nullable=not_nullable,
         primary_key_column=primary_key_column,
     )
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 3
     assert all(schema.index == ["A", "B", "C"])
@@ -157,7 +157,7 @@ def test_table_sqlpk(sql):
     table_name = "##test_table_sqlpk"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns, sql_primary_key=True)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 2
     assert all(schema.index == ["_pk", "A"])
@@ -183,7 +183,7 @@ def test_table_from_dataframe_simple(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 1
     assert all(schema.index == "ColumnA")
@@ -206,7 +206,7 @@ def test_table_from_dataframe_datestr(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 1
     assert all(schema.index == "ColumnA")
@@ -238,7 +238,7 @@ def test_table_from_dataframe_nopk(sql, sample):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
         {
@@ -322,7 +322,7 @@ def test_table_from_dataframe_sqlpk(sql, sample):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
         {
@@ -412,7 +412,7 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
         {
@@ -503,7 +503,7 @@ def test_table_from_dataframe_indexpk_named(sql, sample):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
         {
@@ -604,7 +604,7 @@ def test_table_from_dataframe_inferpk_integer(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["_smallint", "pk_seq"] == 1
     assert all(schema.loc[schema.index != "_smallint", "pk_seq"].isna())
@@ -626,7 +626,7 @@ def test_table_from_dataframe_inferpk_string(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["_varchar1", "pk_seq"] == 1
     assert all(schema.loc[schema.index != "_varchar1", "pk_seq"].isna())
@@ -649,7 +649,7 @@ def test_table_from_dataframe_inferpk_none(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert all(schema["pk_seq"].isna())
 
@@ -668,7 +668,7 @@ def test_table_from_dataframe_composite_pk(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    schema, _ = conversion.get_schema(sql.connection.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["ColumnA", "pk_seq"] == 1
     assert schema.at["ColumnB", "pk_seq"] == 2

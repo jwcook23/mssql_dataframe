@@ -12,7 +12,7 @@ from mssql_dataframe.core.write import merge
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.merge = merge.merge(connection, adjust_sql_objects=True)
 
@@ -49,7 +49,7 @@ def test_merge_create_table(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert all(result["_time_update"].isna())
@@ -92,7 +92,7 @@ def test_merge_add_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert all(result["_time_update"].notna())
@@ -141,7 +141,7 @@ def test_merge_alter_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert all(result["_time_update"].notna())
@@ -188,7 +188,7 @@ def test_merge_add_and_alter_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert all(result["_time_update"].notna())

@@ -105,7 +105,7 @@ def alter_columns(table_name, dataframe, columns, modifier):
     new, schema, _, _ = infer.sql(dataframe.loc[:, columns])
     schema, dtypes = conversion.sql_spec(schema, new)
     # get current table schema
-    previous, _ = conversion.get_schema(modifier._connection.connection, table_name)
+    previous, _ = conversion.get_schema(modifier._connection, table_name)
     strings = previous["sql_type"].isin(["varchar", "nvarchar"])
     previous.loc[strings, "odbc_size"] = previous.loc[strings, "column_size"]
     # insure change within the same sql data type category after inferring dtypes

@@ -12,7 +12,7 @@ from mssql_dataframe.core.write import merge
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.merge = merge.merge(connection)
 
@@ -30,7 +30,7 @@ def test_merge_errors(sql):
     sql.create.table(
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
     )
-    sql.connection.connection.commit()
+    sql.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         sql.merge.merge(
@@ -91,7 +91,7 @@ def test_merge_upsert(sql):
     )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert dataframe.equals(result.loc[[1, 2]])
     assert result.loc[0].equals(pd.Series([3], dtype="UInt8", index=["ColumnA"]))
@@ -136,7 +136,7 @@ def test_merge_one_match_column(sql):
         )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert result[dataframe.columns].equals(dataframe)
     assert all(result["_time_update"].notna() == [True, False])
@@ -187,7 +187,7 @@ def test_merge_two_match_columns(sql):
         )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert result[dataframe.columns].equals(dataframe)
     assert all(result["_time_update"].notna() == [True, False])
@@ -240,7 +240,7 @@ def test_merge_non_pk_column(sql):
     result = conversion.read_values(
         f"SELECT * FROM {table_name} ORDER BY _time_update DESC",
         schema,
-        sql.connection.connection,
+        sql.connection,
     )
     assert result[dataframe.columns].equals(dataframe)
 
@@ -275,7 +275,7 @@ def test_merge_composite_pk(sql):
     dataframe, schema = sql.merge.merge(table_name, dataframe, include_timestamps=False)
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert result[dataframe.columns].equals(dataframe)
     assert "_time_update" not in result
@@ -329,7 +329,7 @@ def test_merge_one_delete_condition(sql):
         )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert all(result.loc[[1, 3], ["State", "ColumnA", "ColumnB"]] == dataframe)
     assert all(
@@ -398,7 +398,7 @@ def test_merge_two_delete_conditions(sql):
         )
 
     result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert all(
         result.loc[[1, 3], ["State1", "State2", "ColumnA", "ColumnB"]] == dataframe

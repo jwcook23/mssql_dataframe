@@ -9,7 +9,7 @@ pd.options.mode.chained_assignment = "raise"
 class insert:
     def __init__(self, connection, adjust_sql_objects: bool = False):
 
-        self._connection = connection
+        self._connection = connection.connection
         self.adjust_sql_objects = adjust_sql_objects
 
         # max attempts for creating/modifing SQL tables
@@ -17,8 +17,8 @@ class insert:
         self._adjust_sql_attempts = 3
 
         # handle failures if adjust_sql_objects==True
-        self._modify = modify.modify(self._connection)
-        self._create = create.create(self._connection)
+        self._modify = modify.modify(connection)
+        self._create = create.create(connection)
 
     def insert(
         self, table_name: str, dataframe: pd.DataFrame, include_timestamps: bool = True
@@ -50,7 +50,7 @@ class insert:
         """
 
         # create cursor to perform operations
-        cursor = self._connection.connection.cursor()
+        cursor = self._connection.cursor()
         cursor.fast_executemany = True
 
         # get target table schema, while checking for errors and adjusting data for inserting
@@ -126,7 +126,7 @@ class insert:
         for attempt in range(0, self._adjust_sql_attempts + 1):
             try:
                 schema, dataframe = conversion.get_schema(
-                    self._connection.connection,
+                    self._connection,
                     table_name,
                     dataframe,
                     additional_columns,

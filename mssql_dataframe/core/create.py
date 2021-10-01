@@ -17,7 +17,7 @@ class create:
         connection (mssql_dataframe.connect) : connection for executing statement
         """
 
-        self._connection = connection
+        self._connection = connection.connection
 
     def table(
         self,
@@ -201,7 +201,7 @@ class create:
             args += primary_key_column
 
         # execute statement
-        cursor = self._connection.connection.cursor()
+        cursor = self._connection.cursor()
         cursor.execute(statement, args)
 
     def table_from_dataframe(

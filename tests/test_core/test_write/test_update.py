@@ -12,7 +12,7 @@ from mssql_dataframe.core.write import update
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.update = update.update(connection)
 
@@ -30,7 +30,7 @@ def test_update_errors(sql):
     sql.create.table(
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
     )
-    sql.connection.connection.commit()
+    sql.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         sql.update.update(
@@ -101,7 +101,7 @@ def test_update_primary_key(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -134,7 +134,7 @@ def test_update_nonpk_column(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -159,7 +159,7 @@ def test_update_two_match_columns(sql):
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection.connection
+        f"SELECT * FROM {table_name}", schema, sql.connection
     )
     dataframe["ColumnC"] = [5, 6]
     with warnings.catch_warnings(record=True) as warn:
@@ -175,7 +175,7 @@ def test_update_two_match_columns(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert updated.equals(result[updated.columns])
     assert result["_time_update"].notna().all()
 
@@ -202,5 +202,5 @@ def test_update_composite_pk(sql):
 
     # test result
     statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection.connection)
+    result = conversion.read_values(statement, schema, sql.connection)
     assert result.equals(updated)

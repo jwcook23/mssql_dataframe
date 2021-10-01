@@ -12,7 +12,7 @@ class modify:
         connection (mssql_dataframe.connect) : connection for executing statement
         """
 
-        self._connection = connection
+        self._connection = connection.connection
 
     def column(
         self,
@@ -133,7 +133,7 @@ class modify:
         )
 
         args = [x for x in args if x is not None]
-        cursor = self._connection.connection.cursor()
+        cursor = self._connection.cursor()
         cursor.execute(statement, *args)
 
     def primary_key(
@@ -227,5 +227,5 @@ class modify:
             declare=declare, syntax=syntax, keys=keys, parameter=parameter, value=value
         )
 
-        cursor = self._connection.connection.cursor()
+        cursor = self._connection.cursor()
         cursor.execute(statement, *args)

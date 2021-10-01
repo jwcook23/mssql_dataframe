@@ -14,7 +14,7 @@ from mssql_dataframe.core.write import update
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
+        self.connection = connection.connection
         self.create = create.create(connection)
         self.update = update.update(connection, adjust_sql_objects=True)
 
@@ -66,7 +66,7 @@ def test_update_add_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert result["_time_update"].notna().all()
@@ -111,7 +111,7 @@ def test_update_alter_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert result["_time_update"].notna().all()
@@ -154,7 +154,7 @@ def test_update_add_and_alter_column(sql):
         )
 
         result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection.connection
+            f"SELECT * FROM {table_name}", schema, sql.connection
         )
         assert result[dataframe.columns].equals(dataframe)
         assert result["_time_update"].notna().all()
