@@ -16,7 +16,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.update = update.update(connection, adjust_sql_objects=True)
+        self.update = update.update(connection, auto_adjust_sql_objects=True)
 
 
 @pytest.fixture(scope="module")
@@ -28,7 +28,7 @@ def sql():
 
 def test_update_create_table(sql):
     """Updating a table that doesn't exist should always raise an error, even
-    if adjust_sql_objects=True."""
+    if auto_adjust_sql_objects=True."""
 
     table_name = "##test_update_create_table"
 

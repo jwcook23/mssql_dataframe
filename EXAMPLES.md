@@ -4,13 +4,13 @@
 
 Connect to an on-premise database using pyodbc. Connection to an Azure SQL database is also possible by passing a server_name in the format `server_name='<server>.database.windows.net'`along with a username and password.
 
-If `adjust_sql_objects=True` (default is False):
+If `auto_adjust_sql_objects=True` (default is False):
 
 1. columns will be created if they do not exist
 2. column size will increase if needed, for example from TINYINT to INT
 3. an SQL table will be created if it does not exist
 
-With `adjust_sql_objects=True` exceptions will still be raised in certian cases to preserve integrity:
+With `auto_adjust_sql_objects=True` exceptions will still be raised in certian cases to preserve integrity:
 
 1. prevent changing SQL data type from number like to string
 2. prevent changing column nullability
@@ -26,7 +26,7 @@ from mssql_dataframe.collection import SQLServer
 # # connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
 # # initialize the main package
-sql = SQLServer(db, adjust_sql_objects=True)
+sql = SQLServer(db, auto_adjust_sql_objects=True)
 ```
 
 ## Creating SQL Tables
@@ -76,7 +76,7 @@ Note:
 1. SQL primary key column "PK_Column" has been placed as the dataframe's index.
 
 ``` python
-result = sql.read.select('##sample_update', limit=5)
+result = sql.read.table('##sample_update', limit=5)
 result
 ```
 
@@ -132,7 +132,7 @@ df_merge = sql.create.table_from_dataframe(table_name='##sample_merge', datafram
     primary_key='index'
 )
 sql.write.insert(table_name='##sample_merge', dataframe=df_merge, include_timestamps=True)
-result = sql.read.select('##sample_merge', limit=5)
+result = sql.read.table('##sample_merge', limit=5)
 result
 ```
 
@@ -161,7 +161,7 @@ Performing the merge, note:
 sql.write.merge(table_name='##sample_merge', dataframe=df_source, 
     match_columns=['PK_Column','State'], include_timestamps=True
 )
-result = sql.read.select('##sample_merge', limit=5)
+result = sql.read.table('##sample_merge', limit=5)
 result
 ```
 
@@ -203,7 +203,7 @@ df_condition.index.name = '_pk'
 sql.write.merge('##sample_merge_delete_condition', df_condition, match_columns=['_pk'], 
     delete_conditions=['State']
 )
-result = sql.read.select('##sample_merge_delete_condition', limit=5)
+result = sql.read.table('##sample_merge_delete_condition', limit=5)
 result
 ```
 
@@ -230,7 +230,7 @@ df_upsert = df_upsert.append(pd.Series([6], index=['ColumnA'], name=2))
 
 # perform the merge
 sql.write.merge('##sample_upsert', df_upsert, delete_unmatched=False)
-result = sql.read.select('##sample_merge_delete_condition', limit=5)
+result = sql.read.table('##sample_merge_delete_condition', limit=5)
 result
 ```
 
@@ -251,7 +251,7 @@ df_modify = sql.create.table_from_dataframe('##sample_modify', df_modify)
 sql.write.insert('##sample_modify', df_modify)
 # get SQL schema and records
 schema = get_schema(sql.connection, '##sample_modify')
-result = sql.read.select('##sample_modify')
+result = sql.read.table('##sample_modify')
 schema[['data_type','is_nullable']]
 result
 # manually change the SQL data type
@@ -259,7 +259,7 @@ sql.modify.column('##sample_modify', 'alter', 'Column1', data_type='TINYINT',
     is_nullable=True
 )
 schema = get_schema(sql.connection, '##sample_modify')
-result = sql.read.select('##sample_modify')
+result = sql.read.table('##sample_modify')
 schema[['data_type','is_nullable']]
 result
 ```

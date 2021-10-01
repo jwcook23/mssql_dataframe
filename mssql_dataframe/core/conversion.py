@@ -1,8 +1,9 @@
-""" Functions for data movement between Python pandas dataframes and SQL. Includes conversion rules between SQL/ODBC/pandas.
-"""
-from mssql_dataframe.core import errors
+""" Functions for data movement between Python pandas dataframes and SQL."""
+from mssql_dataframe.core import errors, conversion_rules
+
 import warnings
 import struct
+from typing import Tuple, List
 
 import pyodbc
 import numpy as np
@@ -11,147 +12,29 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 
-rules = pd.DataFrame.from_records(
-    [
-        {
-            "sql_type": "bit",
-            "sql_category": "exact numeric",
-            "min_value": False,
-            "max_value": True,
-            "pandas_type": "boolean",
-            "odbc_type": pyodbc.SQL_BIT,
-            "odbc_size": 1,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "tinyint",
-            "sql_category": "exact numeric",
-            "min_value": 0,
-            "max_value": 255,
-            "pandas_type": "UInt8",
-            "odbc_type": pyodbc.SQL_TINYINT,
-            "odbc_size": 1,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "smallint",
-            "sql_category": "exact numeric",
-            "min_value": -(2 ** 15),
-            "max_value": 2 ** 15 - 1,
-            "pandas_type": "Int16",
-            "odbc_type": pyodbc.SQL_SMALLINT,
-            "odbc_size": 2,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "int",
-            "sql_category": "exact numeric",
-            "min_value": -(2 ** 31),
-            "max_value": 2 ** 31 - 1,
-            "pandas_type": "Int32",
-            "odbc_type": pyodbc.SQL_INTEGER,
-            "odbc_size": 4,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "bigint",
-            "sql_category": "exact numeric",
-            "min_value": -(2 ** 63),
-            "max_value": 2 ** 63 - 1,
-            "pandas_type": "Int64",
-            "odbc_type": pyodbc.SQL_BIGINT,
-            "odbc_size": 8,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "float",
-            "sql_category": "approximate numeric",
-            "min_value": -(1.79 ** 308),
-            "max_value": 1.79 ** 308,
-            "pandas_type": "float64",
-            "odbc_type": pyodbc.SQL_FLOAT,
-            "odbc_size": 8,
-            "odbc_precision": 53,
-        },
-        {
-            "sql_type": "time",
-            "sql_category": "date time",
-            "min_value": pd.Timedelta("00:00:00.0000000"),
-            "max_value": pd.Timedelta("23:59:59.9999999"),
-            "pandas_type": "timedelta64[ns]",
-            "odbc_type": pyodbc.SQL_SS_TIME2,
-            "odbc_size": 16,
-            "odbc_precision": 7,
-        },
-        {
-            "sql_type": "date",
-            "sql_category": "date time",
-            "min_value": (pd.Timestamp.min + pd.DateOffset(days=1)).date(),
-            "max_value": pd.Timestamp.max.date(),
-            "pandas_type": "datetime64[ns]",
-            "odbc_type": pyodbc.SQL_TYPE_DATE,
-            "odbc_size": 10,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "datetime2",
-            "sql_category": "date time",
-            "min_value": pd.Timestamp.min,
-            "max_value": pd.Timestamp.max,
-            "pandas_type": "datetime64[ns]",
-            "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,
-            "odbc_size": 27,
-            "odbc_precision": 7,
-        },
-        {
-            "sql_type": "varchar",
-            "sql_category": "character string",
-            "min_value": 1,
-            "max_value": 0,
-            "pandas_type": "string",
-            "odbc_type": pyodbc.SQL_VARCHAR,
-            "odbc_size": 0,
-            "odbc_precision": 0,
-        },
-        {
-            "sql_type": "nvarchar",
-            "sql_category": "character string",
-            "min_value": 1,
-            "max_value": 0,
-            "pandas_type": "string",
-            "odbc_type": pyodbc.SQL_WVARCHAR,
-            "odbc_size": 0,
-            "odbc_precision": 0,
-        },
-    ]
-)
-rules["sql_type"] = rules["sql_type"].astype("string")
-rules["pandas_type"] = rules["pandas_type"].astype("string")
-
-
 def get_schema(
-    connection,
-    table_name,
+    connection: pyodbc.connect,
+    table_name: str,
     dataframe: pd.DataFrame = None,
-    additional_columns: list = None,
-):
-    """Get schema of an SQL table and the defined conversion rules.
+    additional_columns: List[str] = None,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Get schema of an SQL table and the defined conversion rules between data types.
 
     If a dataframe is provided, also checks the contents of the dataframe for the ability
-    to write to the SQL table. Additionally converts the data types of the dataframe according
-    to the conversion rules.
+    to write to the SQL table and raises approriate exceptions if needed. Additionally
+    converts the data types of the dataframe according to the conversion rules.
 
     Parameters
     ----------
-    connection (pyodbc.Connection) : connection to database
+    connection (pyodbc.connect) : connection to database
     table_name (str) : table name containing columns
     dataframe (pandas.DataFrame, default=None) : check contents against schema and convert using rules
-    additional_columns (list, default=None) : columns that will be generated by an SQL statement but not in the dataframe
+    additional_columns (list, default=None) : columns that will be generated by an SQL statement but not in the dataframe, such as metadata columns
 
     Returns
     -------
     schema (pandas.DataFrame) : table column specifications and conversion rules
-    dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
+    dataframe (pandas.DataFrame) : dataframe with contents converted to conform to SQL data type
 
     """
 
@@ -230,12 +113,14 @@ def get_schema(
     # add conversion rules
     identity = schema["sql_type"] == "int identity"
     schema.loc[identity, "sql_type"] = "int"
-    schema = schema.merge(rules, left_on="sql_type", right_on="sql_type", how="left")
+    schema = schema.merge(
+        conversion_rules.rules, left_on="sql_type", right_on="sql_type", how="left"
+    )
     schema.loc[identity, "sql_type"] = "int identity"
 
     # key column_name as index, check for undefined conversion rule
     schema = schema.set_index(keys="column_name")
-    missing = schema[rules.columns].isna().any(axis="columns")
+    missing = schema[conversion_rules.rules.columns].isna().any(axis="columns")
     if any(missing):
         missing = missing[missing].index.tolist()
         raise errors.UndefinedConversionRule(
@@ -249,8 +134,10 @@ def get_schema(
     return schema, dataframe
 
 
-def _precheck_dataframe(schema, dataframe):
-    """Check dataframe contents against SQL schema and convert using schema rules.
+def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Checks the contents of the dataframe for the ability to write to the SQL table
+    and raises approriate exceptions if needed. Additionally converts the data types of the
+    dataframe according to the conversion rules.
 
     Parameters
     ----------
@@ -259,7 +146,7 @@ def _precheck_dataframe(schema, dataframe):
 
     Returns
     -------
-    dataframe (pandas.DataFrame) : values to be written to SQL
+    dataframe (pandas.DataFrame) : converted according to SQL data type
 
     """
 
@@ -326,19 +213,21 @@ def _precheck_dataframe(schema, dataframe):
     return dataframe
 
 
-def prepare_cursor(schema, dataframe, cursor):
+def prepare_cursor(
+    schema: pd.DataFrame, dataframe: pd.DataFrame, cursor: pyodbc.connect
+) -> pyodbc.connect:
     """
-    Prepare cursor for writting values to SQL.
+    Prepare cursor data types and size for writting values to SQL.
 
     Parameters
     ----------
     schema (pandas.DataFrame) : output from get_schema function
     dataframe (pandas.DataFrame) : values to be written to SQL, used to determine size of string columns
-    cursor (pyodbc.Cursor) : cursor to be used to write values
+    cursor (pyodbc.connect.cursor) : cursor to be used to write values
 
     Returns
     -------
-    cursor (pyodbc.Cursor) : cursor with SQL data type and size parameters set
+    cursor (pyodbc.connect.cursor) : cursor with SQL data type and size parameters set
     """
 
     schema = schema[
@@ -371,9 +260,11 @@ def prepare_cursor(schema, dataframe, cursor):
     return cursor
 
 
-def sql_spec(schema, dataframe):
-    """Determine the size of VARCHAR and NVARCHAR columns using dataframe contents. Provide dictionary
-    mapping of column name to SQL data type.
+def sql_spec(
+    schema: pd.DataFrame, dataframe: pd.DataFrame
+) -> Tuple[pd.DataFrame, dict]:
+    """Provides dictionary mapping of column name to SQL data type. Data type includes the size of
+    VARCHAR and NVARCHAR columns using dataframe contents.
 
     Parameters
     ----------
@@ -409,20 +300,20 @@ def sql_spec(schema, dataframe):
     return schema, dtypes
 
 
-def prepare_values(schema, dataframe):
+def prepare_values(
+    schema: pd.DataFrame, dataframe: pd.DataFrame
+) -> Tuple[pd.DataFrame, list]:
     """Prepare dataframe contents for writting values to SQL.
 
     Parameters
     ----------
-
-    schema (pandas.DataFrame) : contains definitions for data schema
-    dataframe (pandas.DataFrame) : values to be written to SQL
+    schema (pandas.DataFrame) : data schema definition
+    dataframe (pandas.DataFrame) : dataframe that will be written to SQL
 
     Returns
     -------
-
-    dataframe (pandas.DataFrame) : values prepared to be more in line with SQL
-    values (list) : values to pass to pyodbc cursor execuatemany
+    dataframe (pandas.DataFrame) : values that may be altered to conform to SQL precision limitations
+    values (list) : values to pass to pyodbc.connect.cursor.executemany
 
     """
 
@@ -494,29 +385,25 @@ def prepare_values(schema, dataframe):
     return dataframe, values
 
 
-def prepare_connection(connection):
-    """Prepare connection by adding output converters.
+def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
+    """Prepare connection by adding output converters for data types directly to a pandas data type.
+
+    1. Avoids errors such as pyodbc.ProgrammingError where the ODBC library doesn't already have a conversion defined.
+    pyodbc.ProgrammingError: ('ODBC SQL type -155 is not yet supported. column-index=0 type=-155', 'HY106')
+
+    2. Conversion directly to a pandas types allows greater precision. Python datetime.datetime allows 6
+    decimal places of precision while pandas Timestamps allows 9.
+
+    Note that adding converters for nullable pandas integer types isn't possible, since those are implemented at the
+    array level. Pandas also doesn't support an exact precision decimal data type.
 
     Parameters
     ----------
-    connection (pyodbc.Connection) : connection without default output converters
+    connection (pyodbc.connect) : connection without default output converters
 
     Returns
     -------
-    connection (pyodbc.Connection) : connection with added output converters
-
-    Advantages:
-
-    1. conversion to base Python type isn't defined by the ODBC library which will raise an error such as:
-    - pyodbc.ProgrammingError: ('ODBC SQL type -155 is not yet supported. column-index=0 type=-155', 'HY106')
-
-    2. conversion directly to a pandas type allows greater precision such as:
-    - python datetime.datetime allows 6 decimal places of precision while pandas Timestamps allows 9
-
-    Sidenotes:
-    1. adding converters for nullable pandas integer types isn't possible, since those are implemented at the array level
-    2. pandas doesn't have an exact precision decimal data type
-
+    connection (pyodbc.connect) : connection with added output converters
     """
 
     # TIME (pyodbc.SQL_SS_TIME2, SQL TIME)
@@ -559,20 +446,21 @@ def prepare_connection(connection):
     return connection
 
 
-def read_values(statement, schema, connection, args: list = None):
+def read_values(
+    statement: str, schema: pd.DataFrame, connection: pyodbc.connect, args: list = None
+) -> pd.DataFrame:
     """Read data from SQL into a pandas dataframe.
 
     Parameters
     ----------
     statement (str) : statement to execute to get data
     schema (pandas.DataFrame) : output from get_schema function for setting dataframe data types
-    connection (pyodbc.Connection) : connection to database
+    connection (pyodbc.connect) : connection to database
     args (list, default=None) : arguments to pass for parameter placeholders
 
     Returns
     -------
     result (pandas.DataFrame) : resulting data from performing statement
-
     """
 
     # add output converters

@@ -16,7 +16,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection
         self.create = create.create(connection)
-        self.insert = insert.insert(connection, adjust_sql_objects=False)
+        self.insert = insert.insert(connection, auto_adjust_sql_objects=False)
         self.read = read.read(connection)
 
 
@@ -67,18 +67,18 @@ def test_select_errors(sql, sample):
     sql.create.table(table_name, columns={"ColumnA": "TINYINT"})
 
     with pytest.raises(ValueError):
-        sql.read.select(table_name, limit="1")
+        sql.read.table(table_name, limit="1")
 
     with pytest.raises(ValueError):
-        sql.read.select(table_name, order_column="A", order_direction=None)
+        sql.read.table(table_name, order_column="A", order_direction=None)
 
     with pytest.raises(ValueError):
-        sql.read.select(table_name, order_column="A", order_direction="a")
+        sql.read.table(table_name, order_column="A", order_direction="a")
 
     # sample is needed to create the SQL table
     assert isinstance(sample, pd.DataFrame)
     with pytest.raises(errors.SQLColumnDoesNotExist):
-        sql.read.select(table_name, column_names="NotAColumn")
+        sql.read.table(table_name, column_names="NotAColumn")
 
 
 def test_undefined_conversion(sql):
@@ -99,30 +99,30 @@ def test_undefined_conversion(sql):
     cursor.commit()
 
     with pytest.raises(errors.UndefinedConversionRule):
-        sql.read.select(table_name)
+        sql.read.table(table_name)
 
 
 def test_select_all(sql, sample):
 
-    dataframe = sql.read.select(table_name)
+    dataframe = sql.read.table(table_name)
     assert dataframe.equals(sample)
 
 
 def test_select_columns(sql, sample):
 
     column_names = sample.columns.drop("ColumnB")
-    dataframe = sql.read.select(table_name, column_names)
+    dataframe = sql.read.table(table_name, column_names)
     assert dataframe[column_names].equals(sample[column_names])
 
     column_names = "ColumnB"
-    dataframe = sql.read.select(table_name, column_names)
+    dataframe = sql.read.table(table_name, column_names)
     assert dataframe[[column_names]].equals(sample[[column_names]])
 
 
 def test_select_where(sql, sample):
 
     column_names = ["ColumnB", "ColumnC", "ColumnD"]
-    dataframe = sql.read.select(
+    dataframe = sql.read.table(
         table_name,
         column_names,
         where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL",
@@ -134,14 +134,14 @@ def test_select_where(sql, sample):
 
 def test_select_limit(sql, sample):
 
-    dataframe = sql.read.select(table_name, limit=1)
+    dataframe = sql.read.table(table_name, limit=1)
     assert dataframe.shape[0] == 1
     assert dataframe.equals(sample.loc[[dataframe.index[0]]])
 
 
 def test_select_order(sql, sample):
 
-    dataframe = sql.read.select(
+    dataframe = sql.read.table(
         table_name,
         column_names=["ColumnB"],
         order_column="ColumnA",

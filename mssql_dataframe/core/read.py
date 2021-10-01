@@ -1,3 +1,4 @@
+"""Class for reading from SQL into a dataframe."""
 from mssql_dataframe.core import dynamic, conversion, errors
 
 from typing import Literal
@@ -18,7 +19,7 @@ class read:
 
         self._connection = connection
 
-    def select(
+    def table(
         self,
         table_name: str,
         column_names: list = None,
@@ -31,7 +32,6 @@ class read:
 
         Parameters
         ----------
-
         table_name (str) : name of table to select data frame
         column_names (list|str, default=None) : list of columns to select, or None to select all
         where (str, default=None) : where clause filter to apply
@@ -41,23 +41,18 @@ class read:
 
         Returns
         -------
-
         dataframe (pandas.DataFrame): tabular data from select statement
-
-        None
 
         Examples
         --------
-
         #### select entire table
-
-        read.select('SomeTable')
+        read.table('SomeTable')
 
         #### specific columns
-        read.select('SomeTable', column_names=['ColumnA','ColumnB']
+        read.table('SomeTable', column_names=['ColumnA','ColumnB']
 
         #### specify select criteria
-        read.select('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='desc')
+        read.table('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='DESC')
 
         """
 

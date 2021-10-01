@@ -1,22 +1,23 @@
-"""Functions for strings that include SQL objects."""
+"""Functions for handling strings that include SQL objects."""
 
 import re
+from typing import Tuple, List
+
+import pyodbc
 
 from mssql_dataframe.core import errors
 
 
-def escape(cursor, inputs):
+def escape(cursor: pyodbc.connect, inputs: List[str]) -> List[str]:
     """Prepare dynamic strings by passing them through T-SQL QUOTENAME.
 
     Parameters
     ----------
-
     cursor (pyodbc.connection.cursor) : cursor to execute statement
     inputs (list|str) : list of strings to add delimiter to make a valid SQL identifier
 
     Returns
     -------
-
     safe (list|str) : strings wrapped in SQL QUOTENAME
 
     """
@@ -59,21 +60,18 @@ def escape(cursor, inputs):
     return safe
 
 
-def where(cursor, where: str):
+def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     """Format a raw string into a valid where statement with placeholder arguments.
 
     Parameters
     ----------
-
     cursor (pyodbc.connection.cursor) : cursor to execute statement
     where (str) : raw string to format
 
     Returns
     -------
-
     statement (str) : where statement containing parameters such as "...WHERE [username] = ?"
     args (list) : parameter values for where statement
-
     """
 
     # regular expressions to parse where statement
@@ -128,20 +126,17 @@ def where(cursor, where: str):
     return statement, args
 
 
-def column_spec(columns: list):
+def column_spec(columns: List[str]) -> List[str]:
     """Extract SQL data type, size, and precision from list of strings.
 
     Parameters
     ----------
-
-    columns (list|str) : strings to extract SQL specifications from
+    columns (list) : strings to extract SQL specifications from
 
     Returns
     -------
-
-    size (list|str) : size of the SQL column
-
-    dtypes_sql (list|str) : data type of the SQL column
+    size (list) : size of the SQL column
+    dtypes_sql (list) : data type of the SQL column
 
     """
 

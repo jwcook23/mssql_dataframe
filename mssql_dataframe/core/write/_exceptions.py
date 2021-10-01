@@ -1,19 +1,22 @@
+"""Functions for handling exceptions when attempting to write to SQL."""
 import warnings
 
 import pandas as pd
 
-from mssql_dataframe.core import errors, infer, conversion
+from mssql_dataframe.core import errors, infer, conversion, modify, create
+
+from typing import List
 
 
 def handle(
-    failure,
+    failure: errors,
     table_name: str,
     dataframe: pd.DataFrame,
     updating_table: bool,
-    adjust_sql_objects: bool,
-    modifier,
-    creator,
-):
+    auto_adjust_sql_objects: bool,
+    modifier: modify,
+    creator: create,
+) -> pd.DataFrame:
     """Handle a failed write attempt.
 
     Parameters
@@ -21,11 +24,14 @@ def handle(
     failure (mssql_dataframe.core.errors) : exception to potentially handle
     table_name (str) : name of the table for which the failed write attempt occured
     dataframe (pandas.DataFrame) : data to insert
-    updating_table (bool, default=False) : flag that indicates if target table is being updated
+    updating_table (bool, default) : flag that indicates if target table is being updated
+    auto_adjust_sql_objects (bool) : flag for if tables will be created or objects with be modified
+    modifier (mssql_dataframe.core.modify) : class to modify SQL columns
+    creator (mssql_dataframe.core.create) : class to create SQL tables
 
     Returns
     -------
-    dataframe (pandas.DataFrame) : data to insert
+    dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
 
     """
     # check if specific columns initiated the failure
@@ -34,7 +40,7 @@ def handle(
     else:
         columns = pd.Series([], dtype="string")
 
-    # always add include_timestamps columns, regardless of adjust_sql_objects value
+    # always add include_timestamps columns, regardless of auto_adjust_sql_objects value
     include_timestamps = ["_time_insert", "_time_update"]
     if isinstance(failure, errors.SQLColumnDoesNotExist) and all(
         columns.isin(include_timestamps)
@@ -48,7 +54,7 @@ def handle(
                 table_name, modify="add", column_name=col, data_type="DATETIME2"
             )
 
-    elif not adjust_sql_objects:
+    elif not auto_adjust_sql_objects:
         raise failure
 
     elif isinstance(failure, errors.SQLTableDoesNotExist):
@@ -66,15 +72,44 @@ def handle(
     return dataframe
 
 
-def create_table(table_name, dataframe, creator):
+def create_table(
+    table_name: str, dataframe: pd.DataFrame, creator: modify
+) -> pd.DataFrame:
+    """Create a table if it does not exist.
 
+    Parameters
+    ----------
+    table_name (str) : name of the table for which the failed write attempt occured
+    dataframe (pandas.DataFrame) : data to insert
+    creator (mssql_dataframe.core.create) : class to create SQL tables
+
+    Returns
+    -------
+    dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
+
+    """
     warnings.warn("Creating table {}".format(table_name), errors.SQLObjectAdjustment)
     creator.table_from_dataframe(table_name, dataframe, primary_key="infer")
 
     return dataframe
 
 
-def add_columns(table_name, dataframe, columns, modifier):
+def add_columns(
+    table_name: str, dataframe: pd.DataFrame, columns: List[str], modifier: modify
+) -> pd.DataFrame:
+    """Add columns if they do not exist.
+
+    Parameters
+    ----------
+    table_name (str) : name of the table for which the failed write attempt occured
+    dataframe (pandas.DataFrame) : data to insert
+    columns (list) : columns to add
+    modifier (mssql_dataframe.core.modify) : class to modify SQL columns
+
+    Returns
+    -------
+    dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
+    """
 
     # infer the data types for new columns
     new, schema, _, _ = infer.sql(dataframe.loc[:, columns])
@@ -95,7 +130,22 @@ def add_columns(table_name, dataframe, columns, modifier):
     return dataframe
 
 
-def alter_columns(table_name, dataframe, columns, modifier):
+def alter_columns(
+    table_name: str, dataframe: pd.DataFrame, columns: List[str], modifier: modify
+) -> pd.DataFrame:
+    """Alter columns if their size needs to be increased.
+
+    Parameters
+    ----------
+    table_name (str) : name of the table for which the failed write attempt occured
+    dataframe (pandas.DataFrame) : data to insert
+    columns (list) : columns to alter
+    modifier (mssql_dataframe.core.modify) : class to modify SQL columns
+
+    Returns
+    -------
+    dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
+    """
 
     # temporarily set named index (primary key) as columns
     index = dataframe.index.names

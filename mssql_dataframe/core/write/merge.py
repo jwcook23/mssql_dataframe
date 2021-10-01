@@ -1,5 +1,8 @@
+"""Class for merging a dataframe into an SQL table."""
 from mssql_dataframe.core import dynamic
 from mssql_dataframe.core.write.insert import insert
+
+from typing import List, Tuple
 
 import pandas as pd
 
@@ -11,13 +14,13 @@ class merge(insert):
         self,
         table_name: str,
         dataframe: pd.DataFrame,
-        match_columns: list = None,
+        match_columns: List[str] = None,
         upsert: bool = False,
-        delete_conditions: list = None,
+        delete_conditions: List[str] = None,
         include_timestamps: bool = True,
-    ):
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
-        With upsert=True, an update if exists otherwise insert action is performed.
+        With upsert=True, an update if exists otherwise insert action is performed without deleting anything.
 
         Parameters
         ----------
@@ -31,22 +34,18 @@ class merge(insert):
 
         Returns
         -------
-
-        None
+        dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
+        schema (pandas.DataFrame) : properties of SQL table columns where data was merged
 
         Examples
         --------
-
         #### merge ColumnA and ColumnB values based on the SQL primary key / index of the dataframe
-
         write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
 
         #### for incrementally merging from a dataframe, require ColumnC also matches to prevent a record from being deleted
-
         write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_conditions=['ColumnC'])
 
         #### perform an UPSERT (if exists update, otherwise update) workflow
-
         write.merge('SomeTable', dataframe[['ColumnA']], upsert=True)
 
         """

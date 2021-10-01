@@ -7,7 +7,7 @@ import pytest
 import pyodbc
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import conversion, dynamic
+from mssql_dataframe.core import conversion, conversion_rules, dynamic
 from . import sample
 
 
@@ -63,7 +63,7 @@ def sql(data):
 def test_rules(data):
 
     # insure conversion rules are fully defined
-    defined = conversion.rules.notna().all()
+    defined = conversion_rules.rules.notna().all()
     try:
         assert all(defined)
     except AssertionError as error:
@@ -72,11 +72,11 @@ def test_rules(data):
         error.args += missing
 
     # insure sample contains all conversion rules
-    defined = conversion.rules["sql_type"].isin([x[1::] for x in data.columns])
+    defined = conversion_rules.rules["sql_type"].isin([x[1::] for x in data.columns])
     try:
         assert all(defined)
     except AssertionError as error:
-        missing = conversion.rules.loc[missing, "sql_type"].tolist()
+        missing = conversion_rules.rules.loc[missing, "sql_type"].tolist()
         missing = f"columns missing from sample dataframe, SQL column names: {missing}"
         error.args += missing
 
@@ -84,7 +84,7 @@ def test_rules(data):
     check = pd.Series(data.dtypes, name="sample")
     check = check.apply(lambda x: x.name)
     check.index = [x[1::] for x in check.index]
-    check = conversion.rules.merge(check, left_on="sql_type", right_index=True)
+    check = conversion_rules.rules.merge(check, left_on="sql_type", right_index=True)
     defined = check["pandas_type"] == check["sample"]
     try:
         assert all(defined)

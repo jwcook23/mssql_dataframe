@@ -1,3 +1,5 @@
+"""Class for establishing connection to an SQL database."""
+
 import pyodbc
 
 from mssql_dataframe.core import errors
@@ -24,16 +26,16 @@ class connect:
     Examples
     --------
 
-    # local host connection using Windows account credentials and inferring the ODBC driver
+    #### local host connection using Windows account credentials and inferring the ODBC driver
     db = connect.connect()
 
-    # remote server using username and password
+    #### remote server using username and password
     db = connect.connect(database_name='master', server_name='<remote>', username='<username>', password='<password>')
 
-    # Azue SQL Server instance
+    #### Azue SQL Server instance
     db = connect.connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
 
-    # using a specific driver
+    #### using a specific driver
     db = connect.connect(driver_name='ODBC Driver 17 for SQL Server')
 
     """

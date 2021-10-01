@@ -1,46 +1,55 @@
+"""Class for inserting data into SQL."""
 from mssql_dataframe.core import errors, conversion, dynamic, modify, create
 from mssql_dataframe.core.write import _exceptions
 
+from typing import Tuple, List
+
 import pandas as pd
+import pyodbc
 
 pd.options.mode.chained_assignment = "raise"
 
 
 class insert:
-    def __init__(self, connection, adjust_sql_objects: bool = False):
+    def __init__(self, connection, auto_adjust_sql_objects: bool = False):
+        """Class for inserting data into SQL.
+
+        Parameters
+        ----------
+        connection (mssql_dataframe.connect) : connection for executing statement
+        auto_adjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
+
+        """
 
         self._connection = connection.connection
-        self.adjust_sql_objects = adjust_sql_objects
+        self.auto_adjust_sql_objects = auto_adjust_sql_objects
 
         # max attempts for creating/modifing SQL tables
         # value of 3 will: add include_timestamps columns and/or add other columns and/or increase column size
         self._adjust_sql_attempts = 3
 
-        # handle failures if adjust_sql_objects==True
+        # handle failures if auto_adjust_sql_objects==True
         self._modify = modify.modify(connection)
         self._create = create.create(connection)
 
     def insert(
         self, table_name: str, dataframe: pd.DataFrame, include_timestamps: bool = True
-    ):
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Insert data into SQL table from a dataframe.
 
         Parameters
         ----------
-
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
         include_timestamps (bool, default=True) : include _time_insert column in server time
 
         Returns
         -------
-
-        dataframe (pandas.DataFrame) : inserted data that may have been altered to conform to SQL
+        dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
         schema (pandas.DataFrame) : properties of SQL table columns where data was inserted
 
         Examples
         --------
-
         #### include _time_insert by default
         write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
 
@@ -101,12 +110,12 @@ class insert:
 
     def _target_table(
         self,
-        table_name,
-        dataframe,
-        cursor,
-        additional_columns: list = None,
+        table_name: str,
+        dataframe: pd.DataFrame,
+        cursor: pyodbc.connect,
+        additional_columns: List[str] = None,
         updating_table: bool = False,
-    ):
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Get target schema, potentially handle errors, and adjust dataframe contents before inserting into target table.
 
         Parameters
@@ -147,7 +156,7 @@ class insert:
                     table_name,
                     dataframe,
                     updating_table,
-                    self.adjust_sql_objects,
+                    self.auto_adjust_sql_objects,
                     self._modify,
                     self._create,
                 )
@@ -166,7 +175,7 @@ class insert:
         match_columns: list = None,
         additional_columns: list = None,
         updating_table: bool = False,
-    ):
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, list[str], str]:
         """Create a source table with data in SQL for update and merge operations.
 
         Parameters
@@ -180,7 +189,10 @@ class insert:
 
         Returns
         -------
-
+        schema (pandas.DataFrame) : table column specifications and conversion rules
+        dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
+        match_columns (list) : columns used to perform matching between source and target tables
+        temp_name (str) : name of the source temporary table that was created
 
         """
         if isinstance(match_columns, str):

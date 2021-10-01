@@ -1,4 +1,4 @@
-"""Custom Exceptions and Warnings"""
+"""Custom Exceptions and Warnings for mssql_dataframe."""
 
 
 class EnvironmentODBCDriverNotFound(Exception):
@@ -9,6 +9,8 @@ class EnvironmentODBCDriverNotFound(Exception):
 
 class UndefinedConversionRule(Exception):
     """Exception for undefined conversion rule between pandas, ODBC, and SQL."""
+
+    pass
 
 
 class SQLTableDoesNotExist(Exception):
@@ -73,3 +75,5 @@ class DataframeColumnDoesNotExist(Exception):
 
 class DataframeInvalidDataType(Exception):
     """Exception for a dataframe column that cannot be converted to it's correct type based on the target SQL type."""
+
+    pass

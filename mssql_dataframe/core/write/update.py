@@ -1,5 +1,8 @@
+"""Class for updaing an SQL table using a dataframe."""
 from mssql_dataframe.core import dynamic
 from mssql_dataframe.core.write.insert import insert
+
+from typing import List, Tuple
 
 import pandas as pd
 
@@ -11,14 +14,13 @@ class update(insert):
         self,
         table_name: str,
         dataframe: pd.DataFrame,
-        match_columns: list = None,
+        match_columns: List[str] = None,
         include_timestamps: bool = True,
-    ):
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Update column(s) in an SQL table using a dataframe.
 
         Parameters
         ----------
-
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
@@ -26,12 +28,11 @@ class update(insert):
 
         Returns
         -------
-
-        None
+        dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
+        schema (pandas.DataFrame) : properties of SQL table columns where data was updated
 
         Examples
         --------
-
         #### update ColumnA only using the dataframe index & SQL primary key
         write.update('SomeTable', dataframe[['ColumnA']])
 

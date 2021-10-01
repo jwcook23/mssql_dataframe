@@ -1,4 +1,5 @@
-from typing import Literal
+"""Class for modifying SQL columns or primary keys."""
+from typing import Literal, List
 
 from mssql_dataframe.core import dynamic
 
@@ -21,12 +22,11 @@ class modify:
         column_name: str,
         data_type: str = None,
         is_nullable: bool = True,
-    ):
+    ) -> None:
         """Add, alter, or drop a column in an existing SQL table.
 
         Parameters
         ----------
-
         table_name (str) : name of table
         modify (str) : method of modification, see below for description of options
         column_name (str) : name of column
@@ -46,15 +46,12 @@ class modify:
         -------
 
         #### add a column
-
         modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
 
         #### alter a column
-
         modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', is_nullable=False)
 
         #### drop a column
-
         modify.column('SomeTable', modify='drop', column_name='B')
 
         """
@@ -140,14 +137,13 @@ class modify:
         self,
         table_name: str,
         modify: Literal["add", "drop"],
-        columns: list,
+        columns: List[str],
         primary_key_name: str,
-    ):
+    ) -> None:
         """Add or drop the primary key from a table.
 
         Parameters
         ----------
-
         table_name (str) : name of the table to add/drop the primary key
         key_name (str) : name of the primary key to add/drop
         columns (list|str) : name of the column(s) to add/drop as the primary key
@@ -163,11 +159,9 @@ class modify:
         --------
 
         #### add a primary key
-
         modify.primary_key('SomeTable', modify='add', columns='A', primary_key_name = '_pk_1')
 
         #### drop a primary key
-
         sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
 
         """

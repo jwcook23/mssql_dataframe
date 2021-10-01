@@ -14,7 +14,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.insert = insert.insert(connection, adjust_sql_objects=True)
+        self.insert = insert.insert(connection, auto_adjust_sql_objects=True)
 
 
 @pytest.fixture(scope="module")
@@ -108,7 +108,7 @@ def test_insert_alter_column_unchanged(sql):
             table_name,
             dataframe,
             updating_table=False,
-            adjust_sql_objects=sql.insert.adjust_sql_objects,
+            auto_adjust_sql_objects=sql.insert.auto_adjust_sql_objects,
             modifier=sql.insert._modify,
             creator=sql.insert._create,
         )
@@ -132,7 +132,7 @@ def test_insert_alter_column_data_category(sql):
             table_name,
             dataframe,
             updating_table=False,
-            adjust_sql_objects=sql.insert.adjust_sql_objects,
+            auto_adjust_sql_objects=sql.insert.auto_adjust_sql_objects,
             modifier=sql.insert._modify,
             creator=sql.insert._create,
         )

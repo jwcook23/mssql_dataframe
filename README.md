@@ -1,5 +1,4 @@
 <!-- TODO:  document cursor commit where needed-->
-<!-- TODO: type hints, including returns -->
 
 # mssql_dataframe
 
@@ -30,7 +29,7 @@ from mssql_dataframe.collection import SQLServer
 # # connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
 # # initialize the main package
-sql = SQLServer(db, adjust_sql_objects=True)
+sql = SQLServer(db, auto_adjust_sql_objects=True)
 ```
 
 ### Updating SQL Table
@@ -63,17 +62,17 @@ write.merge('SomeSQLTable', dataframe[['ColumnA']], delete_unmatched=False)
 
 ## SQL Object Creation and Modification
 
-SQL objects will be created/modified as needed if the main class is initialized with `adjust_sql_objects=True`.
+SQL objects will be created/modified as needed if the main class is initialized with `auto_adjust_sql_objects=True`.
 
 1. Tables will be created if they do not exist.
 2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
 
-Certain actions won't be taken even with `adjust_sql_objects=True` to preserve integrity.
+Certain actions won't be taken even with `auto_adjust_sql_objects=True` to preserve integrity.
 
 1. A column won't change from NOT NULL automatically.
 2. Column data type won't change from number like (INT, NUMERIC, etc.) to character like (VARCHAR).
 
-Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `adjust_sql_objects=False`.
+Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `auto_adjust_sql_objects=False`.
 
 1. `_time_insert`: a new record was inserted
 2. `_time_update`: an existing record was updated

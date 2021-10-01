@@ -12,21 +12,21 @@ def test_SQLServer():
     # local host connection to database
     db = connect()
 
-    # adjust_sql_objects==False
+    # auto_adjust_sql_objects==False
     with warnings.catch_warnings(record=True) as warn:
         assert len(warn) == 0
-        sql = SQLServer(db, adjust_sql_objects=False)
+        sql = SQLServer(db, auto_adjust_sql_objects=False)
         assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
-    # adjust_sql_objects==True
+    # auto_adjust_sql_objects==True
     with warnings.catch_warnings(record=True) as warn:
-        adjustable = SQLServer(db, adjust_sql_objects=True)
+        adjustable = SQLServer(db, auto_adjust_sql_objects=True)
         assert len(warn) == 1
         assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
-            == "SQL objects will be created/modified as needed as adjust_sql_objects=True"
+            == "SQL objects will be created/modified as needed as auto_adjust_sql_objects=True"
         )
         assert isinstance(adjustable, SQLServer)
         assert list(vars(sql).keys()) == attributes

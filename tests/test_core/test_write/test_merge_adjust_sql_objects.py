@@ -14,7 +14,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.merge = merge.merge(connection, adjust_sql_objects=True)
+        self.merge = merge.merge(connection, auto_adjust_sql_objects=True)
 
 
 @pytest.fixture(scope="module")
