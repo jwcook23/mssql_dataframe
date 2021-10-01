@@ -201,6 +201,7 @@ class create:
         # execute statement
         cursor = self._connection.cursor()
         cursor.execute(statement, args)
+        cursor.commit()
 
     def table_from_dataframe(
         self,

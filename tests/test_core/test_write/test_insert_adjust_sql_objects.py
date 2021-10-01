@@ -63,7 +63,6 @@ def test_insert_add_column(sql):
 
     table_name = "##test_insert_add_column"
     sql.create.table(table_name, columns={"ColumnA": "TINYINT"})
-    sql.connection.commit()
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [2], "ColumnC": ["zzz"]})
 
@@ -145,7 +144,6 @@ def test_insert_alter_column(sql):
         table_name,
         columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)", "ColumnC": "TINYINT"},
     )
-    sql.connection.commit()
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["aaa"], "ColumnC": [100000]})
 
@@ -246,7 +244,6 @@ def test_insert_add_and_alter_column(sql):
     dataframe = pd.DataFrame({"ColumnA": [0, 1, 2, 3], "ColumnB": [0, 1, 2, 3]})
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
-        sql.connection.commit()
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)

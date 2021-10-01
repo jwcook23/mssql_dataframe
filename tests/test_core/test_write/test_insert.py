@@ -31,7 +31,6 @@ def test_insert_errors(sql):
     sql.create.table(
         table_name, columns={"ColumnA": "SMALLINT", "ColumnB": "VARCHAR(1)"}
     )
-    sql.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         dataframe = pd.DataFrame({"ColumnA": [1]})
@@ -232,7 +231,6 @@ def test_insert_add_include_timestamps(sql):
 
     # create table
     sql.create.table(table_name, columns={"_bit": "BIT"})
-    sql.connection.commit()
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:

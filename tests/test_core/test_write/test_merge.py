@@ -30,7 +30,6 @@ def test_merge_errors(sql):
     sql.create.table(
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
     )
-    sql.connection.commit()
 
     with pytest.raises(errors.SQLTableDoesNotExist):
         sql.merge.merge(

@@ -1,5 +1,3 @@
-<!-- TODO:  document cursor commit where needed-->
-
 # mssql_dataframe
 
 ![Tests Status](./reports/tests.svg?dummy=8484744)
