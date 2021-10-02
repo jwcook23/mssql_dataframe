@@ -1,13 +1,11 @@
 """Class for inserting data into SQL."""
-from mssql_dataframe.core import errors, conversion, dynamic, modify, create
-from mssql_dataframe.core.write import _exceptions
-
 from typing import Tuple, List
 
 import pandas as pd
 import pyodbc
 
-pd.options.mode.chained_assignment = "raise"
+from mssql_dataframe.core import errors, conversion, dynamic, modify, create
+from mssql_dataframe.core.write import _exceptions
 
 
 class insert:

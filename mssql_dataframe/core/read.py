@@ -1,12 +1,9 @@
 """Class for reading from SQL into a dataframe."""
-from mssql_dataframe.core import dynamic, conversion, errors
-
 from typing import Literal
 
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
-
+from mssql_dataframe.core import dynamic, conversion, errors
 
 class read:
     def __init__(self, connection):

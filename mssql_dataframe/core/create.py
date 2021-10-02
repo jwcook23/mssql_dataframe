@@ -1,12 +1,10 @@
 """Class for creating SQL tables both explicitly and implicitly."""
-from mssql_dataframe.core import dynamic, errors, conversion, infer
-
 from typing import Literal, List
 import warnings
 
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
+from mssql_dataframe.core import dynamic, errors, conversion, infer
 
 
 class create:

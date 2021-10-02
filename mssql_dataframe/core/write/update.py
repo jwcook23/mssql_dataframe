@@ -1,12 +1,10 @@
 """Class for updaing an SQL table using a dataframe."""
-from mssql_dataframe.core import dynamic
-from mssql_dataframe.core.write.insert import insert
-
 from typing import List, Tuple
 
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
+from mssql_dataframe.core import dynamic
+from mssql_dataframe.core.write.insert import insert
 
 
 class update(insert):

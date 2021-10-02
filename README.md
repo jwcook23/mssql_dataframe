@@ -7,19 +7,18 @@
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
-Provides efficient mechanisms for updating and merging data into Transact-SQL tables from Python dataframes. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table. Without taking into account network speed, 100,000 records can be updated/merged in a few seconds.
+Provides efficient mechanisms for updating and merging from Python dataframes into Transact-SQL tables. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
 In practice this module may be useful for updating models, web scraping, or general data engineering tasks.
 
 ## Samples
 
-See EXAMPLES.md for full examples.
+See TUTORIAL.md for a full example.
 
 ### Initialization
 
 ``` python
 import pandas as pd
-pd.options.mode.chained_assignment = 'raise'
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer

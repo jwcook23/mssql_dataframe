@@ -1,11 +1,10 @@
 """Functions for handling exceptions when attempting to write to SQL."""
 import warnings
+from typing import List
 
 import pandas as pd
 
 from mssql_dataframe.core import errors, infer, conversion, modify, create
-
-from typing import List
 
 
 def handle(

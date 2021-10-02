@@ -1,6 +1,4 @@
 """ Functions for data movement between Python pandas dataframes and SQL."""
-from mssql_dataframe.core import errors, conversion_rules
-
 import warnings
 import struct
 from typing import Tuple, List
@@ -9,8 +7,7 @@ import pyodbc
 import numpy as np
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
-
+from mssql_dataframe.core import errors, conversion_rules
 
 def get_schema(
     connection: pyodbc.connect,

@@ -1,15 +1,12 @@
 """Functions for inferring best SQL and datarame data types based on dataframe contents that
 may be in objects/strings. Also contains functions for determining other SQL properties.
 """
-
-from mssql_dataframe.core import conversion_rules, errors
-
 from datetime import time
 from typing import Tuple
 
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
+from mssql_dataframe.core import conversion_rules, errors
 
 
 def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Index, str]:
