@@ -17,7 +17,6 @@ class merge(insert):
         match_columns: List[str] = None,
         upsert: bool = False,
         delete_conditions: List[str] = None,
-        include_timestamps: bool = True,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
         With upsert=True, an update if exists otherwise insert action is performed without deleting anything.
@@ -30,7 +29,6 @@ class merge(insert):
         match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used
         upsert (bool, default=False) : delete records if they do not match
         delete_conditions (list, default=None) : additional criteria that needs to match to prevent records from being deleted
-        include_timestamps (bool, default=True) : include _time_insert and _time_update columns that are in server time
 
         Returns
         -------
@@ -60,7 +58,7 @@ class merge(insert):
         cursor = self._connection.cursor()
 
         # get target table schema, while checking for errors and adjusting data for inserting
-        if include_timestamps:
+        if self.include_metadata_timestamps:
             additional_columns = ["_time_update", "_time_insert"]
         else:
             additional_columns = None
@@ -124,7 +122,7 @@ class merge(insert):
         # form when matched then update syntax
         update_syntax = ["QUOTENAME(@Update_" + x + ")" for x in alias_update]
         update_syntax = "+','+".join([x + "+'=_source.'+" + x for x in update_syntax])
-        if include_timestamps:
+        if self.include_metadata_timestamps:
             update_syntax = "+'_time_update=GETDATE(), '+" + update_syntax
 
         # form when not matched then insert
@@ -134,7 +132,7 @@ class merge(insert):
         insert_values = "+','+".join(
             ["'_source.'+QUOTENAME(@Insert_" + x + ")" for x in alias_insert]
         )
-        if include_timestamps:
+        if self.include_metadata_timestamps:
             insert_syntax = "+'_time_insert, '+" + insert_syntax
             insert_values = "+'GETDATE(), '+" + insert_values
 

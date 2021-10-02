@@ -15,6 +15,7 @@ class package:
         self.connection = connection.connection
         self.create = create.create(connection)
         self.insert = insert.insert(connection)
+        self.insert_meta = insert.insert(connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
@@ -35,42 +36,38 @@ def test_insert_errors(sql):
     with pytest.raises(errors.SQLTableDoesNotExist):
         dataframe = pd.DataFrame({"ColumnA": [1]})
         sql.insert.insert(
-            "error" + table_name, dataframe=dataframe, include_timestamps=False
+            "error" + table_name, dataframe=dataframe
         )
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
         dataframe = pd.DataFrame({"ColumnC": [1]})
-        sql.insert.insert(table_name, dataframe=dataframe, include_timestamps=False)
+        sql.insert.insert(table_name, dataframe=dataframe)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         dataframe = pd.DataFrame({"ColumnB": ["aaa"]})
-        sql.insert.insert(table_name, dataframe=dataframe, include_timestamps=False)
+        sql.insert.insert(table_name, dataframe=dataframe)
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.insert.insert(
             table_name,
-            dataframe=pd.DataFrame({"ColumnA": [100000]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": [100000]})
         )
 
     # values that cannot be converted to their Python equalivant based on SQL data type
     with pytest.raises(errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["abs"]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": ["abs"]})
         )
     with pytest.raises(errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["12-5"]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": ["12-5"]})
         )
     with pytest.raises(errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["12345-67589"]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": ["12345-67589"]})
         )
 
 
@@ -134,7 +131,7 @@ def test_insert_dataframe(sql):
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
         assert isinstance(warn[0].message, UserWarning)
         assert (
@@ -164,7 +161,7 @@ def test_insert_singles(sql):
     # single value
     dataframe = pd.DataFrame({"ColumnA": [1]})
     dataframe, schema = sql.insert.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
     result = conversion.read_values(
         f"SELECT ColumnA FROM {table_name}", schema, sql.connection
@@ -174,7 +171,7 @@ def test_insert_singles(sql):
     # single column
     dataframe = pd.DataFrame({"ColumnB": [2, 3, 4]})
     dataframe, schema = sql.insert.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
     result = conversion.read_values(
         f"SELECT ColumnB FROM {table_name}", schema, sql.connection
@@ -186,7 +183,7 @@ def test_insert_singles(sql):
         {"ColumnC": ["06-22-2021", "06-22-2021"]}, dtype="datetime64[ns]"
     )
     dataframe, schema = sql.insert.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
     result = conversion.read_values(
         f"SELECT ColumnC FROM {table_name}", schema, sql.connection
@@ -212,7 +209,7 @@ def test_insert_composite_pk(sql):
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["12345"], "ColumnC": [1]})
     dataframe, schema = sql.insert.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     result = conversion.read_values(
@@ -222,9 +219,9 @@ def test_insert_composite_pk(sql):
     assert all(result["ColumnC"] == 1)
 
 
-def test_insert_add_include_timestamps(sql):
+def test_insert_include_metadata_timestamps(sql):
 
-    table_name = "##test_insert_add_include_timestamps"
+    table_name = "##test_insert_include_metadata_timestamps"
 
     # sample data
     dataframe = pd.DataFrame({"_bit": pd.Series([1, 0, None], dtype="boolean")})
@@ -234,7 +231,7 @@ def test_insert_add_include_timestamps(sql):
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert (

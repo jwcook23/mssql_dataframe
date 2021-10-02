@@ -4,13 +4,13 @@
 
 Connect to an on-premise database using pyodbc. Connection to an Azure SQL database is also possible by passing a server_name in the format `server_name='<server>.database.windows.net'`along with a username and password.
 
-If `auto_adjust_sql_objects=True` (default is False):
+If `autoadjust_sql_objects=True` (default is False):
 
 1. columns will be created if they do not exist
 2. column size will increase if needed, for example from TINYINT to INT
 3. an SQL table will be created if it does not exist
 
-With `auto_adjust_sql_objects=True` exceptions will still be raised in certian cases to preserve integrity:
+With `autoadjust_sql_objects=True` exceptions will still be raised in certian cases to preserve integrity:
 
 1. prevent changing SQL data type from number like to string
 2. prevent changing column nullability
@@ -26,7 +26,7 @@ from mssql_dataframe.collection import SQLServer
 # # connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
 # # initialize the main package
-sql = SQLServer(db, auto_adjust_sql_objects=True)
+sql = SQLServer(db, autoadjust_sql_objects=True)
 ```
 
 ## Creating SQL Tables

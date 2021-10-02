@@ -15,6 +15,7 @@ class package:
         self.connection = connection.connection
         self.create = create.create(connection)
         self.merge = merge.merge(connection)
+        self.merge_meta = merge.merge(connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
@@ -34,24 +35,21 @@ def test_merge_errors(sql):
     with pytest.raises(errors.SQLTableDoesNotExist):
         sql.merge.merge(
             "error" + table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": [1]})
         )
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
-            match_columns=["ColumnA"],
-            include_timestamps=False,
+            match_columns=["ColumnA"]
         )
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
-            match_columns=["ColumnA"],
-            include_timestamps=False,
+            match_columns=["ColumnA"]
         )
 
     with pytest.raises(ValueError):
@@ -59,8 +57,7 @@ def test_merge_errors(sql):
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
             upsert=True,
-            delete_conditions=["ColumnB"],
-            include_timestamps=False,
+            delete_conditions=["ColumnB"]
         )
 
 
@@ -74,7 +71,7 @@ def test_merge_upsert(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete, but keep in SQL since upserting
@@ -86,7 +83,7 @@ def test_merge_upsert(sql):
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
     dataframe, schema = sql.merge.merge(
-        table_name, dataframe, upsert=True, include_timestamps=False
+        table_name, dataframe, upsert=True
     )
 
     result = conversion.read_values(
@@ -110,7 +107,7 @@ def test_merge_one_match_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete
@@ -122,7 +119,7 @@ def test_merge_one_match_column(sql):
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(table_name, dataframe)
+        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 2
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -156,7 +153,7 @@ def test_merge_two_match_columns(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete
@@ -171,7 +168,7 @@ def test_merge_two_match_columns(sql):
 
     # merge values into table, using the primary key that came from the dataframe's index and ColumnA
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(
+        dataframe, schema = sql.merge_meta.merge(
             table_name, dataframe, match_columns=["_index", "State"]
         )
         assert len(warn) == 2
@@ -207,7 +204,7 @@ def test_merge_non_pk_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete
@@ -222,7 +219,7 @@ def test_merge_non_pk_column(sql):
 
     # merge values into table, using a single column that is not the primary key
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(
+        dataframe, schema = sql.merge_meta.merge(
             table_name, dataframe, match_columns=["State"]
         )
         assert len(warn) == 2
@@ -258,7 +255,7 @@ def test_merge_composite_pk(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete
@@ -271,7 +268,7 @@ def test_merge_composite_pk(sql):
             keys=["State", "ColumnA"]
         )
     )
-    dataframe, schema = sql.merge.merge(table_name, dataframe, include_timestamps=False)
+    dataframe, schema = sql.merge.merge(table_name, dataframe)
 
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
@@ -297,7 +294,7 @@ def test_merge_one_delete_condition(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete 2 records
@@ -313,7 +310,7 @@ def test_merge_one_delete_condition(sql):
     # prevent _pk 0 from being deleted as source dataframe must contain a match for state
     dataframe.index.name = "_pk"
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(
+        dataframe, schema = sql.merge_meta.merge(
             table_name, dataframe, match_columns=["_pk"], delete_conditions=["State"]
         )
         assert len(warn) == 2
@@ -360,7 +357,7 @@ def test_merge_two_delete_conditions(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # delete 2 records
@@ -379,7 +376,7 @@ def test_merge_two_delete_conditions(sql):
     # merge values into table, using the primary key that came from the dataframe's index
     # also require a match on State1 and State2 to prevent a record from being deleted
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(
+        dataframe, schema = sql.merge_meta.merge(
             table_name,
             dataframe,
             match_columns=["_pk"],

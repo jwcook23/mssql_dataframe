@@ -14,8 +14,8 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.insert = insert.insert(connection, auto_adjust_sql_objects=True)
-
+        self.insert = insert.insert(connection, autoadjust_sql_objects=True)
+        self.insert_meta = insert.insert(connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -33,8 +33,8 @@ def test_insert_create_table(sql):
     )
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(
-            table_name, dataframe=dataframe, include_timestamps=True
+        dataframe, schema = sql.insert_meta.insert(
+            table_name, dataframe=dataframe
         )
         assert len(warn) == 3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
@@ -67,7 +67,7 @@ def test_insert_add_column(sql):
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [2], "ColumnC": ["zzz"]})
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(table_name, dataframe=dataframe)
+        dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -107,7 +107,7 @@ def test_insert_alter_column_unchanged(sql):
             table_name,
             dataframe,
             updating_table=False,
-            auto_adjust_sql_objects=sql.insert.auto_adjust_sql_objects,
+            autoadjust_sql_objects=sql.insert.autoadjust_sql_objects,
             modifier=sql.insert._modify,
             creator=sql.insert._create,
         )
@@ -131,7 +131,7 @@ def test_insert_alter_column_data_category(sql):
             table_name,
             dataframe,
             updating_table=False,
-            auto_adjust_sql_objects=sql.insert.auto_adjust_sql_objects,
+            autoadjust_sql_objects=sql.insert.autoadjust_sql_objects,
             modifier=sql.insert._modify,
             creator=sql.insert._create,
         )
@@ -148,7 +148,7 @@ def test_insert_alter_column(sql):
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["aaa"], "ColumnC": [100000]})
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(table_name, dataframe=dataframe)
+        dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -195,7 +195,7 @@ def test_insert_alter_primary_key(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.insert.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
     _, dtypes = conversion.sql_spec(schema, dataframe)
     assert dtypes == {
@@ -216,7 +216,7 @@ def test_insert_alter_primary_key(sql):
         }
     ).set_index(keys=["ColumnA", "ColumnB"])
     with warnings.catch_warnings(record=True) as warn:
-        new, schema = sql.insert.insert(table_name, new, include_timestamps=False)
+        new, schema = sql.insert.insert(table_name, new)
         assert len(warn) == 1
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -251,7 +251,7 @@ def test_insert_add_and_alter_column(sql):
     dataframe["ColumnB"] = [256, 257, 258, 259]
     dataframe["ColumnC"] = [0, 1, 2, 3]
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert.insert(table_name, dataframe)
+        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (

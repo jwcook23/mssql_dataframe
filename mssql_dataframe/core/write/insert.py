@@ -11,29 +11,39 @@ pd.options.mode.chained_assignment = "raise"
 
 
 class insert:
-    def __init__(self, connection, auto_adjust_sql_objects: bool = False):
+    def __init__(
+        self,
+        connection,
+        include_metadata_timestamps: bool = False,
+        autoadjust_sql_objects: bool = False,
+    ):
         """Class for inserting data into SQL.
 
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
-        auto_adjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
+        include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update for write operations
+        autoadjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
 
         """
 
         self._connection = connection.connection
-        self.auto_adjust_sql_objects = auto_adjust_sql_objects
+        self.include_metadata_timestamps = include_metadata_timestamps
+        self.autoadjust_sql_objects = autoadjust_sql_objects
 
         # max attempts for creating/modifing SQL tables
-        # value of 3 will: add include_timestamps columns and/or add other columns and/or increase column size
+        # value of 3 will: add include_metadata_timestamps columns and/or add other columns and/or increase column size
         self._adjust_sql_attempts = 3
 
-        # handle failures if auto_adjust_sql_objects==True
+        # handle failures if autoadjust_sql_objects==True
         self._modify = modify.modify(connection)
         self._create = create.create(connection)
 
     def insert(
-        self, table_name: str, dataframe: pd.DataFrame, include_timestamps: bool = True
+        self,
+        table_name: str,
+        dataframe: pd.DataFrame,
+        include_metadata_timestamps: bool = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Insert data into SQL table from a dataframe.
 
@@ -41,20 +51,17 @@ class insert:
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
-        include_timestamps (bool, default=True) : include _time_insert column in server time
 
         Returns
         -------
         dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
         schema (pandas.DataFrame) : properties of SQL table columns where data was inserted
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects
 
         Examples
         --------
-        #### include _time_insert by default
+        #### insert a dataframe into a table
         write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
-
-        #### do not include an insert time
-        write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}), include_timestamps=False)
 
         """
 
@@ -62,8 +69,12 @@ class insert:
         cursor = self._connection.cursor()
         cursor.fast_executemany = True
 
+        # override self.include_metadata_timestamps, for the update class to insert into a source temp table
+        if include_metadata_timestamps is None:
+            include_metadata_timestamps = self.include_metadata_timestamps
+
         # get target table schema, while checking for errors and adjusting data for inserting
-        if include_timestamps:
+        if include_metadata_timestamps:
             additional_columns = ["_time_insert"]
         else:
             additional_columns = None
@@ -89,7 +100,7 @@ class insert:
         cursor = conversion.prepare_cursor(schema, dataframe, cursor)
 
         # issue insert statement
-        if include_timestamps:
+        if include_metadata_timestamps:
             insert = "_time_insert, " + ", ".join(columns)
             params = "GETDATE(), " + ", ".join(["?"] * len(columns))
         else:
@@ -156,7 +167,7 @@ class insert:
                     table_name,
                     dataframe,
                     updating_table,
-                    self.auto_adjust_sql_objects,
+                    self.autoadjust_sql_objects,
                     self._modify,
                     self._create,
                 )
@@ -234,6 +245,6 @@ class insert:
         self._create.table(
             temp_name, dtypes, not_nullable, primary_key_column=match_columns
         )
-        _, _ = self.insert(temp_name, dataframe, include_timestamps=False)
+        _, _ = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
 
         return schema, dataframe, match_columns, temp_name

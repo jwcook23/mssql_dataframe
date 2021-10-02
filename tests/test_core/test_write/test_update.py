@@ -15,6 +15,7 @@ class package:
         self.connection = connection.connection
         self.create = create.create(connection)
         self.update = update.update(connection)
+        self.update_meta = update.update(connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
@@ -40,39 +41,34 @@ def test_update_errors(sql):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
-            match_columns=["ColumnA"],
-            include_timestamps=False,
+            match_columns=["ColumnA"]
         )
 
     with pytest.raises(errors.SQLInsufficientColumnSize):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
-            match_columns=["ColumnA"],
-            include_timestamps=False,
+            match_columns=["ColumnA"]
         )
 
     with pytest.raises(errors.SQLUndefinedPrimaryKey):
         sql.update.update(
             table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]}),
-            include_timestamps=False,
+            dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]})
         )
 
     with pytest.raises(errors.SQLColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"], "ColumnC": [1]}),
-            match_columns=["ColumnC"],
-            include_timestamps=False,
+            match_columns=["ColumnC"]
         )
 
     with pytest.raises(errors.DataframeColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1]}),
-            match_columns=["ColumnB"],
-            include_timestamps=False,
+            match_columns=["ColumnB"]
         )
 
 
@@ -89,12 +85,12 @@ def test_update_primary_key(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
     updated, schema = sql.update.update(
-        table_name, dataframe=dataframe[["ColumnC"]], include_timestamps=False
+        table_name, dataframe=dataframe[["ColumnC"]]
     )
     dataframe["ColumnC"] = updated["ColumnC"]
 
@@ -119,15 +115,14 @@ def test_update_nonpk_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
     updated, schema = sql.update.update(
         table_name,
         dataframe=dataframe[["ColumnB", "ColumnC"]],
-        match_columns="ColumnC",
-        include_timestamps=False,
+        match_columns="ColumnC"
     )
     dataframe["ColumnB"] = updated["ColumnB"]
 
@@ -153,7 +148,7 @@ def test_update_two_match_columns(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -162,7 +157,7 @@ def test_update_two_match_columns(sql):
     )
     dataframe["ColumnC"] = [5, 6]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update.update(
+        updated, schema = sql.update_meta.update(
             table_name, dataframe, match_columns=["_pk", "ColumnA"]
         )
         assert len(warn) == 1
@@ -193,11 +188,11 @@ def test_update_composite_pk(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]
-    updated, schema = sql.update.update(table_name, dataframe, include_timestamps=False)
+    updated, schema = sql.update.update(table_name, dataframe)
 
     # test result
     statement = f"SELECT * FROM {table_name}"

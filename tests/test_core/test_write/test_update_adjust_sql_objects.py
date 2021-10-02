@@ -16,7 +16,8 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.update = update.update(connection, auto_adjust_sql_objects=True)
+        self.update = update.update(connection, autoadjust_sql_objects=True)
+        self.update_meta = update.update(connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
 
 
 @pytest.fixture(scope="module")
@@ -28,7 +29,7 @@ def sql():
 
 def test_update_create_table(sql):
     """Updating a table that doesn't exist should always raise an error, even
-    if auto_adjust_sql_objects=True."""
+    if autoadjust_sql_objects=True."""
 
     table_name = "##test_update_create_table"
 
@@ -47,12 +48,12 @@ def test_update_add_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update using the SQL primary key that came from the dataframe's index
     dataframe["NewColumn"] = [3, 4]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update.update(table_name, dataframe[["NewColumn"]])
+        updated, schema = sql.update_meta.update(table_name, dataframe[["NewColumn"]])
         dataframe["NewColumn"] = updated["NewColumn"]
         assert len(warn) == 2
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
@@ -84,14 +85,14 @@ def test_update_alter_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # update using ColumnA
     dataframe["ColumnB"] = ["aaa", "bbb"]
     dataframe["ColumnC"] = [256, 256]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update.update(
+        updated, schema = sql.update_meta.update(
             table_name, dataframe, match_columns=["ColumnA"]
         )
         dataframe[["ColumnB", "ColumnC"]] = updated[["ColumnB", "ColumnC"]]
@@ -127,14 +128,14 @@ def test_update_add_and_alter_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # update using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["aaa", "bbb"]
     dataframe["NewColumn"] = [3, 4]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update.update(
+        updated, schema = sql.update_meta.update(
             table_name, dataframe[["ColumnB", "NewColumn"]]
         )
         dataframe[["ColumnB", "NewColumn"]] = updated[["ColumnB", "NewColumn"]]

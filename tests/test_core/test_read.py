@@ -16,7 +16,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection
         self.create = create.create(connection)
-        self.insert = insert.insert(connection, auto_adjust_sql_objects=False)
+        self.insert = insert.insert(connection, include_metadata_timestamps=False, autoadjust_sql_objects=False)
         self.read = read.read(connection)
 
 
@@ -56,7 +56,7 @@ def sample(sql):
     ).set_index(keys=["ColumnA", "ColumnF"])
     dataframe["ColumnB"] = dataframe["ColumnB"].astype("Int64")
     dataframe["ColumnD"] = pd.to_datetime(dataframe["ColumnD"])
-    dataframe, _ = sql.insert.insert(table_name, dataframe, include_timestamps=False)
+    dataframe, _ = sql.insert.insert(table_name, dataframe)
 
     yield dataframe
 

@@ -58,7 +58,7 @@ def get_schema(
             f"catalog = {catalog}, table_name = {table_name}"
         )
     # check for missing columns not expected to be in dataframe
-    # such as include_timestamps columns like _time_insert or _time_update
+    # such as include_metadata_timestamps columns like _time_insert or _time_update
     # perform check seperately to insure this is raised without other dataframe columns
     if additional_columns is not None:
         columns = pd.Series(additional_columns, dtype="string")

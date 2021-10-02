@@ -14,8 +14,8 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
-        self.merge = merge.merge(connection, auto_adjust_sql_objects=True)
-
+        self.merge = merge.merge(connection, autoadjust_sql_objects=True)
+        self.merge_meta = merge.merge(connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
 
 @pytest.fixture(scope="module")
 def sql():
@@ -32,7 +32,7 @@ def test_merge_create_table(sql):
     )
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(
+        dataframe, schema = sql.merge_meta.merge(
             table_name, dataframe, match_columns=["_pk"]
         )
         assert len(warn) == 4
@@ -68,14 +68,14 @@ def test_merge_add_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # merge using the SQL primary key that came from the dataframe's index
     dataframe = dataframe[dataframe.index != 0]
     dataframe["NewColumn"] = [3]
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(table_name, dataframe)
+        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -111,7 +111,7 @@ def test_merge_alter_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -120,7 +120,7 @@ def test_merge_alter_column(sql):
     dataframe.loc[1, "ColumnA"] = 10000
     dataframe.loc[1, "ColumnB"] = "bbbbb"
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(table_name, dataframe)
+        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (
@@ -158,7 +158,7 @@ def test_merge_add_and_alter_column(sql):
         assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
-        table_name, dataframe, include_timestamps=False
+        table_name, dataframe
     )
 
     # merge using the SQL primary key that came from the dataframe's index
@@ -167,7 +167,7 @@ def test_merge_add_and_alter_column(sql):
     dataframe.loc[1, "ColumnB"] = "bbbbb"
     dataframe["NewColumn"] = 0
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge.merge(table_name, dataframe)
+        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
         assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
         assert (

@@ -11,11 +11,7 @@ pd.options.mode.chained_assignment = "raise"
 
 class update(insert):
     def update(
-        self,
-        table_name: str,
-        dataframe: pd.DataFrame,
-        match_columns: List[str] = None,
-        include_timestamps: bool = True,
+        self, table_name: str, dataframe: pd.DataFrame, match_columns: List[str] = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Update column(s) in an SQL table using a dataframe.
 
@@ -24,7 +20,6 @@ class update(insert):
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
-        include_timestamps (bool, default=True) : include _time_update column which is in server time
 
         Returns
         -------
@@ -35,9 +30,6 @@ class update(insert):
         --------
         #### update ColumnA only using the dataframe index & SQL primary key
         write.update('SomeTable', dataframe[['ColumnA']])
-
-        #### update ColumnA and do not include a _time_update column value
-        write.update('SomeTable', dataframe[['ColumnA']], include_timestamps=False)
 
         #### update Column A based on ColumnB and ColumnC, that do not have to be the SQL primary key
         write.update('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnB','ColumnC'])
@@ -51,7 +43,7 @@ class update(insert):
         cursor = self._connection.cursor()
 
         # get target table schema, while checking for errors and adjusting data for inserting
-        if include_timestamps:
+        if self.include_metadata_timestamps:
             additional_columns = ["_time_update"]
         else:
             additional_columns = None
@@ -108,7 +100,7 @@ class update(insert):
         # form update syntax
         update_syntax = ["QUOTENAME(@Update_" + x + ")" for x in alias_update]
         update_syntax = "+','+".join([x + "+'=_source.'+" + x for x in update_syntax])
-        if include_timestamps:
+        if self.include_metadata_timestamps:
             update_syntax = "'_time_update=GETDATE(),'+" + update_syntax
 
         # parameters for sp_executesql

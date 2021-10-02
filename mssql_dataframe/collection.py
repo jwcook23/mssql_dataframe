@@ -9,13 +9,15 @@ from mssql_dataframe.core.write.write import write
 class SQLServer:
     """Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
-    If auto_adjust_sql_objects is True, SQL objects may be modified. The exepection is internal tracking columns
-    _time_insert and _time_update which will always be created if include_timestamps=True for write methods.
+    If autoadjust_sql_objects is True SQL objects may be modified such as creating a table, adding a column,
+    or increasing the size of a column. The exepection is internal tracking metadata columns _time_insert and
+     _time_update which will always be created if include_metadata_timestamps=True.
 
     Parameters
     ----------
     connection (mssql_dataframe.connect) : connection for executing statements
-    auto_adjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
+    include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
+    autoadjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
 
     Properties
     ----------
@@ -30,13 +32,14 @@ class SQLServer:
     #### connect to a local host database, with the ability to automatically adjust SQL objects
     db = connect()
 
-    sql = SQLServer(db, auto_adjust_sql_objects=True)
-
-
+    sql = SQLServer(db, autoadjust_sql_objects=True)
     """
 
     def __init__(
-        self, connection: connect.connect, auto_adjust_sql_objects: bool = False
+        self,
+        connection: connect.connect,
+        include_metadata_timestamps: bool = False,
+        autoadjust_sql_objects: bool = False,
     ):
 
         # initialize mssql_dataframe functionality with shared connection
@@ -44,10 +47,19 @@ class SQLServer:
         self.create = create.create(connection)
         self.modify = modify.modify(connection)
         self.read = read.read(connection)
-        self.write = write(connection, auto_adjust_sql_objects)
+        self.write = write(
+            connection, include_metadata_timestamps, autoadjust_sql_objects
+        )
 
-        if auto_adjust_sql_objects:
+        # issue warnings for automated functionality
+        if include_metadata_timestamps:
             warnings.warn(
-                "SQL objects will be created/modified as needed as auto_adjust_sql_objects=True",
+                "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True",
+                errors.SQLObjectAdjustment,
+            )
+
+        if autoadjust_sql_objects:
+            warnings.warn(
+                "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
                 errors.SQLObjectAdjustment,
             )

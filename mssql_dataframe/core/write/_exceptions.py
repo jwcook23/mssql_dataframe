@@ -13,7 +13,7 @@ def handle(
     table_name: str,
     dataframe: pd.DataFrame,
     updating_table: bool,
-    auto_adjust_sql_objects: bool,
+    autoadjust_sql_objects: bool,
     modifier: modify,
     creator: create,
 ) -> pd.DataFrame:
@@ -25,7 +25,7 @@ def handle(
     table_name (str) : name of the table for which the failed write attempt occured
     dataframe (pandas.DataFrame) : data to insert
     updating_table (bool, default) : flag that indicates if target table is being updated
-    auto_adjust_sql_objects (bool) : flag for if tables will be created or objects with be modified
+    autoadjust_sql_objects (bool) : flag for if tables will be created or objects with be modified
     modifier (mssql_dataframe.core.modify) : class to modify SQL columns
     creator (mssql_dataframe.core.create) : class to create SQL tables
 
@@ -40,10 +40,10 @@ def handle(
     else:
         columns = pd.Series([], dtype="string")
 
-    # always add include_timestamps columns, regardless of auto_adjust_sql_objects value
-    include_timestamps = ["_time_insert", "_time_update"]
+    # always add include_metadata_timestamps columns, regardless of autoadjust_sql_objects value
+    include_metadata_timestamps = ["_time_insert", "_time_update"]
     if isinstance(failure, errors.SQLColumnDoesNotExist) and all(
-        columns.isin(include_timestamps)
+        columns.isin(include_metadata_timestamps)
     ):
         for col in columns:
             warnings.warn(
@@ -54,7 +54,7 @@ def handle(
                 table_name, modify="add", column_name=col, data_type="DATETIME2"
             )
 
-    elif not auto_adjust_sql_objects:
+    elif not autoadjust_sql_objects:
         raise failure
 
     elif isinstance(failure, errors.SQLTableDoesNotExist):
