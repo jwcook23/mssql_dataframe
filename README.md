@@ -23,15 +23,40 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer
 
-# # connect to database using pyodbc
+# connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
-# # initialize the main package
-sql = SQLServer(db, autoadjust_sql_objects=True)
+# initialize the main mssql_dataframe package
+sql = SQLServer(db)
+```
+
+### Create Sample Table
+
+Create a global temporary table for demonstration.
+
+``` python
+df = pd.DataFrame({
+    'ColumnA': [1,2,3,4,5],
+    'ColumnB': ['a  .','b!','  c','d','e'],
+    'ColumnC': [False, True, True, False, False]
+})
+df.index.name = 'PrimaryKey'
+
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_dataframe',
+    dataframe = df,
+    primary_key = 'index'
+)
 ```
 
 ### Updating SQL Table
 
-UPDATE an SQL table using primary keys or other columns.
+First
+
+``` python
+df['ColumnB'] = df['ColumnB']
+```
+
+Update an SQL table using the primary key.
 
 ``` python
 # UPDATE using dataframe's index and the SQL primary key
@@ -98,3 +123,4 @@ A similiar project is [pangres](https://github.com/ThibTrip/pangres), but doesn'
 
 1. merge with the open to retain deleted records in another table
 2. support for decimal and numeric SQL types
+3. support for other SQL implementations

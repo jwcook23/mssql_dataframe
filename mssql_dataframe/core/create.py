@@ -4,7 +4,7 @@ import warnings
 
 import pandas as pd
 
-from mssql_dataframe.core import dynamic, errors, conversion, infer
+from mssql_dataframe.core import custom_warnings, dynamic, conversion, infer
 
 
 class create:
@@ -292,12 +292,12 @@ class create:
         else:
             pk_name = "None"
         msg = f"""
-        Created table {table_name}
+        Created table: {table_name}
         Primary key: {pk_name}
         Non-null columns: {not_nullable}
         Data types: {dtypes}
         """
-        warnings.warn(msg, errors.SQLObjectAdjustment)
+        warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
 
         # set primary key column as dataframe index
         if primary_key_column is not None:

@@ -2,7 +2,7 @@
 import warnings
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import create, errors, modify, read
+from mssql_dataframe.core import custom_warnings, create, modify, read
 from mssql_dataframe.core.write.write import write
 
 
@@ -55,11 +55,11 @@ class SQLServer:
         if include_metadata_timestamps:
             warnings.warn(
                 "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True",
-                errors.SQLObjectAdjustment,
+                custom_warnings.SQLObjectAdjustment,
             )
 
         if autoadjust_sql_objects:
             warnings.warn(
                 "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
-                errors.SQLObjectAdjustment,
+                custom_warnings.SQLObjectAdjustment,
             )

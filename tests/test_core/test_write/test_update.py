@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import update
 
 
@@ -32,39 +32,39 @@ def test_update_errors(sql):
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
     )
 
-    with pytest.raises(errors.SQLTableDoesNotExist):
+    with pytest.raises(custom_errors.SQLTableDoesNotExist):
         sql.update.update(
             "error" + table_name, dataframe=pd.DataFrame({"ColumnA": [1]})
         )
 
-    with pytest.raises(errors.SQLColumnDoesNotExist):
+    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
             match_columns=["ColumnA"]
         )
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
+    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
             match_columns=["ColumnA"]
         )
 
-    with pytest.raises(errors.SQLUndefinedPrimaryKey):
+    with pytest.raises(custom_errors.SQLUndefinedPrimaryKey):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]})
         )
 
-    with pytest.raises(errors.SQLColumnDoesNotExist):
+    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"], "ColumnC": [1]}),
             match_columns=["ColumnC"]
         )
 
-    with pytest.raises(errors.DataframeColumnDoesNotExist):
+    with pytest.raises(custom_errors.DataframeColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1]}),
@@ -83,7 +83,7 @@ def test_update_primary_key(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, _ = sql.update.insert(table_name, dataframe)
 
@@ -113,7 +113,7 @@ def test_update_nonpk_column(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, _ = sql.update.insert(table_name, dataframe)
 
@@ -145,7 +145,7 @@ def test_update_two_match_columns(sql):
             table_name, dataframe, primary_key="sql"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
         table_name, dataframe
@@ -161,7 +161,7 @@ def test_update_two_match_columns(sql):
             table_name, dataframe, match_columns=["_pk", "ColumnA"]
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
             == "Creating column _time_update in table ##test_update_two_match_columns with data type DATETIME2."
@@ -186,7 +186,7 @@ def test_update_composite_pk(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, _ = sql.update.insert(table_name, dataframe)
 

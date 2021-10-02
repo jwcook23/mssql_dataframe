@@ -4,7 +4,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, dynamic
+from mssql_dataframe.core import custom_errors, dynamic
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +52,7 @@ def test_escape(cursor):
     assert isinstance(clean, str)
 
     # value that is too long
-    with pytest.raises(errors.SQLInvalidLengthObjectName):
+    with pytest.raises(custom_errors.SQLInvalidLengthObjectName):
         dynamic.escape(cursor, inputs="a" * 1000)
 
 
@@ -74,5 +74,5 @@ def test_where(cursor):
     assert where_args == ["4"]
 
     conditions = "no operator present"
-    with pytest.raises(errors.SQLInvalidSyntax):
+    with pytest.raises(custom_errors.SQLInvalidSyntax):
         dynamic.where(cursor, conditions)

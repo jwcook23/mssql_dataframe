@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, create, conversion
 from mssql_dataframe.core.write import merge
 
 
@@ -36,9 +36,9 @@ def test_merge_create_table(sql):
             table_name, dataframe, match_columns=["_pk"]
         )
         assert len(warn) == 4
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert str(warn[0].message) == f"Creating table {table_name}"
-        assert f"Created table {table_name}" in str(warn[1].message)
+        assert f"Created table: {table_name}" in str(warn[1].message)
         assert (
             str(warn[2].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -65,7 +65,7 @@ def test_merge_add_column(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -77,7 +77,7 @@ def test_merge_add_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -108,7 +108,7 @@ def test_merge_alter_column(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -122,7 +122,7 @@ def test_merge_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -155,7 +155,7 @@ def test_merge_add_and_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -169,7 +169,7 @@ def test_merge_add_and_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."

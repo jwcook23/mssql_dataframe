@@ -3,7 +3,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 import pytest
 
-from mssql_dataframe.core import infer, errors
+from mssql_dataframe.core import custom_errors, infer
 from . import sample
 
 
@@ -91,5 +91,5 @@ def test_default():
 def test_sql_schema_errors():
 
     dataframe = pd.DataFrame({"ColumnA": pd.Series([1, 2, 3], dtype="category")})
-    with pytest.raises(errors.UndefinedConversionRule):
+    with pytest.raises(custom_errors.UndefinedConversionRule):
         infer.sql_schema(dataframe)

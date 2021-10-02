@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import update
 
 from mssql_dataframe.core.write import update
@@ -35,7 +35,7 @@ def test_update_create_table(sql):
 
     dataframe = pd.DataFrame({"_pk": [0, 1], "ColumnA": [1, 2]}).set_index(keys="_pk")
 
-    with pytest.raises(errors.SQLTableDoesNotExist):
+    with pytest.raises(custom_errors.SQLTableDoesNotExist):
         sql.update.update(table_name, dataframe)
 
 
@@ -46,7 +46,7 @@ def test_update_add_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, _ = sql.update.insert(table_name, dataframe)
 
@@ -56,7 +56,7 @@ def test_update_add_column(sql):
         updated, schema = sql.update_meta.update(table_name, dataframe[["NewColumn"]])
         dataframe["NewColumn"] = updated["NewColumn"]
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -82,7 +82,7 @@ def test_update_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
         table_name, dataframe
@@ -97,7 +97,7 @@ def test_update_alter_column(sql):
         )
         dataframe[["ColumnB", "ColumnC"]] = updated[["ColumnB", "ColumnC"]]
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -125,7 +125,7 @@ def test_update_add_and_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.update.insert(
         table_name, dataframe
@@ -140,7 +140,7 @@ def test_update_add_and_alter_column(sql):
         )
         dataframe[["ColumnB", "NewColumn"]] = updated[["ColumnB", "NewColumn"]]
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."

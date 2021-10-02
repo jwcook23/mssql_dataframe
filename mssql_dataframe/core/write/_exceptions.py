@@ -4,11 +4,18 @@ from typing import List
 
 import pandas as pd
 
-from mssql_dataframe.core import errors, infer, conversion, modify, create
+from mssql_dataframe.core import (
+    custom_warnings,
+    custom_errors,
+    infer,
+    conversion,
+    modify,
+    create,
+)
 
 
 def handle(
-    failure: errors,
+    failure: custom_errors,
     table_name: str,
     dataframe: pd.DataFrame,
     updating_table: bool,
@@ -41,13 +48,13 @@ def handle(
 
     # always add include_metadata_timestamps columns, regardless of autoadjust_sql_objects value
     include_metadata_timestamps = ["_time_insert", "_time_update"]
-    if isinstance(failure, errors.SQLColumnDoesNotExist) and all(
+    if isinstance(failure, custom_errors.SQLColumnDoesNotExist) and all(
         columns.isin(include_metadata_timestamps)
     ):
         for col in columns:
             warnings.warn(
                 f"Creating column {col} in table {table_name} with data type DATETIME2.",
-                errors.SQLObjectAdjustment,
+                custom_warnings.SQLObjectAdjustment,
             )
             modifier.column(
                 table_name, modify="add", column_name=col, data_type="DATETIME2"
@@ -56,16 +63,16 @@ def handle(
     elif not autoadjust_sql_objects:
         raise failure
 
-    elif isinstance(failure, errors.SQLTableDoesNotExist):
+    elif isinstance(failure, custom_errors.SQLTableDoesNotExist):
         if updating_table:
             raise failure
         else:
             dataframe = create_table(table_name, dataframe, creator)
 
-    elif isinstance(failure, errors.SQLColumnDoesNotExist):
+    elif isinstance(failure, custom_errors.SQLColumnDoesNotExist):
         dataframe = add_columns(table_name, dataframe, columns, modifier)
 
-    elif isinstance(failure, errors.SQLInsufficientColumnSize):
+    elif isinstance(failure, custom_errors.SQLInsufficientColumnSize):
         dataframe = alter_columns(table_name, dataframe, columns, modifier)
 
     return dataframe
@@ -87,7 +94,9 @@ def create_table(
     dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
 
     """
-    warnings.warn("Creating table {}".format(table_name), errors.SQLObjectAdjustment)
+    warnings.warn(
+        "Creating table {}".format(table_name), custom_warnings.SQLObjectAdjustment
+    )
     creator.table_from_dataframe(table_name, dataframe, primary_key="infer")
 
     return dataframe
@@ -118,7 +127,7 @@ def add_columns(
     for col, spec in dtypes.items():
         warnings.warn(
             f"Creating column {col} in table {table_name} with data type {spec}.",
-            errors.SQLObjectAdjustment,
+            custom_warnings.SQLObjectAdjustment,
         )
         modifier.column(
             table_name, modify="add", column_name=col, data_type=spec, is_nullable=True
@@ -165,14 +174,14 @@ def alter_columns(
     unchanged = unchanged.all(axis="columns")
     if any(unchanged):
         unchanged = list(unchanged[unchanged].index)
-        raise errors.SQLRecastColumnUnchanged(
+        raise custom_errors.SQLRecastColumnUnchanged(
             f"Handling SQLInsufficientColumnSize did not result in type or size change for columns: {unchanged}"
         )
     # insure change doesn't result in different sql data category
     changed = previous.loc[schema.index, ["sql_category"]] != schema[["sql_category"]]
     if any(changed["sql_category"]):
         changed = list(changed[changed["sql_category"]].index)
-        raise errors.SQLRecastColumnChangedCategory(
+        raise custom_errors.SQLRecastColumnChangedCategory(
             f"Handling SQLInsufficientColumnSize resulted in data type category change for columns: {changed}"
         )
     # drop primary key constraint prior to altering columns, if needed
@@ -196,7 +205,7 @@ def alter_columns(
         is_nullable = previous.at[col, "is_nullable"]
         warnings.warn(
             f"Altering column {col} in table {table_name} to data type {spec} with is_nullable={is_nullable}.",
-            errors.SQLObjectAdjustment,
+            custom_warnings.SQLObjectAdjustment,
         )
         modifier.column(
             table_name,

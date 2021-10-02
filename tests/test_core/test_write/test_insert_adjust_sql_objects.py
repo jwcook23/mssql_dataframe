@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import insert, _exceptions
 
 
@@ -37,9 +37,9 @@ def test_insert_create_table(sql):
             table_name, dataframe=dataframe
         )
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert "Creating table " + table_name in str(warn[0].message)
-        assert "Created table " + table_name in str(warn[1].message)
+        assert "Created table: " + table_name in str(warn[1].message)
         assert "Creating column _time_insert in table " + table_name in str(
             warn[2].message
         )
@@ -69,7 +69,7 @@ def test_insert_add_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
@@ -98,10 +98,10 @@ def test_insert_alter_column_unchanged(sql):
     )
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"], "ColumnC": [1]})
-    failure = errors.SQLInsufficientColumnSize(
+    failure = custom_errors.SQLInsufficientColumnSize(
         "manually testing expection for ColumnB, ColumnC", ["ColumnB", "ColumnC"]
     )
-    with pytest.raises(errors.SQLRecastColumnUnchanged):
+    with pytest.raises(custom_errors.SQLRecastColumnUnchanged):
         _exceptions.handle(
             failure,
             table_name,
@@ -122,10 +122,10 @@ def test_insert_alter_column_data_category(sql):
     )
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [1], "ColumnC": ["a"]})
-    failure = errors.SQLInsufficientColumnSize(
+    failure = custom_errors.SQLInsufficientColumnSize(
         "manually testing expection for ColumnB, ColumnC", ["ColumnB", "ColumnC"]
     )
-    with pytest.raises(errors.SQLRecastColumnChangedCategory):
+    with pytest.raises(custom_errors.SQLRecastColumnChangedCategory):
         _exceptions.handle(
             failure,
             table_name,
@@ -150,7 +150,7 @@ def test_insert_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
@@ -192,7 +192,7 @@ def test_insert_alter_primary_key(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.insert.insert(
         table_name, dataframe
@@ -218,7 +218,7 @@ def test_insert_alter_primary_key(sql):
     with warnings.catch_warnings(record=True) as warn:
         new, schema = sql.insert.insert(table_name, new)
         assert len(warn) == 1
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == "Altering column ColumnA in table ##test_insert_alter_primary_key to data type smallint with is_nullable=False."
@@ -245,7 +245,7 @@ def test_insert_add_and_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
 
     dataframe["ColumnB"] = [256, 257, 258, 259]
@@ -253,7 +253,7 @@ def test_insert_add_and_alter_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 3
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."

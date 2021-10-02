@@ -2,7 +2,7 @@ import pyodbc
 import pytest
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors
+from mssql_dataframe.core import custom_errors
 
 
 def test_connect():
@@ -21,5 +21,5 @@ def test_connect():
         )
 
     # invalid driver name
-    with pytest.raises(errors.EnvironmentODBCDriverNotFound):
+    with pytest.raises(custom_errors.EnvironmentODBCDriverNotFound):
         connect.connect(database_name="master", server_name="localhost", driver="")

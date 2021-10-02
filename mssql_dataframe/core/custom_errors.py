@@ -1,4 +1,4 @@
-"""Custom Exceptions and Warnings for mssql_dataframe."""
+"""Custom errors for mssql_dataframe."""
 
 
 class EnvironmentODBCDriverNotFound(Exception):
@@ -57,12 +57,6 @@ class SQLRecastColumnChangedCategory(Exception):
 
 class SQLInvalidLengthObjectName(Exception):
     """Exception for an SQL object name that is too long."""
-
-    pass
-
-
-class SQLObjectAdjustment(Warning):
-    """Warning for creating of modifying an SQL object"""
 
     pass
 

@@ -2,7 +2,7 @@ import warnings
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer
-from mssql_dataframe.core import errors
+from mssql_dataframe.core import custom_warnings
 
 attributes = ["connection", "create", "modify", "read", "write"]
 
@@ -23,7 +23,7 @@ def test_SQLServer():
     with warnings.catch_warnings(record=True) as warn:
         adjustable = SQLServer(db, include_metadata_timestamps=True)
         assert len(warn) == 1
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
             == "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True"
@@ -35,7 +35,7 @@ def test_SQLServer():
     with warnings.catch_warnings(record=True) as warn:
         adjustable = SQLServer(db, autoadjust_sql_objects=True)
         assert len(warn) == 1
-        assert isinstance(warn[-1].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
             == "SQL objects will be created/modified as needed as autoadjust_sql_objects=True"

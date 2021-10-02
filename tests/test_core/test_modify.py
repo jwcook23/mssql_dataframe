@@ -1,7 +1,7 @@
 import pytest
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import create, modify, conversion, errors
+from mssql_dataframe.core import create, modify, conversion
 
 
 class package:

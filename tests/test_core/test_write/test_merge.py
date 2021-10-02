@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import merge
 
 
@@ -32,20 +32,20 @@ def test_merge_errors(sql):
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
     )
 
-    with pytest.raises(errors.SQLTableDoesNotExist):
+    with pytest.raises(custom_errors.SQLTableDoesNotExist):
         sql.merge.merge(
             "error" + table_name,
             dataframe=pd.DataFrame({"ColumnA": [1]})
         )
 
-    with pytest.raises(errors.SQLColumnDoesNotExist):
+    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
             match_columns=["ColumnA"]
         )
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
+    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
@@ -68,7 +68,7 @@ def test_merge_upsert(sql):
     with warnings.catch_warnings(record=True) as warn:
         sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -104,7 +104,7 @@ def test_merge_one_match_column(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -121,7 +121,7 @@ def test_merge_one_match_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -150,7 +150,7 @@ def test_merge_two_match_columns(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -172,7 +172,7 @@ def test_merge_two_match_columns(sql):
             table_name, dataframe, match_columns=["_index", "State"]
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -201,7 +201,7 @@ def test_merge_non_pk_column(sql):
             table_name, dataframe, primary_key=None
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -223,7 +223,7 @@ def test_merge_non_pk_column(sql):
             table_name, dataframe, match_columns=["State"]
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -252,7 +252,7 @@ def test_merge_composite_pk(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -291,7 +291,7 @@ def test_merge_one_delete_condition(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -314,7 +314,7 @@ def test_merge_one_delete_condition(sql):
             table_name, dataframe, match_columns=["_pk"], delete_conditions=["State"]
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -354,7 +354,7 @@ def test_merge_two_delete_conditions(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     dataframe, schema = sql.merge.insert(
         table_name, dataframe
@@ -383,7 +383,7 @@ def test_merge_two_delete_conditions(sql):
             delete_conditions=["State1", "State2"],
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, errors.SQLObjectAdjustment) for x in warn])
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."

@@ -7,7 +7,7 @@ import pytest
 import pyodbc
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import conversion, conversion_rules, dynamic
+from mssql_dataframe.core import custom_warnings, conversion, conversion_rules, dynamic
 from . import sample
 
 
@@ -113,11 +113,12 @@ def test_sample(sql, data):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, values = conversion.prepare_values(schema, data)
         assert len(warn) == 2
-        assert all([isinstance(x.message, UserWarning) for x in warn])
+        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeTIMETruncation)
         assert (
             str(warn[0].message)
             == "Nanosecond precision for dataframe columns ['_time'] will be truncated as SQL data type TIME allows 7 max decimal places."
         )
+        assert isinstance(warn[1].message, custom_warnings.SQLDataTypeDATETIME2Truncation)
         assert (
             str(warn[1].message)
             == "Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."

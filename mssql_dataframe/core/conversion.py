@@ -7,7 +7,8 @@ import pyodbc
 import numpy as np
 import pandas as pd
 
-from mssql_dataframe.core import errors, conversion_rules
+from mssql_dataframe.core import custom_errors, conversion_rules, custom_warnings
+
 
 def get_schema(
     connection: pyodbc.connect,
@@ -51,7 +52,7 @@ def get_schema(
     schema = pd.DataFrame(schema, columns=[x[0] for x in cursor.description])
     # check for no SQL table
     if len(schema) == 0:
-        raise errors.SQLTableDoesNotExist(
+        raise custom_errors.SQLTableDoesNotExist(
             f"catalog = {catalog}, table_name = {table_name}"
         )
     # check for missing columns not expected to be in dataframe
@@ -62,7 +63,7 @@ def get_schema(
         missing = columns[~columns.isin(schema["column_name"])]
         if len(missing) > 0:
             missing = list(missing)
-            raise errors.SQLColumnDoesNotExist(
+            raise custom_errors.SQLColumnDoesNotExist(
                 f"catalog = {catalog}, table_name = {table_name}, columns={missing}",
                 missing,
             )
@@ -72,7 +73,7 @@ def get_schema(
         missing = columns[~columns.isin(schema["column_name"])]
         if len(missing) > 0:
             missing = list(missing)
-            raise errors.SQLColumnDoesNotExist(
+            raise custom_errors.SQLColumnDoesNotExist(
                 f"catalog = {catalog}, table_name = {table_name}, columns={missing}",
                 missing,
             )
@@ -120,7 +121,7 @@ def get_schema(
     missing = schema[conversion_rules.rules.columns].isna().any(axis="columns")
     if any(missing):
         missing = missing[missing].index.tolist()
-        raise errors.UndefinedConversionRule(
+        raise custom_errors.UndefinedConversionRule(
             "SQL data type conversion to pandas is not defined for columns:", missing
         )
 
@@ -171,7 +172,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
         columns = convert[schema.loc[convert, "sql_category"] == "character string"]
         dataframe[columns] = dataframe[columns].astype("string")
     except TypeError:
-        raise errors.DataframeInvalidDataType(
+        raise custom_errors.DataframeInvalidDataType(
             "Dataframe columns cannot be converted based on their SQL data type",
             list(columns),
         )
@@ -193,7 +194,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
         invalid["allowed"] = invalid["min_value"] + " to " + invalid["max_value"]
         invalid["actual"] = invalid["min"] + " to " + invalid["max"]
         columns = list(invalid.index)
-        raise errors.SQLInsufficientColumnSize(
+        raise custom_errors.SQLInsufficientColumnSize(
             f"columns: {columns}, allowed range: {list(invalid.allowed)}, actual range: {list(invalid.actual)}",
             columns,
         )
@@ -330,7 +331,8 @@ def prepare_values(
     if any(truncation):
         truncation = list(truncation[truncation].index)
         warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type TIME allows 7 max decimal places."
+            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type TIME allows 7 max decimal places.",
+            custom_warnings.SQLDataTypeTIMETruncation,
         )
         nanosecond = dataframe[dtype].apply(
             lambda x: pd.to_timedelta((x.dt.nanoseconds // 100) * 100)
@@ -356,7 +358,8 @@ def prepare_values(
     if any(truncation):
         truncation = list(truncation[truncation].index)
         warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
+            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type DATETIME2 allows 7 max decimal places.",
+            custom_warnings.SQLDataTypeDATETIME2Truncation,
         )
         nanosecond = dataframe[dtype].apply(
             lambda x: pd.to_timedelta((x.dt.nanosecond // 100) * 100)

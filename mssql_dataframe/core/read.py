@@ -3,7 +3,8 @@ from typing import Literal
 
 import pandas as pd
 
-from mssql_dataframe.core import dynamic, conversion, errors
+from mssql_dataframe.core import custom_errors, dynamic, conversion
+
 
 class read:
     def __init__(self, connection):
@@ -76,7 +77,7 @@ class read:
             column_names = list(set(column_names))
             missing = [x for x in column_names if x not in schema.index]
             if len(missing) > 0:
-                raise errors.SQLColumnDoesNotExist(
+                raise custom_errors.SQLColumnDoesNotExist(
                     f"Column does not exist in table {table_name}:", missing
                 )
             column_names = dynamic.escape(

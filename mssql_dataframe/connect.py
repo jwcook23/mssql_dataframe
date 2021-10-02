@@ -2,7 +2,7 @@
 
 import pyodbc
 
-from mssql_dataframe.core import errors
+from mssql_dataframe.core import custom_errors
 
 
 class connect:
@@ -90,7 +90,9 @@ class connect:
         else:
             driver = [x for x in installed if x == driver_search]
         if not driver:
-            raise errors.EnvironmentODBCDriverNotFound("Unable to find ODBC driver.")
+            raise custom_errors.EnvironmentODBCDriverNotFound(
+                "Unable to find ODBC driver."
+            )
         driver = max(driver)
 
         return driver

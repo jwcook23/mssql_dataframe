@@ -2,14 +2,14 @@
 may be in objects/strings. Also contains functions for determining other SQL properties.
 """
 from datetime import time
-from typing import Tuple
+from typing import Tuple, List
 
 import pandas as pd
 
-from mssql_dataframe.core import conversion_rules, errors
+from mssql_dataframe.core import custom_errors, conversion_rules
 
 
-def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Index, str]:
+def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], str]:
     """Infer best fit data types using dataframe values. May be an object converted to a better type,
     or numeric values downcasted to a smallter data type.
 
@@ -21,7 +21,7 @@ def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Index, 
     -------
     dataframe (pandas.DataFrame) : contains columns converted to best fit pandas data type
     schema (pandas.DataFrame) : derived SQL schema
-    not_nullable (pandas.Index) : columns that should not be null
+    not_nullable (list[str]) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
     """
 
@@ -88,6 +88,9 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
         if x not in skip[skip].index and x in multiple[multiple].index
     ]
     dataframe[columns] = dataframe[columns].astype("boolean")
+    # convert bool to nullable boolean
+    columns = [k for k, v in dataframe.dtypes.items() if v.name == "bool"]
+    dataframe[columns] = dataframe[columns].astype("boolean")
 
     # # convert Int8/Int16 to UInt8 (0-255 to bring inline with SQL TINYINT)
     columns = [
@@ -149,7 +152,7 @@ def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
     return dataframe
 
 
-def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[pd.Index, str]:
+def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[List[str], str]:
     """Determine if columns should be nullable in SQL and determine best fitting primary key column.
 
     Parameters
@@ -159,14 +162,14 @@ def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[pd.Index,
 
     Returns
     -------
-    not_nullable (pandas.Index) : columns that should not be null
+    not_nullable (list[str]) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
 
     """
 
     # determine columns not nullable
     not_nullable = dataframe.notna().all()
-    not_nullable = not_nullable[not_nullable].index
+    not_nullable = list(not_nullable[not_nullable].index)
 
     # primary key can't be null
     dataframe = dataframe[not_nullable]
@@ -227,7 +230,7 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     missing = schema.isna().any(axis="columns")
     if any(missing):
         missing = schema.loc[missing, "column_name"].to_list()
-        raise errors.UndefinedConversionRule(f"columns: {missing}")
+        raise custom_errors.UndefinedConversionRule(f"columns: {missing}")
     schema = schema.set_index(keys="column_name")
 
     # determine SQL type for pandas string

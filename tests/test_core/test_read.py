@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import create, read, errors
+from mssql_dataframe.core import custom_errors, create, read
 from mssql_dataframe.core.write import insert
 
 table_name = "##test_select"
@@ -77,7 +77,7 @@ def test_select_errors(sql, sample):
 
     # sample is needed to create the SQL table
     assert isinstance(sample, pd.DataFrame)
-    with pytest.raises(errors.SQLColumnDoesNotExist):
+    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.read.table(table_name, column_names="NotAColumn")
 
 
@@ -98,7 +98,7 @@ def test_undefined_conversion(sql):
     )
     cursor.commit()
 
-    with pytest.raises(errors.UndefinedConversionRule):
+    with pytest.raises(custom_errors.UndefinedConversionRule):
         sql.read.table(table_name)
 
 

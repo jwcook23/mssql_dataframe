@@ -4,7 +4,7 @@ from typing import Tuple, List
 import pandas as pd
 import pyodbc
 
-from mssql_dataframe.core import errors, conversion, dynamic, modify, create
+from mssql_dataframe.core import custom_errors, conversion, dynamic, modify, create
 from mssql_dataframe.core.write import _exceptions
 
 
@@ -151,9 +151,9 @@ class insert:
                 )
                 break
             except (
-                errors.SQLTableDoesNotExist,
-                errors.SQLColumnDoesNotExist,
-                errors.SQLInsufficientColumnSize,
+                custom_errors.SQLTableDoesNotExist,
+                custom_errors.SQLColumnDoesNotExist,
+                custom_errors.SQLInsufficientColumnSize,
             ) as failure:
                 cursor.rollback()
                 if attempt == self._adjust_sql_attempts:
@@ -216,7 +216,7 @@ class insert:
         if match_columns is None:
             match_columns = list(schema[schema["pk_seq"].notna()].index)
             if not match_columns:
-                raise errors.SQLUndefinedPrimaryKey(
+                raise custom_errors.SQLUndefinedPrimaryKey(
                     "SQL table {} has no primary key. Either set the primary key or specify the match_columns".format(
                         table_name
                     )
@@ -228,7 +228,7 @@ class insert:
             if x not in list(dataframe.index.names) + list(dataframe.columns)
         ]
         if missing:
-            raise errors.DataframeColumnDoesNotExist(
+            raise custom_errors.DataframeColumnDoesNotExist(
                 "match_columns not found in dataframe", missing
             )
 

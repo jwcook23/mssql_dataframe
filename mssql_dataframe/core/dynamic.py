@@ -5,7 +5,7 @@ from typing import Tuple, List
 
 import pyodbc
 
-from mssql_dataframe.core import errors
+from mssql_dataframe.core import custom_errors
 
 
 def escape(cursor: pyodbc.connect, inputs: List[str]) -> List[str]:
@@ -46,7 +46,7 @@ def escape(cursor: pyodbc.connect, inputs: List[str]) -> List[str]:
     safe = cursor.fetchone()
     # a string value is too long and returns None, so raise an exception
     if [x for x in safe if x is None]:
-        raise errors.SQLInvalidLengthObjectName("SQL object name is too long.")
+        raise custom_errors.SQLInvalidLengthObjectName("SQL object name is too long.")
 
     # reconstruct schema specification previously delimited by char(255)
     safe = list(zip(safe, schema))
@@ -96,7 +96,7 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     # split on comparison operator
     conditions = [re.split(comparison, x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions) == 1 and len(conditions[0]) == 1:
-        raise errors.SQLInvalidSyntax("invalid syntax for where = " + where)
+        raise custom_errors.SQLInvalidSyntax("invalid syntax for where = " + where)
     # form dict for each colum, while handling IS NULL/IS NOT NULL split
     conditions = [[y.strip() for y in x] for x in conditions]
     conditions = {x[0]: (x[1::] if len(x[2]) > 0 else [x[1]]) for x in conditions}

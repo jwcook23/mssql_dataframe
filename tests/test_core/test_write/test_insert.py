@@ -6,7 +6,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import insert
 
 
@@ -33,38 +33,38 @@ def test_insert_errors(sql):
         table_name, columns={"ColumnA": "SMALLINT", "ColumnB": "VARCHAR(1)"}
     )
 
-    with pytest.raises(errors.SQLTableDoesNotExist):
+    with pytest.raises(custom_errors.SQLTableDoesNotExist):
         dataframe = pd.DataFrame({"ColumnA": [1]})
         sql.insert.insert(
             "error" + table_name, dataframe=dataframe
         )
 
-    with pytest.raises(errors.SQLColumnDoesNotExist):
+    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         dataframe = pd.DataFrame({"ColumnC": [1]})
         sql.insert.insert(table_name, dataframe=dataframe)
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
+    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         dataframe = pd.DataFrame({"ColumnB": ["aaa"]})
         sql.insert.insert(table_name, dataframe=dataframe)
 
-    with pytest.raises(errors.SQLInsufficientColumnSize):
+    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.insert.insert(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000]})
         )
 
     # values that cannot be converted to their Python equalivant based on SQL data type
-    with pytest.raises(errors.DataframeInvalidDataType):
+    with pytest.raises(custom_errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": ["abs"]})
         )
-    with pytest.raises(errors.DataframeInvalidDataType):
+    with pytest.raises(custom_errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": ["12-5"]})
         )
-    with pytest.raises(errors.DataframeInvalidDataType):
+    with pytest.raises(custom_errors.DataframeInvalidDataType):
         sql.insert.insert(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": ["12345-67589"]})
@@ -133,7 +133,7 @@ def test_insert_dataframe(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
-        assert isinstance(warn[0].message, UserWarning)
+        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeDATETIME2Truncation)
         assert (
             str(warn[0].message)
             == "Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
@@ -233,7 +233,7 @@ def test_insert_include_metadata_timestamps(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."

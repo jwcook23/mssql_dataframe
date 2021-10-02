@@ -8,7 +8,7 @@ pd.options.mode.chained_assignment = "raise"
 import pyodbc
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import conversion, create, errors
+from mssql_dataframe.core import custom_warnings, conversion, create
 
 
 class package:
@@ -181,7 +181,7 @@ def test_table_from_dataframe_simple(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.create.table_from_dataframe(table_name, dataframe)
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -204,7 +204,7 @@ def test_table_from_dataframe_datestr(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.create.table_from_dataframe(table_name, dataframe)
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -236,7 +236,7 @@ def test_table_from_dataframe_nopk(sql, sample):
             table_name, sample.copy(), primary_key=None
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -320,7 +320,7 @@ def test_table_from_dataframe_sqlpk(sql, sample):
             table_name, sample.copy(), primary_key="sql"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -410,7 +410,7 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample):
             table_name, sample.copy(), primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -501,7 +501,7 @@ def test_table_from_dataframe_indexpk_named(sql, sample):
             table_name, sample.copy(), primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -602,7 +602,7 @@ def test_table_from_dataframe_inferpk_integer(sql):
             table_name, dataframe, primary_key="infer"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -624,7 +624,7 @@ def test_table_from_dataframe_inferpk_string(sql):
             table_name, dataframe, primary_key="infer"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -647,7 +647,7 @@ def test_table_from_dataframe_inferpk_none(sql):
             table_name, dataframe, primary_key="infer"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
@@ -666,7 +666,7 @@ def test_table_from_dataframe_composite_pk(sql):
             table_name, dataframe, primary_key="index"
         )
         assert len(warn) == 1
-        assert isinstance(warn[0].message, errors.SQLObjectAdjustment)
+        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
