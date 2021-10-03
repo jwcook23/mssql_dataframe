@@ -8,7 +8,7 @@ from mssql_dataframe.core import custom_warnings, dynamic, conversion, infer
 
 
 class create:
-    def __init__(self, connection):
+    def __init__(self, connection, include_metadata_timestamps: bool = False):
         """Class for creating SQL tables manually or automatically from a dataframe.
 
         Parameters
@@ -206,6 +206,7 @@ class create:
         table_name: str,
         dataframe: pd.DataFrame,
         primary_key: Literal[None, "sql", "index", "infer"] = None,
+        insert_dataframe: bool = True
     ) -> pd.DataFrame:
         """Create SQL table by inferring SQL create table parameters from the contents of a dataframe. The contents
         can be composed of strings/objects only and converted better data types if conversion is possible within pandas.
@@ -216,6 +217,7 @@ class create:
         table_name (str) : name of table
         dataframe (pandas.DataFrame) : data used to create table
         primary_key (str, default = None) : method of setting the table's primary key, see below for description of options
+        insert_dataframe (bool, default=True) : insert the dataframe after creating the table
 
         primary_key = None : do not set a primary key
         primary_key = 'sql' : create an SQL managed auto-incrementing INT identity primary key column named '_pk'
