@@ -97,7 +97,7 @@ def create_table(
     warnings.warn(
         "Creating table {}".format(table_name), custom_warnings.SQLObjectAdjustment
     )
-    creator.table_from_dataframe(table_name, dataframe, primary_key="infer")
+    creator.table_from_dataframe(table_name, dataframe, primary_key="infer", insert_dataframe=False)
 
     return dataframe
 

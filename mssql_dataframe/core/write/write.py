@@ -18,6 +18,6 @@ class write(update, merge):
         include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
         autoadjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
         """
-        self._connection = connection
+        self._connection = connection.connection
         self.include_metadata_timestamps = include_metadata_timestamps
         self.autoadjust_sql_objects = autoadjust_sql_objects

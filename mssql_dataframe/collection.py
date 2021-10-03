@@ -44,7 +44,7 @@ class SQLServer:
 
         # initialize mssql_dataframe functionality with shared connection
         self.connection = connection.connection
-        self.create = create.create(connection)
+        self.create = create.create(connection, include_metadata_timestamps)
         self.modify = modify.modify(connection)
         self.read = read.read(connection)
         self.write = write(

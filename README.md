@@ -50,13 +50,16 @@ df = sql.create.table_from_dataframe(
 
 ### Updating SQL Table
 
-First
+Update an SQL table using the primary key.
 
 ``` python
-df['ColumnB'] = df['ColumnB']
+# remove puncuation
+df['ColumnB'] = df['ColumnB'].str.replace('[^\w\s]','')
+# remove extra spaces
+df['ColumnB'] = df['ColumnB'].str.strip()
+# perform the update
+sql.write.update[['ColumnB']]
 ```
-
-Update an SQL table using the primary key.
 
 ``` python
 # UPDATE using dataframe's index and the SQL primary key
@@ -66,6 +69,8 @@ write.update('SomeSQLTable', dataframe[['ColumnA','ColumnB','ColumnC']],
     match_columns=['ColumnB','ColumnC']
 )
 ```
+
+Update an SQL table using a non-primary key column.
 
 ### Merging/Upsert SQL Table
 
