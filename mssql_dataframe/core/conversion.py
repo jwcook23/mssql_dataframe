@@ -7,7 +7,7 @@ import pyodbc
 import numpy as np
 import pandas as pd
 
-from mssql_dataframe.core import custom_errors, conversion_rules, custom_warnings
+from mssql_dataframe.core import custom_warnings, custom_errors, conversion_rules, dynamic
 
 
 def get_schema(
@@ -445,6 +445,60 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
 
     return connection
 
+
+def insert_values(table_name:str, dataframe:pd.DataFrame, include_metadata_timestamps:bool, schema:pd.DataFrame, cursor:pyodbc.connect):
+    ''' Insert values from a dataframe into an SQL table.
+
+    Parameters
+    ----------
+    table_name (str) : name of table to insert data into
+    dataframe (pandas.DataFrame): tabular data to insert
+    schema (pandas.DataFrame) : properties of SQL table columns where data will be inserted
+    include_metadata_timestamps (bool) : include _time_insert column
+    cursor (pyodbc.connect.cursor) : cursor to be used to write values
+
+    Returns
+    -------
+    dataframe (pandas.DataFrame) : values that may be altered to conform to SQL precision limitations
+    '''
+
+    # column names from dataframe contents
+    if any(dataframe.index.names):
+        # named index columns will also have values returned from conversion.prepare_values
+        columns = list(dataframe.index.names) + list(dataframe.columns)
+    else:
+        columns = dataframe.columns
+
+    # dynamic SQL object names
+    table = dynamic.escape(cursor, table_name)
+    columns = dynamic.escape(cursor, columns)
+
+    # prepare values of dataframe for insert
+    dataframe, values = prepare_values(schema, dataframe)
+
+    # prepare cursor for input data types and sizes
+    cursor = prepare_cursor(schema, dataframe, cursor)
+
+    # issue insert statement
+    if include_metadata_timestamps:
+        insert = "_time_insert, " + ", ".join(columns)
+        params = "GETDATE(), " + ", ".join(["?"] * len(columns))
+    else:
+        insert = ", ".join(columns)
+        params = ", ".join(["?"] * len(columns))
+    statement = f"""
+    INSERT INTO
+    {table} (
+        {insert}
+    ) VALUES (
+        {params}
+    )
+    """
+    cursor.executemany(statement, values)
+    cursor.commit()
+
+    # values that may be altered to conform to SQL precision limitations
+    return dataframe
 
 def read_values(
     statement: str, schema: pd.DataFrame, connection: pyodbc.connect, args: list = None

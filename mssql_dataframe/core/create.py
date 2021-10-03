@@ -14,9 +14,11 @@ class create:
         Parameters
         ----------
         connection (mssql_dataframe.connect) : connection for executing statement
+        include_metadata_timetstamps (bool, default=False) : if inserting data using table_from_dataframe, include _time_insert column
         """
 
         self._connection = connection.connection
+        self.include_metadata_timestamps = include_metadata_timestamps
 
     def table(
         self,
@@ -213,7 +215,6 @@ class create:
 
         Parameters
         ----------
-
         table_name (str) : name of table
         dataframe (pandas.DataFrame) : data used to create table
         primary_key (str, default = None) : method of setting the table's primary key, see below for description of options
@@ -226,12 +227,10 @@ class create:
 
         Returns
         -------
-
         dataframe (pandas.DataFrame) : data potentially converted from obejcts/strings to better pandas types
 
         Examples
         --------
-
         #### create table without a primary key
         df = create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
 
@@ -274,6 +273,10 @@ class create:
         if primary_key == "infer":
             primary_key_column = pk
 
+        # add _time_insert column
+        if self.include_metadata_timestamps:
+            dtypes['_time_insert'] = 'DATETIME2'
+
         # create final SQL table
         self.table(
             table_name,
@@ -304,5 +307,11 @@ class create:
         # set primary key column as dataframe index
         if primary_key_column is not None:
             dataframe = dataframe.set_index(keys=primary_key_column)
+
+        # insert dataframe
+        if insert_dataframe:
+            cursor = self._connection.cursor()
+            cursor.fast_executemany = True
+            dataframe = conversion.insert_values(table_name, dataframe, self.include_metadata_timestamps, schema, cursor)
 
         return dataframe

@@ -15,6 +15,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
+        self.create_meta = create.create(connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
@@ -197,28 +198,36 @@ def test_table_from_dataframe_simple(sql):
     assert all(schema["odbc_size"] == 1)
     assert all(schema["odbc_precision"] == 0)
 
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result.equals(dataframe)
+
 
 def test_table_from_dataframe_datestr(sql):
     table_name = "##test_table_from_dataframe_datestr"
     dataframe = pd.DataFrame({"ColumnA": ["06/22/2021"]})
     with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+        dataframe = sql.create_meta.table_from_dataframe(table_name, dataframe)
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
-    assert len(schema) == 1
-    assert all(schema.index == "ColumnA")
-    assert all(schema["sql_type"] == "date")
-    assert all(schema["is_nullable"] == False)
-    assert all(schema["ss_is_identity"] == False)
-    assert all(schema["pk_seq"].isna())
-    assert all(schema["pk_name"].isna())
-    assert all(schema["pandas_type"] == "datetime64[ns]")
-    assert all(schema["odbc_type"] == pyodbc.SQL_TYPE_DATE)
-    assert all(schema["odbc_size"] == 10)
-    assert all(schema["odbc_precision"] == 0)
+    expected = pd.DataFrame({
+        'column_name': pd.Series(['ColumnA','_time_insert']),
+        'sql_type': pd.Series(['date','datetime2'], dtype='string'),
+        'is_nullable': pd.Series([False, True]),
+        'ss_is_identity': pd.Series([False, False]),
+        'pk_seq': pd.Series([None, None], dtype='Int64'),
+        'pk_name': pd.Series([None, None], dtype='string'),
+        'pandas_type': pd.Series(['datetime64[ns]', 'datetime64[ns]'], dtype='string'),
+        'odbc_type': pd.Series([pyodbc.SQL_TYPE_DATE, pyodbc.SQL_TYPE_TIMESTAMP], dtype='int64'),
+        'odbc_size': pd.Series([10, 27], dtype='int64'),
+        'odbc_precision': pd.Series([0, 7], dtype='int64'),
+    }).set_index(keys='column_name')
+    assert schema[expected.columns].equals(expected)
+
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
 
 
 def test_table_from_dataframe_errorpk(sql, sample):
@@ -308,8 +317,10 @@ def test_table_from_dataframe_nopk(sql, sample):
             "odbc_precision": pd.Series([0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
         }
     ).set_index(keys="column_name")
-
     assert schema[expected.columns].equals(expected.loc[schema.index])
+
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
 
 
 def test_table_from_dataframe_sqlpk(sql, sample):
@@ -401,6 +412,10 @@ def test_table_from_dataframe_sqlpk(sql, sample):
     assert pd.notna(schema.at["_pk", "pk_name"])
     assert schema.loc[schema.index != "_pk", "pk_name"].isna().all()
 
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    result = result.reset_index(drop=True)
+    assert result[dataframe.columns].equals(dataframe)
+
 
 def test_table_from_dataframe_indexpk_unnamed(sql, sample):
 
@@ -490,6 +505,9 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample):
     assert schema[expected.columns].equals(expected.loc[schema.index])
     assert pd.notna(schema.at["_index", "pk_name"])
     assert schema.loc[schema.index != "_index", "pk_name"].isna().all()
+
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
 
 
 def test_table_from_dataframe_indexpk_named(sql, sample):
@@ -582,6 +600,9 @@ def test_table_from_dataframe_indexpk_named(sql, sample):
     assert pd.notna(schema.at["NamedIndex", "pk_name"])
     assert schema.loc[schema.index != "NamedIndex", "pk_name"].isna().all()
 
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
+
 
 def test_table_from_dataframe_inferpk_integer(sql):
 
@@ -609,6 +630,9 @@ def test_table_from_dataframe_inferpk_integer(sql):
     assert schema.at["_smallint", "pk_seq"] == 1
     assert all(schema.loc[schema.index != "_smallint", "pk_seq"].isna())
 
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe.sort_index())
+
 
 def test_table_from_dataframe_inferpk_string(sql):
 
@@ -630,6 +654,9 @@ def test_table_from_dataframe_inferpk_string(sql):
 
     assert schema.at["_varchar1", "pk_seq"] == 1
     assert all(schema.loc[schema.index != "_varchar1", "pk_seq"].isna())
+
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
 
 
 def test_table_from_dataframe_inferpk_none(sql):
@@ -653,6 +680,9 @@ def test_table_from_dataframe_inferpk_none(sql):
 
     assert all(schema["pk_seq"].isna())
 
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
+
 
 def test_table_from_dataframe_composite_pk(sql):
 
@@ -672,3 +702,6 @@ def test_table_from_dataframe_composite_pk(sql):
 
     assert schema.at["ColumnA", "pk_seq"] == 1
     assert schema.at["ColumnB", "pk_seq"] == 2
+
+    result = conversion.read_values(f'SELECT * FROM {table_name}', schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)

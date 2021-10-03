@@ -71,7 +71,7 @@ class insert:
         if include_metadata_timestamps is None:
             include_metadata_timestamps = self.include_metadata_timestamps
 
-        # get target table schema, while checking for errors and adjusting data for inserting
+        # get target table schema, check/fix errors, and adjusting data for inserting
         if include_metadata_timestamps:
             additional_columns = ["_time_insert"]
         else:
@@ -80,40 +80,8 @@ class insert:
             table_name, dataframe, cursor, additional_columns
         )
 
-        # column names from dataframe contents
-        if any(dataframe.index.names):
-            # named index columns will also have values returned from conversion.prepare_values
-            columns = list(dataframe.index.names) + list(dataframe.columns)
-        else:
-            columns = dataframe.columns
-
-        # dynamic SQL object names
-        table = dynamic.escape(cursor, table_name)
-        columns = dynamic.escape(cursor, columns)
-
-        # prepare values of dataframe for insert
-        dataframe, values = conversion.prepare_values(schema, dataframe)
-
-        # prepare cursor for input data types and sizes
-        cursor = conversion.prepare_cursor(schema, dataframe, cursor)
-
-        # issue insert statement
-        if include_metadata_timestamps:
-            insert = "_time_insert, " + ", ".join(columns)
-            params = "GETDATE(), " + ", ".join(["?"] * len(columns))
-        else:
-            insert = ", ".join(columns)
-            params = ", ".join(["?"] * len(columns))
-        statement = f"""
-        INSERT INTO
-        {table} (
-            {insert}
-        ) VALUES (
-            {params}
-        )
-        """
-        cursor.executemany(statement, values)
-        cursor.commit()
+        # insert dataframe values, dataframe values may be altered to conform to SQL precision limitations
+        dataframe = conversion.insert_values(table_name, dataframe, include_metadata_timestamps, schema, cursor)
 
         return dataframe, schema
 
@@ -143,6 +111,7 @@ class insert:
 
         for attempt in range(0, self._adjust_sql_attempts + 1):
             try:
+                # dataframe values converted according to SQL data type
                 schema, dataframe = conversion.get_schema(
                     self._connection,
                     table_name,
@@ -160,6 +129,7 @@ class insert:
                     raise RecursionError(
                         f"adjust_sql_attempts={self._adjust_sql_attempts} reached"
                     )
+                # dataframe values may be converted according to SQL data type
                 dataframe = _exceptions.handle(
                     failure,
                     table_name,
