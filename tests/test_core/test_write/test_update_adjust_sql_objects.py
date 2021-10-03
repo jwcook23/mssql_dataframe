@@ -44,11 +44,10 @@ def test_update_add_column(sql):
     table_name = "##test_update_add_column"
     dataframe = pd.DataFrame({"ColumnA": [1, 2]})
     with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update using the SQL primary key that came from the dataframe's index
     dataframe["NewColumn"] = [3, 4]
@@ -84,9 +83,6 @@ def test_update_alter_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.update.insert(
-        table_name, dataframe
-    )
 
     # update using ColumnA
     dataframe["ColumnB"] = ["aaa", "bbb"]
@@ -123,13 +119,10 @@ def test_update_add_and_alter_column(sql):
     table_name = "##test_update_add_and_alter_column"
     dataframe = pd.DataFrame({"ColumnA": [1, 2], "ColumnB": ["a", "b"]})
     with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.update.insert(
-        table_name, dataframe
-    )
 
     # update using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["aaa", "bbb"]

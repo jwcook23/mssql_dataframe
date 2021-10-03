@@ -4,7 +4,7 @@ from typing import Tuple, List
 import pandas as pd
 import pyodbc
 
-from mssql_dataframe.core import custom_errors, conversion, dynamic, modify, create
+from mssql_dataframe.core import custom_errors, conversion, modify, create
 from mssql_dataframe.core.write import _exceptions
 
 
@@ -81,7 +81,9 @@ class insert:
         )
 
         # insert dataframe values, dataframe values may be altered to conform to SQL precision limitations
-        dataframe = conversion.insert_values(table_name, dataframe, include_metadata_timestamps, schema, cursor)
+        dataframe = conversion.insert_values(
+            table_name, dataframe, include_metadata_timestamps, schema, cursor
+        )
 
         return dataframe, schema
 

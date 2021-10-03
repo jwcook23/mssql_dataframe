@@ -208,7 +208,7 @@ class create:
         table_name: str,
         dataframe: pd.DataFrame,
         primary_key: Literal[None, "sql", "index", "infer"] = None,
-        insert_dataframe: bool = True
+        insert_dataframe: bool = True,
     ) -> pd.DataFrame:
         """Create SQL table by inferring SQL create table parameters from the contents of a dataframe. The contents
         can be composed of strings/objects only and converted better data types if conversion is possible within pandas.
@@ -275,7 +275,7 @@ class create:
 
         # add _time_insert column
         if self.include_metadata_timestamps:
-            dtypes['_time_insert'] = 'DATETIME2'
+            dtypes["_time_insert"] = "DATETIME2"
 
         # create final SQL table
         self.table(
@@ -312,6 +312,8 @@ class create:
         if insert_dataframe:
             cursor = self._connection.cursor()
             cursor.fast_executemany = True
-            dataframe = conversion.insert_values(table_name, dataframe, self.include_metadata_timestamps, schema, cursor)
+            dataframe = conversion.insert_values(
+                table_name, dataframe, self.include_metadata_timestamps, schema, cursor
+            )
 
         return dataframe

@@ -67,9 +67,6 @@ def test_merge_add_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # merge using the SQL primary key that came from the dataframe's index
     dataframe = dataframe[dataframe.index != 0]
@@ -110,9 +107,6 @@ def test_merge_alter_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # merge using the SQL primary key that came from the dataframe's index
     dataframe = dataframe[dataframe.index != 0]
@@ -157,9 +151,6 @@ def test_merge_add_and_alter_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # merge using the SQL primary key that came from the dataframe's index
     dataframe = dataframe[dataframe.index != 0]

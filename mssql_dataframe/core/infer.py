@@ -244,7 +244,7 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     schema.index.name = "column_name"
 
     # insure schema contains same needed columns as returned from conversion.get_schema
-    schema['column_size'] = schema['max_value']
+    schema["column_size"] = schema["max_value"]
 
     return schema
 

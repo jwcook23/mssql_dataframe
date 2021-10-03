@@ -85,7 +85,6 @@ def test_update_primary_key(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
@@ -115,7 +114,6 @@ def test_update_nonpk_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
@@ -147,11 +145,9 @@ def test_update_two_match_columns(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.update.insert(
-        table_name, dataframe
-    )
 
     # update values in table, using the primary key created in SQL and ColumnA
+    schema,_ = conversion.get_schema(sql.connection, table_name)
     dataframe = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -188,7 +184,6 @@ def test_update_composite_pk(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, _ = sql.update.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]

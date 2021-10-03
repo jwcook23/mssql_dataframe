@@ -14,6 +14,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(connection)
+        self.create_meta = create.create(connection, include_metadata_timestamps=True)
         self.insert = insert.insert(connection, autoadjust_sql_objects=True)
         self.insert_meta = insert.insert(connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
 
@@ -190,13 +191,12 @@ def test_insert_alter_primary_key(sql):
         }
     ).set_index(keys=["ColumnA", "ColumnB"])
     with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.insert.insert(
-        table_name, dataframe
-    )
+
+    schema,_ = conversion.get_schema(sql.connection, table_name)
     _, dtypes = conversion.sql_spec(schema, dataframe)
     assert dtypes == {
         "ColumnA": "tinyint",
@@ -243,33 +243,34 @@ def test_insert_add_and_alter_column(sql):
     table_name = "##test_insert_add_and_alter_column"
     dataframe = pd.DataFrame({"ColumnA": [0, 1, 2, 3], "ColumnB": [0, 1, 2, 3]})
     with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create_meta.table_from_dataframe(table_name, dataframe, primary_key="index")
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
 
-    dataframe["ColumnB"] = [256, 257, 258, 259]
-    dataframe["ColumnC"] = [0, 1, 2, 3]
+    new = pd.DataFrame({
+        'ColumnA': [4,5,6,7],
+        'ColumnB': [256, 257, 258, 259],
+        'ColumnC': [0, 1, 2, 3]
+    }, index=[4,5,6,7])
+    new.index.name = '_index'
+
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
-        assert len(warn) == 3
+        new, schema = sql.insert_meta.insert(table_name, new)
+        assert len(warn) == 2
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
             str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
-        )
-        assert (
-            str(warn[1].message)
             == f"Creating column ColumnC in table {table_name} with data type tinyint."
         )
         assert (
-            str(warn[2].message)
+            str(warn[1].message)
             == f"Altering column ColumnB in table {table_name} to data type smallint with is_nullable=False."
         )
 
         statement = f"SELECT * FROM {table_name}"
         result = conversion.read_values(statement, schema, sql.connection)
-        assert result[dataframe.columns].equals(dataframe)
+        assert result[new.columns].equals(dataframe.append(new))
         assert all(result["_time_insert"].notna())
 
         _, dtypes = conversion.sql_spec(schema, dataframe)

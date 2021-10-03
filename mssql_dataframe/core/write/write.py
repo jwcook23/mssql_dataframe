@@ -1,4 +1,5 @@
 """A single class composed of insert, update, and merge classes."""
+from mssql_dataframe.core import modify, create
 from mssql_dataframe.core.write.update import update
 from mssql_dataframe.core.write.merge import merge
 
@@ -21,3 +22,11 @@ class write(update, merge):
         self._connection = connection.connection
         self.include_metadata_timestamps = include_metadata_timestamps
         self.autoadjust_sql_objects = autoadjust_sql_objects
+
+        # max attempts for creating/modifing SQL tables
+        # value of 3 will: add include_metadata_timestamps columns and/or add other columns and/or increase column size
+        self._adjust_sql_attempts = 3
+
+        # handle failures if autoadjust_sql_objects==True
+        self._modify = modify.modify(connection)
+        self._create = create.create(connection)

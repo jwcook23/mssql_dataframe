@@ -7,7 +7,12 @@ import pyodbc
 import numpy as np
 import pandas as pd
 
-from mssql_dataframe.core import custom_warnings, custom_errors, conversion_rules, dynamic
+from mssql_dataframe.core import (
+    custom_warnings,
+    custom_errors,
+    conversion_rules,
+    dynamic,
+)
 
 
 def get_schema(
@@ -446,8 +451,14 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
     return connection
 
 
-def insert_values(table_name:str, dataframe:pd.DataFrame, include_metadata_timestamps:bool, schema:pd.DataFrame, cursor:pyodbc.connect):
-    ''' Insert values from a dataframe into an SQL table.
+def insert_values(
+    table_name: str,
+    dataframe: pd.DataFrame,
+    include_metadata_timestamps: bool,
+    schema: pd.DataFrame,
+    cursor: pyodbc.connect,
+):
+    """Insert values from a dataframe into an SQL table.
 
     Parameters
     ----------
@@ -460,7 +471,7 @@ def insert_values(table_name:str, dataframe:pd.DataFrame, include_metadata_times
     Returns
     -------
     dataframe (pandas.DataFrame) : values that may be altered to conform to SQL precision limitations
-    '''
+    """
 
     # column names from dataframe contents
     if any(dataframe.index.names):
@@ -499,6 +510,7 @@ def insert_values(table_name:str, dataframe:pd.DataFrame, include_metadata_times
 
     # values that may be altered to conform to SQL precision limitations
     return dataframe
+
 
 def read_values(
     statement: str, schema: pd.DataFrame, connection: pyodbc.connect, args: list = None

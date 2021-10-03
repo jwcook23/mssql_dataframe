@@ -70,9 +70,6 @@ def test_merge_upsert(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete, but keep in SQL since upserting
     dataframe = dataframe[dataframe.index != 0].copy()
@@ -106,9 +103,6 @@ def test_merge_one_match_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -152,9 +146,6 @@ def test_merge_two_match_columns(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -203,9 +194,6 @@ def test_merge_non_pk_column(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -254,9 +242,6 @@ def test_merge_composite_pk(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete
     dataframe = dataframe[dataframe.index != ("A", 3)].copy()
@@ -293,9 +278,6 @@ def test_merge_one_delete_condition(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete 2 records
     dataframe = dataframe[dataframe.index == 1].copy()
@@ -356,9 +338,6 @@ def test_merge_two_delete_conditions(sql):
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
-    dataframe, schema = sql.merge.insert(
-        table_name, dataframe
-    )
 
     # delete 2 records
     dataframe = dataframe[dataframe.index == 1].copy()
