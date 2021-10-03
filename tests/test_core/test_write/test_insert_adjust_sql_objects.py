@@ -34,7 +34,7 @@ def test_insert_create_table(sql):
     )
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(
+        dataframe = sql.insert_meta.insert(
             table_name, dataframe=dataframe
         )
         assert len(warn) == 3
@@ -45,19 +45,19 @@ def test_insert_create_table(sql):
             warn[2].message
         )
 
-        statement = f"SELECT * FROM {table_name}"
-        result = conversion.read_values(statement, schema, sql.connection)
-        expected = pd.DataFrame(
-            {
-                "ColumnA": pd.Series([1, 2, 3], dtype="UInt8"),
-                "ColumnB": pd.Series(
-                    [pd.Timestamp(year=2021, month=6, day=22)] * 3,
-                    dtype="datetime64[ns]",
-                ),
-            }
-        ).set_index(keys="ColumnA")
-        assert result[expected.columns].equals(expected)
-        assert all(result["_time_insert"].notna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    expected = pd.DataFrame(
+        {
+            "ColumnA": pd.Series([1, 2, 3], dtype="UInt8"),
+            "ColumnB": pd.Series(
+                [pd.Timestamp(year=2021, month=6, day=22)] * 3,
+                dtype="datetime64[ns]",
+            ),
+        }
+    ).set_index(keys="ColumnA")
+    assert result[expected.columns].equals(expected)
+    assert all(result["_time_insert"].notna())
 
 
 def test_insert_add_column(sql):
@@ -68,7 +68,7 @@ def test_insert_add_column(sql):
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [2], "ColumnC": ["zzz"]})
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
+        dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -84,10 +84,10 @@ def test_insert_add_column(sql):
             == f"Creating column ColumnC in table {table_name} with data type varchar(3)."
         )
 
-        statement = f"SELECT * FROM {table_name}"
-        result = conversion.read_values(statement, schema, sql.connection)
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_insert"].notna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_insert"].notna())
 
 
 def test_insert_alter_column_unchanged(sql):
@@ -149,7 +149,7 @@ def test_insert_alter_column(sql):
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["aaa"], "ColumnC": [100000]})
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(table_name, dataframe=dataframe)
+        dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -165,18 +165,18 @@ def test_insert_alter_column(sql):
             == f"Altering column ColumnC in table {table_name} to data type int with is_nullable=True."
         )
 
-        statement = f"SELECT * FROM {table_name}"
-        result = conversion.read_values(statement, schema, sql.connection)
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_insert"].notna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_insert"].notna())
 
-        _, dtypes = conversion.sql_spec(schema, dataframe)
-        assert dtypes == {
-            "ColumnA": "tinyint",
-            "ColumnB": "varchar(3)",
-            "ColumnC": "int",
-            "_time_insert": "datetime2",
-        }
+    _, dtypes = conversion.sql_spec(schema, dataframe)
+    assert dtypes == {
+        "ColumnA": "tinyint",
+        "ColumnB": "varchar(3)",
+        "ColumnC": "int",
+        "_time_insert": "datetime2",
+    }
 
 
 def test_insert_alter_primary_key(sql):
@@ -216,7 +216,7 @@ def test_insert_alter_primary_key(sql):
         }
     ).set_index(keys=["ColumnA", "ColumnB"])
     with warnings.catch_warnings(record=True) as warn:
-        new, schema = sql.insert.insert(table_name, new)
+        new = sql.insert.insert(table_name, new)
         assert len(warn) == 1
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -224,18 +224,18 @@ def test_insert_alter_primary_key(sql):
             == "Altering column ColumnA in table ##test_insert_alter_primary_key to data type smallint with is_nullable=False."
         )
 
-        statement = f"SELECT * FROM {table_name}"
-        result = conversion.read_values(statement, schema, sql.connection)
-        assert result.equals(dataframe.append(new))
-        _, dtypes = conversion.sql_spec(schema, new)
-        assert dtypes == {
-            "ColumnA": "smallint",
-            "ColumnB": "tinyint",
-            "ColumnC": "varchar(1)",
-        }
-        assert schema.at["ColumnA", "pk_seq"] == 1
-        assert schema.at["ColumnB", "pk_seq"] == 2
-        assert pd.isna(schema.at["ColumnC", "pk_seq"])
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    assert result.equals(dataframe.append(new))
+    _, dtypes = conversion.sql_spec(schema, new)
+    assert dtypes == {
+        "ColumnA": "smallint",
+        "ColumnB": "tinyint",
+        "ColumnC": "varchar(1)",
+    }
+    assert schema.at["ColumnA", "pk_seq"] == 1
+    assert schema.at["ColumnB", "pk_seq"] == 2
+    assert pd.isna(schema.at["ColumnC", "pk_seq"])
 
 
 def test_insert_add_and_alter_column(sql):
@@ -256,7 +256,7 @@ def test_insert_add_and_alter_column(sql):
     new.index.name = '_index'
 
     with warnings.catch_warnings(record=True) as warn:
-        new, schema = sql.insert_meta.insert(table_name, new)
+        new = sql.insert_meta.insert(table_name, new)
         assert len(warn) == 2
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -268,16 +268,16 @@ def test_insert_add_and_alter_column(sql):
             == f"Altering column ColumnB in table {table_name} to data type smallint with is_nullable=False."
         )
 
-        statement = f"SELECT * FROM {table_name}"
-        result = conversion.read_values(statement, schema, sql.connection)
-        assert result[new.columns].equals(dataframe.append(new))
-        assert all(result["_time_insert"].notna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    assert result[new.columns].equals(dataframe.append(new))
+    assert all(result["_time_insert"].notna())
 
-        _, dtypes = conversion.sql_spec(schema, dataframe)
-        assert dtypes == {
-            "_index": "tinyint",
-            "ColumnA": "tinyint",
-            "ColumnB": "smallint",
-            "_time_insert": "datetime2",
-            "ColumnC": "tinyint",
-        }
+    _, dtypes = conversion.sql_spec(schema, dataframe)
+    assert dtypes == {
+        "_index": "tinyint",
+        "ColumnA": "tinyint",
+        "ColumnB": "smallint",
+        "_time_insert": "datetime2",
+        "ColumnC": "tinyint",
+    }

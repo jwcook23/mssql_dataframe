@@ -88,14 +88,14 @@ def test_update_primary_key(sql):
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
-    updated, schema = sql.update.update(
+    updated = sql.update.update(
         table_name, dataframe=dataframe[["ColumnC"]]
     )
     dataframe["ColumnC"] = updated["ColumnC"]
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -117,7 +117,7 @@ def test_update_nonpk_column(sql):
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
-    updated, schema = sql.update.update(
+    updated = sql.update.update(
         table_name,
         dataframe=dataframe[["ColumnB", "ColumnC"]],
         match_columns="ColumnC"
@@ -125,8 +125,8 @@ def test_update_nonpk_column(sql):
     dataframe["ColumnB"] = updated["ColumnB"]
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -153,7 +153,7 @@ def test_update_two_match_columns(sql):
     )
     dataframe["ColumnC"] = [5, 6]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update_meta.update(
+        updated = sql.update_meta.update(
             table_name, dataframe, match_columns=["_pk", "ColumnA"]
         )
         assert len(warn) == 1
@@ -164,8 +164,8 @@ def test_update_two_match_columns(sql):
         )
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert updated.equals(result[updated.columns])
     assert result["_time_update"].notna().all()
 
@@ -187,9 +187,9 @@ def test_update_composite_pk(sql):
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]
-    updated, schema = sql.update.update(table_name, dataframe)
+    updated= sql.update.update(table_name, dataframe)
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert result.equals(updated)

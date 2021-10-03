@@ -56,7 +56,7 @@ def sample(sql):
     ).set_index(keys=["ColumnA", "ColumnF"])
     dataframe["ColumnB"] = dataframe["ColumnB"].astype("Int64")
     dataframe["ColumnD"] = pd.to_datetime(dataframe["ColumnD"])
-    dataframe, _ = sql.insert.insert(table_name, dataframe)
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     yield dataframe
 

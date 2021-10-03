@@ -32,7 +32,7 @@ def test_merge_create_table(sql):
     )
 
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge_meta.merge(
+        dataframe = sql.merge_meta.merge(
             table_name, dataframe, match_columns=["_pk"]
         )
         assert len(warn) == 4
@@ -48,12 +48,13 @@ def test_merge_create_table(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_update"].isna())
-        assert all(result["_time_insert"].notna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_update"].isna())
+    assert all(result["_time_insert"].notna())
 
 
 def test_merge_add_column(sql):
@@ -72,7 +73,7 @@ def test_merge_add_column(sql):
     dataframe = dataframe[dataframe.index != 0]
     dataframe["NewColumn"] = [3]
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
+        dataframe = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 3
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -88,12 +89,13 @@ def test_merge_add_column(sql):
             == f"Creating column NewColumn in table {table_name} with data type tinyint."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_update"].notna())
-        assert all(result["_time_insert"].isna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_update"].notna())
+    assert all(result["_time_insert"].isna())
 
 
 def test_merge_alter_column(sql):
@@ -114,7 +116,7 @@ def test_merge_alter_column(sql):
     dataframe.loc[1, "ColumnA"] = 10000
     dataframe.loc[1, "ColumnB"] = "bbbbb"
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
+        dataframe = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -134,12 +136,13 @@ def test_merge_alter_column(sql):
             == f"Altering column ColumnB in table {table_name} to data type varchar(5) with is_nullable=False."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_update"].notna())
-        assert all(result["_time_insert"].isna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_update"].notna())
+    assert all(result["_time_insert"].isna())
 
 
 def test_merge_add_and_alter_column(sql):
@@ -158,7 +161,7 @@ def test_merge_add_and_alter_column(sql):
     dataframe.loc[1, "ColumnB"] = "bbbbb"
     dataframe["NewColumn"] = 0
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.merge_meta.merge(table_name, dataframe)
+        dataframe = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 4
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
         assert (
@@ -178,9 +181,10 @@ def test_merge_add_and_alter_column(sql):
             == f"Altering column ColumnB in table {table_name} to data type varchar(5) with is_nullable=False."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert all(result["_time_update"].notna())
-        assert all(result["_time_insert"].isna())
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_update"].notna())
+    assert all(result["_time_insert"].isna())

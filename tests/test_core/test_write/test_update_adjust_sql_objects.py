@@ -52,7 +52,7 @@ def test_update_add_column(sql):
     # update using the SQL primary key that came from the dataframe's index
     dataframe["NewColumn"] = [3, 4]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update_meta.update(table_name, dataframe[["NewColumn"]])
+        updated = sql.update_meta.update(table_name, dataframe[["NewColumn"]])
         dataframe["NewColumn"] = updated["NewColumn"]
         assert len(warn) == 2
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
@@ -65,11 +65,12 @@ def test_update_add_column(sql):
             == f"Creating column NewColumn in table {table_name} with data type tinyint."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert result["_time_update"].notna().all()
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert result["_time_update"].notna().all()
 
 
 def test_update_alter_column(sql):
@@ -88,7 +89,7 @@ def test_update_alter_column(sql):
     dataframe["ColumnB"] = ["aaa", "bbb"]
     dataframe["ColumnC"] = [256, 256]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update_meta.update(
+        updated = sql.update_meta.update(
             table_name, dataframe, match_columns=["ColumnA"]
         )
         dataframe[["ColumnB", "ColumnC"]] = updated[["ColumnB", "ColumnC"]]
@@ -107,11 +108,12 @@ def test_update_alter_column(sql):
             == f"Altering column ColumnC in table {table_name} to data type smallint with is_nullable=False."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert result["_time_update"].notna().all()
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert result["_time_update"].notna().all()
 
 
 def test_update_add_and_alter_column(sql):
@@ -128,7 +130,7 @@ def test_update_add_and_alter_column(sql):
     dataframe["ColumnB"] = ["aaa", "bbb"]
     dataframe["NewColumn"] = [3, 4]
     with warnings.catch_warnings(record=True) as warn:
-        updated, schema = sql.update_meta.update(
+        updated = sql.update_meta.update(
             table_name, dataframe[["ColumnB", "NewColumn"]]
         )
         dataframe[["ColumnB", "NewColumn"]] = updated[["ColumnB", "NewColumn"]]
@@ -147,8 +149,9 @@ def test_update_add_and_alter_column(sql):
             == f"Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=False."
         )
 
-        result = conversion.read_values(
-            f"SELECT * FROM {table_name}", schema, sql.connection
-        )
-        assert result[dataframe.columns].equals(dataframe)
-        assert result["_time_update"].notna().all()
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert result["_time_update"].notna().all()

@@ -49,12 +49,11 @@ class insert:
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects
 
         Returns
         -------
         dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
-        schema (pandas.DataFrame) : properties of SQL table columns where data was inserted
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects
 
         Examples
         --------
@@ -85,7 +84,7 @@ class insert:
             table_name, dataframe, include_metadata_timestamps, schema, cursor
         )
 
-        return dataframe, schema
+        return dataframe
 
     def _target_table(
         self,
@@ -215,6 +214,6 @@ class insert:
         self._create.table(
             temp_name, dtypes, not_nullable, primary_key_column=match_columns
         )
-        _, _ = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
+        _ = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
 
         return schema, dataframe, match_columns, temp_name

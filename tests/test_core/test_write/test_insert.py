@@ -131,7 +131,7 @@ def test_insert_dataframe(sql):
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
+        dataframe = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLDataTypeDATETIME2Truncation)
         assert (
@@ -140,8 +140,8 @@ def test_insert_dataframe(sql):
         )
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert all(result["_time_insert"].notna())
     assert dataframe.equals(result[result.columns.drop("_time_insert")])
 
@@ -158,9 +158,11 @@ def test_insert_singles(sql):
     }
     sql.create.table(table_name, columns)
 
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+
     # single value
     dataframe = pd.DataFrame({"ColumnA": [1]})
-    dataframe, schema = sql.insert.insert(
+    dataframe = sql.insert.insert(
         table_name, dataframe
     )
     result = conversion.read_values(
@@ -170,7 +172,7 @@ def test_insert_singles(sql):
 
     # single column
     dataframe = pd.DataFrame({"ColumnB": [2, 3, 4]})
-    dataframe, schema = sql.insert.insert(
+    dataframe = sql.insert.insert(
         table_name, dataframe
     )
     result = conversion.read_values(
@@ -182,7 +184,7 @@ def test_insert_singles(sql):
     dataframe = pd.DataFrame(
         {"ColumnC": ["06-22-2021", "06-22-2021"]}, dtype="datetime64[ns]"
     )
-    dataframe, schema = sql.insert.insert(
+    dataframe = sql.insert.insert(
         table_name, dataframe
     )
     result = conversion.read_values(
@@ -208,10 +210,11 @@ def test_insert_composite_pk(sql):
     sql.create.table(table_name, columns, primary_key_column=["ColumnA", "ColumnB"])
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["12345"], "ColumnC": [1]})
-    dataframe, schema = sql.insert.insert(
+    dataframe = sql.insert.insert(
         table_name, dataframe
     )
 
+    schema,_ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -231,7 +234,7 @@ def test_insert_include_metadata_timestamps(sql):
 
     # insert data
     with warnings.catch_warnings(record=True) as warn:
-        dataframe, schema = sql.insert_meta.insert(table_name, dataframe)
+        dataframe = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert (
@@ -240,7 +243,7 @@ def test_insert_include_metadata_timestamps(sql):
         )
 
     # test result
-    statement = f"SELECT * FROM {table_name}"
-    result = conversion.read_values(statement, schema, sql.connection)
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
     assert all(result["_time_insert"].notna())
     assert result["_bit"].equals(dataframe["_bit"])

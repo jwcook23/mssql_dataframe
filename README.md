@@ -7,9 +7,9 @@
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
-Provides efficient mechanisms for updating and merging from Python dataframes into Transact-SQL tables. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
+A general data engineering package for Python pandas dataframes and Microsoft SQL Server / Azure SQL Database.
 
-In practice this module may be useful for updating models, web scraping, or general data engineering tasks.
+Provides efficient mechanisms for updating and merging from Python dataframes into SQL tables. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
 ## Samples
 
@@ -31,16 +31,18 @@ sql = SQLServer(db)
 
 ### Create Sample Table
 
-Create a global temporary table for demonstration.
+Create a global temporary table for this demonstration.
 
 ``` python
+# create a demonstration dataframe
 df = pd.DataFrame({
-    'ColumnA': [1,2,3,4,5],
+    'ColumnA': ['1','2','3','4','5'],
     'ColumnB': ['a  .','b!','  c','d','e'],
     'ColumnC': [False, True, True, False, False]
 })
 df.index.name = 'PrimaryKey'
 
+# create the table using a dataframe, notice a dataframe is returned with better data types assigned
 df = sql.create.table_from_dataframe(
     table_name='##mssql_dataframe',
     dataframe = df,
@@ -53,24 +55,32 @@ df = sql.create.table_from_dataframe(
 Update an SQL table using the primary key.
 
 ``` python
-# remove puncuation
+# peform a basic text cleaning task
 df['ColumnB'] = df['ColumnB'].str.replace('[^\w\s]','')
-# remove extra spaces
 df['ColumnB'] = df['ColumnB'].str.strip()
-# perform the update
-sql.write.update[['ColumnB']]
+
+# perform the update in SQL
+df = sql.write.update[['ColumnB']]
+
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe')
 ```
+
+Update an SQL table using other columns that are not the primary key.
 
 ``` python
-# UPDATE using dataframe's index and the SQL primary key
-write.update('SomeSQLTable', dataframe[['ColumnA']])
-# UPDATE using other columns by specifying match_columns
-write.update('SomeSQLTable', dataframe[['ColumnA','ColumnB','ColumnC']], 
-    match_columns=['ColumnB','ColumnC']
-)
-```
+# update ColumnA to 0 where ColumnC is False
+sample = pd.DataFrame({
+    'ColumnA': [0],
+    'ColumnC': [False]
+})
 
-Update an SQL table using a non-primary key column.
+# peform the update in SQL
+sample = sql.write.update('##mssql_dataframe', sample, match_columns='ColumnC')
+
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe')
+```
 
 ### Merging/Upsert SQL Table
 

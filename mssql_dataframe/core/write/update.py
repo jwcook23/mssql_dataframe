@@ -22,7 +22,6 @@ class update(insert):
         Returns
         -------
         dataframe (pandas.DataFrame) : input dataframe that may have been altered to conform to SQL
-        schema (pandas.DataFrame) : properties of SQL table columns where data was updated
 
         Examples
         --------
@@ -129,4 +128,4 @@ class update(insert):
         cursor.execute("DROP TABLE " + temp_name)
         cursor.commit()
 
-        return dataframe, schema
+        return dataframe
