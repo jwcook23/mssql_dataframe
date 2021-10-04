@@ -6,7 +6,7 @@ rules = pd.DataFrame.from_records(
     [
         {
             "sql_type": "bit",
-            "sql_category": "exact numeric",
+            "sql_category": "boolean",
             "min_value": False,
             "max_value": True,
             "pandas_type": "boolean",

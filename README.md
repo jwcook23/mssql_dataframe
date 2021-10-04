@@ -9,110 +9,7 @@
 
 A general data engineering package for Python pandas dataframes and Microsoft SQL Server / Azure SQL Database.
 
-Provides efficient mechanisms for updating and merging from Python dataframes into SQL tables. This is accomplished by utilizing the fast_executemany feature of pyodbc to quickly insert into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
-
-## Samples
-
-See TUTORIAL.md for a full example.
-
-### Initialization
-
-``` python
-import pandas as pd
-
-from mssql_dataframe.connect import connect
-from mssql_dataframe.collection import SQLServer
-
-# connect to database using pyodbc
-db = connect(database_name='master', server_name='localhost')
-# initialize the main mssql_dataframe package
-sql = SQLServer(db)
-```
-
-### Create Sample Table
-
-Create a global temporary table for this demonstration.
-
-``` python
-# create a demonstration dataframe
-df = pd.DataFrame({
-    'ColumnA': ['1','2','3','4','5'],
-    'ColumnB': ['a  .','b!','  c','d','e'],
-    'ColumnC': [False, True, True, False, False]
-})
-df.index.name = 'PrimaryKey'
-
-# create the table using a dataframe, notice a dataframe is returned with better data types assigned
-df = sql.create.table_from_dataframe(
-    table_name='##mssql_dataframe',
-    dataframe = df,
-    primary_key = 'index'
-)
-```
-
-### Updating SQL Table
-
-Update an SQL table using the primary key.
-
-``` python
-# peform a basic text cleaning task
-df['ColumnB'] = df['ColumnB'].str.replace('[^\w\s]','')
-df['ColumnB'] = df['ColumnB'].str.strip()
-
-# perform the update in SQL
-df = sql.write.update[['ColumnB']]
-
-# read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe')
-```
-
-Update an SQL table using other columns that are not the primary key.
-
-``` python
-# update ColumnA to 0 where ColumnC is False
-sample = pd.DataFrame({
-    'ColumnA': [0],
-    'ColumnC': [False]
-})
-
-# peform the update in SQL
-sample = sql.write.update('##mssql_dataframe', sample, match_columns='ColumnC')
-
-# read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe')
-```
-
-### Merging/Upsert SQL Table
-
-MERGE (insert/update/delete) an SQL table using primary keys or other columns. Can also perform a simplier UPSERT action.
-
-```python
-## MERGE using dataframe's index and the SQL primary key
-write.merge('SomeSQLTable', dataframe[['ColumnA','ColumnB']])
-## MERGE using another column
-write.merge('SomeSQLTable', dataframe[['ColumnA','ColumnB','ColumnC']], 
-    match_columns=['ColumnC']
-)
-## UPSERT (if exists update, otherwise insert)
-write.merge('SomeSQLTable', dataframe[['ColumnA']], delete_unmatched=False)
-```
-
-## SQL Object Creation and Modification
-
-SQL objects will be created/modified as needed if the main class is initialized with `autoadjust_sql_objects=True`.
-
-1. Tables will be created if they do not exist.
-2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
-
-Certain actions won't be taken even with `autoadjust_sql_objects=True` to preserve integrity.
-
-1. A column won't change from NOT NULL automatically.
-2. Column data type won't change from number like (INT, NUMERIC, etc.) to character like (VARCHAR).
-
-Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `autoadjust_sql_objects=False`.
-
-1. `_time_insert`: a new record was inserted
-2. `_time_update`: an existing record was updated
+Provides efficient mechanisms for updating and merging from Python dataframes into SQL tables. This is accomplished by quickly inserting into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
 ## Dependancies
 
@@ -130,9 +27,168 @@ pip install mssql-dataframe
 
 See CONTRIBUTING.md
 
-## See Also
+### Initialization
 
-A similiar project is [pangres](https://github.com/ThibTrip/pangres), but doesn't include SQL Server / Transact-SQL. The primary motivation for creating a new project is differences in Transact-SQL syntax, specifically MERGE in T-SQL vs UPSERT in other SQL flavors.
+``` python
+import pandas as pd
+
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
+
+# connect to database using pyodbc
+db = connect(database_name='master', server_name='localhost')
+# initialize the main mssql_dataframe package
+sql = SQLServer(db)
+```
+
+### Create Sample Table
+
+Create a global temporary table for this demonstration. Notice a dataframe is returned with better data types assigned, and the index corresponds to the primary key.
+
+``` python
+# create a demonstration dataframe
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+    'ColumnB': ['a  .','b!','  c','d','e'],
+    'ColumnC': [False, True, True, False, False]
+})
+df.index.name = 'PrimaryKey'
+
+# create the table using a dataframe
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_dataframe',
+    dataframe = df,
+    primary_key = 'index'
+)
+```
+
+### Updating SQL Table
+
+Update an SQL table using the primary key. Without match column details provided, the primary key / dataframe index is automatically used.
+
+``` python
+# peform a basic text cleaning task
+df['ColumnB'] = df['ColumnB'].str.replace('[^\w\s]','', regex=True)
+df['ColumnB'] = df['ColumnB'].str.strip()
+
+# perform the update in SQL
+updated = sql.write.update('##mssql_dataframe', df[['ColumnB']])
+
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe')
+```
+
+Update an SQL table using other columns that are not the primary key by specifying match columns.
+
+``` python
+# update ColumnA to 0 where ColumnC is False
+sample = pd.DataFrame({
+    'ColumnA': [0],
+    'ColumnC': [False]
+})
+
+# peform the update in SQL
+updated = sql.write.update('##mssql_dataframe', sample, match_columns='ColumnC')
+
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe')
+```
+
+### Merging/Upsert SQL Table
+
+Merging the dataframe into an SQL table will:
+
+1. Insert new records in the dataframe that are not in the SQL table.
+2. Update records in the SQL table that are also in the dataframe.
+3. Delete records in the SQL table not in the dataframe (if delete_unmatched=True).
+
+```python
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+
+# simulate new records
+sample = sample.append(
+    pd.DataFrame(
+        [
+            [9, 'x', True],
+            [9, 'y', True],
+        ], 
+        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
+        index = pd.Index([5,6], name='PrimaryKey')
+    )
+)
+
+# simulate updated records
+sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
+
+# simulate deleted records
+sample = sample[~sample['ColumnA'].isin([2,3])]
+
+# perform the merge
+merged = sql.write.merge('##mssql_dataframe', sample)
+
+# read the result from SQL after the merge
+# records for PrimaryKey 5 & 6 have been inserted
+# records for PrimaryKey 0, 3, & 4 have been updated
+# records for PrimaryKey 2 & 3 have been deleted
+result = sql.read.table('##mssql_dataframe')
+```
+
+Additional functionality allows data to be incrementally merged into an SQL table. This can be useful for file processing, web scraping multiple pages, or other batch processing situations.
+
+``` python
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+
+# simulate new records
+sample = sample.append(
+    pd.DataFrame(
+        [
+            [10, 'z', False],
+            [10, 'z', True],
+            [0, 'A', True]
+        ], 
+        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
+        index = pd.Index([7,8,9], name='PrimaryKey')
+    )
+)
+
+# simulate updated records
+sample.loc[sample['ColumnA']==1, 'ColumnC'] = True
+
+# simulate deleted records
+sample = sample[sample['ColumnB']!='a']
+sample = sample[sample['ColumnA']!=9]
+
+# perform the merge
+merged = sql.write.merge('##mssql_dataframe', sample, delete_requires=['ColumnA'])
+
+# read the result from SQL after the merge
+# records for PrimaryKey 5 & 6 were not deleted since a value of 9 in ColumnA of the dataframe was not present
+# record for PrimaryKey 0 was deleted since a value of 0 in ColumnA of the dataframe was present
+# records for PrimaryKey 7 & 8 have been inserted
+# records for PrimaryKey 0, 3, & 4 have been updated
+result = sql.read.table('##mssql_dataframe')
+```
+
+If the parameter delete_unmatched=False only steps 1 & 2 above are performed, resulting in an UPSERT action. Records in the SQL table but not in the dataframe will remain in the SQL table.
+
+## SQL Object Creation and Modification
+
+SQL objects will be created/modified as needed if the main class is initialized with `autoadjust_sql_objects=True`.
+
+1. Tables will be created if they do not exist.
+2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
+
+Certain actions won't be taken even with `autoadjust_sql_objects=True` to preserve integrity.
+
+1. A column won't change from NOT NULL automatically.
+2. Column data type won't change from number like (INT, NUMERIC, etc.) to character like (VARCHAR).
+
+Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `autoadjust_sql_objects=False`.
+
+1. `_time_insert`: a new record was inserted
+2. `_time_update`: an existing record was updated
 
 ## Future Plans
 

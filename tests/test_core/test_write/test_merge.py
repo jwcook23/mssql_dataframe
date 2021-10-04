@@ -57,7 +57,7 @@ def test_merge_errors(sql):
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
             upsert=True,
-            delete_conditions=["ColumnB"]
+            delete_requires=["ColumnB"]
         )
 
 
@@ -298,7 +298,7 @@ def test_merge_one_delete_condition(sql):
     dataframe.index.name = "_pk"
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.merge_meta.merge(
-            table_name, dataframe, match_columns=["_pk"], delete_conditions=["State"]
+            table_name, dataframe, match_columns=["_pk"], delete_requires=["State"]
         )
         assert len(warn) == 2
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
@@ -324,9 +324,9 @@ def test_merge_one_delete_condition(sql):
     assert all(result["_time_insert"].notna() == [False, False, True])
 
 
-def test_merge_two_delete_conditions(sql):
+def test_merge_two_delete_requires(sql):
 
-    table_name = "##test_merge_two_delete_conditions"
+    table_name = "##test_merge_two_delete_requires"
     dataframe = pd.DataFrame(
         {
             "State1": ["A", "B", "B"],
@@ -365,7 +365,7 @@ def test_merge_two_delete_conditions(sql):
             table_name,
             dataframe,
             match_columns=["_pk"],
-            delete_conditions=["State1", "State2"],
+            delete_requires=["State1", "State2"],
         )
         assert len(warn) == 2
         assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])

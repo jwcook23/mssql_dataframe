@@ -201,7 +201,7 @@ df_condition.index.name = '_pk'
 
 # perform merge
 sql.write.merge('##sample_merge_delete_condition', df_condition, match_columns=['_pk'], 
-    delete_conditions=['State']
+    delete_requires=['State']
 )
 result = sql.read.table('##sample_merge_delete_condition', limit=5)
 result

@@ -14,10 +14,12 @@ class merge(insert):
         dataframe: pd.DataFrame,
         match_columns: List[str] = None,
         upsert: bool = False,
-        delete_conditions: List[str] = None,
+        delete_requires: List[str] = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
-        With upsert=True, an update if exists otherwise insert action is performed without deleting anything.
+        With upsert=True, an update if exists otherwise insert action is performed without deleting anything. The 
+        delete_requires parameter allows for incremental merging by preventing records from being deleted if at least
+        one record doesn't match in the column.
 
         Parameters
         ----------
@@ -26,7 +28,7 @@ class merge(insert):
         dataframe (pandas.DataFrame): tabular data to merge into SQL table
         match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used
         upsert (bool, default=False) : delete records if they do not match
-        delete_conditions (list, default=None) : additional criteria that needs to match to prevent records from being deleted
+        delete_requires (list, default=None) : column(s) that need to have a matching row for records to be deleted
 
         Returns
         -------
@@ -38,15 +40,15 @@ class merge(insert):
         write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
 
         #### for incrementally merging from a dataframe, require ColumnC also matches to prevent a record from being deleted
-        write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_conditions=['ColumnC'])
+        write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_requires=['ColumnC'])
 
         #### perform an UPSERT (if exists update, otherwise update) workflow
         write.merge('SomeTable', dataframe[['ColumnA']], upsert=True)
 
         """
         # check inputs
-        if delete_conditions is not None and upsert:
-            raise ValueError("delete_conditions can only be specified if upsert==False")
+        if delete_requires is not None and upsert:
+            raise ValueError("delete_requires can only be specified if upsert==False")
 
         # prevent setwithcopy errors incase a subset of columns from an original dataframe are being updated
         dataframe = dataframe.copy()
@@ -98,10 +100,10 @@ class merge(insert):
         alias_match = [str(x) for x in list(range(0, len(match_columns)))]
         alias_update = [str(x) for x in list(range(0, len(update_columns)))]
         alias_insert = [str(x) for x in list(range(0, len(insert_columns)))]
-        if delete_conditions is None:
+        if delete_requires is None:
             alias_conditions = []
         else:
-            alias_conditions = [str(x) for x in list(range(0, len(delete_conditions)))]
+            alias_conditions = [str(x) for x in list(range(0, len(delete_requires)))]
 
         # declare SQL variables
         declare = ["DECLARE @Match_" + x + " SYSNAME = ?;" for x in alias_match]
@@ -178,7 +180,7 @@ class merge(insert):
         )
 
         # perform merge
-        if delete_conditions is None:
+        if delete_requires is None:
             args = (
                 [table_name, temp_name]
                 + match_columns
@@ -191,7 +193,7 @@ class merge(insert):
                 + match_columns
                 + update_columns
                 + insert_columns
-                + delete_conditions
+                + delete_requires
             )
 
         # execute statement to perform update in target table using source
