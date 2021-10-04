@@ -100,7 +100,7 @@ Merging the dataframe into an SQL table will:
 
 1. Insert new records in the dataframe that are not in the SQL table.
 2. Update records in the SQL table that are also in the dataframe.
-3. Delete records in the SQL table not in the dataframe (if delete_unmatched=True).
+3. Delete records in the SQL table not in the dataframe (if upsert=False).
 
 ```python
 # read what is currenly in the table
@@ -171,7 +171,32 @@ merged = sql.write.merge('##mssql_dataframe', sample, delete_requires=['ColumnA'
 result = sql.read.table('##mssql_dataframe')
 ```
 
-If the parameter delete_unmatched=False only steps 1 & 2 above are performed, resulting in an UPSERT action. Records in the SQL table but not in the dataframe will remain in the SQL table.
+Upsert functionality is accomplished by setting upsert=False. This results in records only being inserted or updated.
+
+``` python
+# simulate a new record
+sample = sample.append(
+    pd.DataFrame(
+        [
+            [11, 'z', False],
+        ], 
+        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
+        index = pd.Index([10], name='PrimaryKey')
+    )
+)
+
+# simulate an updated record
+sample.at[3,'ColumnA'] = 12
+
+# perform the upsert
+merged = sql.write.merge('##mssql_dataframe', sample, upsert=True)
+
+# read the result from SQL after the upsert
+# record for PrimaryKey 3 was updated
+# record for PrimaryKey 10 was inserted
+# all other records remain unchanged
+result = sql.read.table('##mssql_dataframe')
+```
 
 ## SQL Object Creation and Modification
 
