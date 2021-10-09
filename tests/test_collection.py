@@ -4,7 +4,7 @@ from mssql_dataframe.connect import connect
 from mssql_dataframe.collection import SQLServer
 from mssql_dataframe.core import custom_warnings
 
-attributes = ["connection", "create", "modify", "read", "write"]
+attributes = ["exceptions","connection", "create", "modify", "read", "write"]
 
 
 def test_SQLServer():

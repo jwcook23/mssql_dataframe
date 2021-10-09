@@ -2,7 +2,7 @@
 import warnings
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import custom_warnings, create, modify, read
+from mssql_dataframe.core import custom_warnings, custom_errors, conversion, create, modify, read
 from mssql_dataframe.core.write.write import write
 
 
@@ -43,6 +43,7 @@ class SQLServer:
     ):
 
         # initialize mssql_dataframe functionality with shared connection
+        self.exceptions = custom_errors
         self.connection = connection.connection
         self.create = create.create(connection, include_metadata_timestamps)
         self.modify = modify.modify(connection)
@@ -63,3 +64,19 @@ class SQLServer:
                 "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
                 custom_warnings.SQLObjectAdjustment,
             )
+
+    def get_schema(self, table_name: str):
+        """Get schema of an SQL table and the defined conversion rules between data types.
+
+        Parameters
+        ----------
+        table_name (str) : table name to read schema from
+
+        Returns
+        -------
+        schema (pandas.DataFrame) : table column specifications and conversion rules
+        """
+
+        schema,_ = conversion.get_schema(self.connection, table_name)
+
+        return schema

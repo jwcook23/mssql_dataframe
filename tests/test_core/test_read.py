@@ -20,14 +20,14 @@ class package:
         self.read = read.read(connection)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def sql():
     db = connect.connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def sample(sql):
 
     # create table and insert sample data

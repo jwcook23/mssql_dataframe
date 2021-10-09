@@ -23,9 +23,7 @@ Provides efficient mechanisms for updating and merging from Python dataframes in
 pip install mssql-dataframe
 ```
 
-## Contributing
-
-See CONTRIBUTING.md
+## Quick Start
 
 ### Initialization
 
@@ -51,8 +49,7 @@ df = pd.DataFrame({
     'ColumnA': ['1','2','3','4','5'],
     'ColumnB': ['a  .','b!','  c','d','e'],
     'ColumnC': [False, True, True, False, False]
-})
-df.index.name = 'PrimaryKey'
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
 # create the table using a dataframe
 df = sql.create.table_from_dataframe(
@@ -198,6 +195,72 @@ merged = sql.write.merge('##mssql_dataframe', sample, upsert=True)
 result = sql.read.table('##mssql_dataframe')
 ```
 
+## Additional Functionality
+
+### include_metadata_timestamps
+
+If mssql_dataframe is initialized with include_metadata_timestamps=True, write operations will include values when records are inserted or updated.
+
+``` python
+db = connect(database_name='master', server_name='localhost')
+sql = SQLServer(db, include_metadata_timestamps=True)
+
+# create sample table
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+}, index=pd.Index([0, 1, 2, 3, 4, 5], name='PrimaryKey'))
+
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_metadata',
+    dataframe = df,
+    primary_key = 'index'
+)
+
+# all records have a _time_insert value
+result = sql.read.table('##mssql_metadata')
+
+# simulate an updated record
+result.at[0,'ColumnA'] = 9
+updated = sql.write.update('##mssql_metadata', result.loc[[0]])
+
+# record 0 now has a _time_update value
+# the _time_update column was automatically created
+result = sql.read.table('##mssql_metadata')
+```
+
+### Manual SQL Column Modification
+
+mssql_dataframe contains methods to adjust SQL columns.
+
+``` python
+import pandas as pd
+
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
+
+db = connect(database_name='master', server_name='localhost')
+sql = SQLServer(db)
+
+# create sample table
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_modify',
+    dataframe = df,
+    primary_key = 'index'
+)
+
+# modify ColumnA
+sql.modify.column('##mssql_modify', 'alter', 'ColumnA', 'BIGINT', is_nullable=True)
+
+# notice ColumnA is now BIGINT and nullable
+schema = sql.get_schema('##mssql_modify')
+```
+
+### Automatic SQL Object Creation and Modification
+
 ## SQL Object Creation and Modification
 
 SQL objects will be created/modified as needed if the main class is initialized with `autoadjust_sql_objects=True`.
@@ -220,3 +283,7 @@ Internal time tracking columns will be added (in server time) where applicable i
 1. merge with the open to retain deleted records in another table
 2. support for decimal and numeric SQL types
 3. support for other SQL implementations
+
+## Contributing
+
+See CONTRIBUTING.md
