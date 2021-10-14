@@ -161,7 +161,8 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     # only apply to columns in dataframe
     schema = schema[schema.index.isin(dataframe.columns)].copy()
 
-    # convert objects to the largest sql_category type to allow for size check (avoids downcast such as UInt8 value of 10000 to 16)
+    # convert objects to the largest sql_category type to allow for size check 
+    # avoids downcast such as UInt8 value of 10000 to 16
     convert = dataframe.columns[dataframe.dtypes == "object"]
     try:
         # exact numeric
@@ -181,7 +182,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
         columns = convert[schema.loc[convert, "sql_category"] == "character string"]
         dataframe[columns] = dataframe[columns].astype("string")
     except (TypeError, ValueError):
-        raise custom_errors.DataframeInvalidDataType(
+        raise custom_errors.DataframeColumnInvalidValue(
             "Dataframe columns cannot be converted based on their SQL data type",
             list(columns),
         )
@@ -195,9 +196,15 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     check = check.merge(
         schema[["min_value", "max_value"]], left_index=True, right_index=True
     )
-    invalid = check[
-        (check["min"] < check["min_value"]) | (check["max"] > check["max_value"])
-    ]
+    try:
+        invalid = check[
+            (check["min"] < check["min_value"]) | (check["max"] > check["max_value"])
+        ]
+    except TypeError:
+        raise custom_errors.DataframeColumnInvalidValue(
+            "Dataframe columns cannot be converted based on their SQL data type"
+        )
+
     if len(invalid) > 0:
         invalid = invalid.astype("string")
         invalid["allowed"] = invalid["min_value"] + " to " + invalid["max_value"]
@@ -209,7 +216,12 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
         )
 
     # convert dataframe based on SQL type
-    dataframe = dataframe.astype(schema["pandas_type"].to_dict())
+    try:
+        dataframe = dataframe.astype(schema["pandas_type"].to_dict())
+    except TypeError:
+        raise custom_errors.DataframeColumnInvalidValue(
+            "Dataframe columns cannot be converted based on their SQL data type"
+        )        
 
     # set primary key column as dataframe's index
     if any(schema["pk_seq"].notna()):

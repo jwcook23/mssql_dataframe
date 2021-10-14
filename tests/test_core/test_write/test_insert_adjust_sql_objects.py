@@ -1,4 +1,5 @@
 import warnings
+from datetime import datetime
 
 import pytest
 import pandas as pd
@@ -6,7 +7,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe import connect
-from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
+from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion, conversion_rules
 from mssql_dataframe.core.write import insert, _exceptions
 
 
@@ -23,6 +24,44 @@ def sql():
     db = connect.connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
+
+def test_insert_autoadjust_errors(sql):
+    
+    table_name = "##test_insert_autoadjust_errors"
+
+    # create table with column for each conversion rule
+    columns = conversion_rules.rules['sql_type'].to_numpy()
+    columns = {'_'+x:x for x in columns}
+    sql.create.table(table_name, columns=columns)
+
+    # create dataframes for each conversion rule that should fail insert
+    boolean = [3]
+    exact_numeric = ['a', '2-1', 1.1, datetime.now()]
+    approximate_numeric = ['a', '2-1',datetime.now()]
+    date_time = ['a', 1, 1.1]
+    character_string = [1, datetime.now()]
+    dataframe = [
+        pd.DataFrame({'_bit': boolean}),
+        pd.DataFrame({'_tinyint': exact_numeric}),
+        pd.DataFrame({'_smallint': exact_numeric}),
+        pd.DataFrame({'_int': exact_numeric}),
+        pd.DataFrame({'_bigint': exact_numeric}),
+        pd.DataFrame({'_float': approximate_numeric}),
+        pd.DataFrame({'_time': date_time}),
+        pd.DataFrame({'_date': date_time}),
+        pd.DataFrame({'_datetime2': date_time}),
+        pd.DataFrame({'_varchar': character_string}),
+        pd.DataFrame({'_nvarchar': character_string}),
+    ]
+
+    # insure all conversion rules are being tested
+    assert pd.Series(columns.keys()).isin([x.columns[0] for x in dataframe]).all()
+
+    for df in dataframe:
+        # check each row to infer to base pandas type
+        for row in df.index:
+            with pytest.raises(custom_errors.DataframeColumnInvalidValue):
+                sql.insert.insert(table_name, df.loc[[row]].infer_objects())
 
 
 def test_insert_create_table(sql):
@@ -103,30 +142,6 @@ def test_insert_alter_column_unchanged(sql):
         "manually testing expection for ColumnB, ColumnC", ["ColumnB", "ColumnC"]
     )
     with pytest.raises(custom_errors.SQLRecastColumnUnchanged):
-        _exceptions.handle(
-            failure,
-            table_name,
-            dataframe,
-            updating_table=False,
-            autoadjust_sql_objects=sql.insert.autoadjust_sql_objects,
-            modifier=sql.insert._modify,
-            creator=sql.insert._create,
-        )
-
-
-def test_insert_alter_column_data_category(sql):
-
-    table_name = "##test_insert_alter_column_data_category"
-    sql.create.table(
-        table_name,
-        columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)", "ColumnC": "TINYINT"},
-    )
-
-    dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [1], "ColumnC": ["a"]})
-    failure = custom_errors.SQLInsufficientColumnSize(
-        "manually testing expection for ColumnB, ColumnC", ["ColumnB", "ColumnC"]
-    )
-    with pytest.raises(custom_errors.SQLRecastColumnChangedCategory):
         _exceptions.handle(
             failure,
             table_name,

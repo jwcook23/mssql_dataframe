@@ -53,24 +53,6 @@ def test_insert_errors(sql):
             dataframe=pd.DataFrame({"ColumnA": [100000]})
         )
 
-    # values that cannot be converted to their Python equalivant based on SQL data type
-    with pytest.raises(custom_errors.DataframeInvalidDataType):
-        sql.insert.insert(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["abs"]})
-        )
-    with pytest.raises(custom_errors.DataframeInvalidDataType):
-        sql.insert.insert(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["12-5"]})
-        )
-    with pytest.raises(custom_errors.DataframeInvalidDataType):
-        sql.insert.insert(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": ["12345-67589"]})
-        )
-
-
 def test_insert_dataframe(sql):
 
     table_name = "##test_insert_dataframe"

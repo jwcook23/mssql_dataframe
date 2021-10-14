@@ -49,12 +49,6 @@ class SQLRecastColumnUnchanged(Exception):
     pass
 
 
-class SQLRecastColumnChangedCategory(Exception):
-    """Exception for SQLInsufficientColumnSize handling resulting in change of data type category."""
-
-    pass
-
-
 class SQLInvalidLengthObjectName(Exception):
     """Exception for an SQL object name that is too long."""
 
@@ -67,7 +61,7 @@ class DataframeColumnDoesNotExist(Exception):
     pass
 
 
-class DataframeInvalidDataType(Exception):
+class DataframeColumnInvalidValue(Exception):
     """Exception for a dataframe column that cannot be converted to it's correct type based on the target SQL type."""
 
     pass

@@ -189,8 +189,8 @@ def alter_columns(
     changed = previous.loc[schema.index, ["sql_category"]] != schema[["sql_category"]]
     if any(changed["sql_category"]):
         changed = list(changed[changed["sql_category"]].index)
-        raise custom_errors.SQLRecastColumnChangedCategory(
-            f"Handling SQLInsufficientColumnSize resulted in data type category change for columns: {changed}"
+        raise custom_errors.DataframeColumnInvalidValue(
+            "Dataframe columns cannot be converted based on their SQL data type", changed
         )
     # drop primary key constraint prior to altering columns, if needed
     primary_key_columns = (
