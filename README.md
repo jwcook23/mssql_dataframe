@@ -7,7 +7,7 @@
 
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
-A general data engineering package for Python pandas dataframes and Microsoft SQL Server / Azure SQL Database.
+A data engineering package for Python pandas dataframes and Microsoft SQL Server / Azure SQL Database.
 
 Provides efficient mechanisms for updating and merging from Python dataframes into SQL tables. This is accomplished by quickly inserting into a source SQL temporary table, and then updating/merging into a target SQL table from that temporary table.
 
@@ -35,7 +35,7 @@ from mssql_dataframe.collection import SQLServer
 
 # connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
-# initialize the main mssql_dataframe package
+# initialize the mssql_dataframe package
 sql = SQLServer(db)
 ```
 
@@ -261,28 +261,51 @@ schema = sql.get_schema('##mssql_modify')
 
 ### Automatic SQL Object Creation and Modification
 
-## SQL Object Creation and Modification
-
-SQL objects will be created/modified as needed if the main class is initialized with `autoadjust_sql_objects=True`.
+SQL objects will be created/modified as needed if the class is initialized with `autoadjust_sql_objects=True`.
 
 1. Tables will be created if they do not exist.
 2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
 
-Certain actions won't be taken even with `autoadjust_sql_objects=True` to preserve integrity.
+``` python
+import pandas as pd
 
-1. A column won't change from NOT NULL automatically.
-2. Column data type won't change from number like (INT, NUMERIC, etc.) to character like (VARCHAR).
+from mssql_dataframe.connect import connect
+from mssql_dataframe.collection import SQLServer
 
-Internal time tracking columns will be added (in server time) where applicable if `include_timestamps=True`, even if `autoadjust_sql_objects=False`.
+db = connect(database_name='master', server_name='localhost')
+sql = SQLServer(db, autoadjust_sql_objects=True)
 
-1. `_time_insert`: a new record was inserted
-2. `_time_update`: an existing record was updated
+# sample dataframe
+df = pd.DataFrame({
+    'ColumnA': [1,2,3,4,5],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
-## Future Plans
+# create table by inserting into a table that doesn't exist
+df = sql.write.insert('##mssql_auto', df)
 
-1. merge with the open to retain deleted records in another table
-2. support for decimal and numeric SQL types
-3. support for other SQL implementations
+# automatically add a column
+new = pd.DataFrame({
+    'ColumnA': [6],
+    'ColumnB' : ['z']
+}, index=pd.Index([5], name='PrimaryKey'))
+new = sql.write.insert('##mssql_auto', new)
+
+# automatically modify columns
+alter = pd.DataFrame({
+    'ColumnA': [1000],
+    'ColumnB' : ['zzz']
+}, index=pd.Index([6], name='PrimaryKey'))
+alter = sql.write.insert('##mssql_auto', alter)
+
+# prevent  automatically modifying to different category
+error = pd.DataFrame({
+    'ColumnA': ['z'],
+}, index=pd.Index([7], name='PrimaryKey'))
+try:
+    error = sql.write.insert('##mssql_auto', error)
+except sql.exceptions.DataframeColumnInvalidValue:
+    print('ColumnA not changed to string like column.')
+```
 
 ## Contributing
 
