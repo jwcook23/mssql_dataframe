@@ -5,7 +5,7 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = "raise"
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, read
 from mssql_dataframe.core.write import insert
 
@@ -14,15 +14,15 @@ table_name = "##test_select"
 
 class package:
     def __init__(self, connection):
-        self.connection = connection
-        self.create = create.create(connection)
-        self.insert = insert.insert(connection, include_metadata_timestamps=False, autoadjust_sql_objects=False)
-        self.read = read.read(connection)
+        self.connection = connection.connection
+        self.create = create.create(self.connection)
+        self.insert = insert.insert(self.connection, include_metadata_timestamps=False, autoadjust_sql_objects=False)
+        self.read = read.read(self.connection)
 
 
 @pytest.fixture(scope="session")
 def sql():
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 
@@ -90,7 +90,7 @@ def test_undefined_conversion(sql):
     geography = "geography::STGeomFromText('LINESTRING(-122.360 47.656, -122.343 47.656)', 4326)"
     datetimeoffset = "'12-10-25 12:32:10 +01:00'"
     statement = "INSERT INTO {table_name} VALUES({geography},{datetimeoffset})"
-    cursor = sql.connection.connection.cursor()
+    cursor = sql.connection.cursor()
     cursor.execute(
         statement.format(
             table_name=table_name, geography=geography, datetimeoffset=datetimeoffset

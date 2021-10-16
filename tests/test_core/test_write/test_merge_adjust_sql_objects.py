@@ -5,7 +5,7 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = "raise"
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, create, conversion
 from mssql_dataframe.core.write import merge
 
@@ -13,13 +13,13 @@ from mssql_dataframe.core.write import merge
 class package:
     def __init__(self, connection):
         self.connection = connection.connection
-        self.create = create.create(connection)
-        self.merge = merge.merge(connection, autoadjust_sql_objects=True)
-        self.merge_meta = merge.merge(connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
+        self.create = create.create(self.connection)
+        self.merge = merge.merge(self.connection, autoadjust_sql_objects=True)
+        self.merge_meta = merge.merge(self.connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 

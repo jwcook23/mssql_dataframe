@@ -7,20 +7,20 @@ import pandas as pd
 pd.options.mode.chained_assignment = "raise"
 import pyodbc
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, conversion, create
 
 
 class package:
     def __init__(self, connection):
         self.connection = connection.connection
-        self.create = create.create(connection)
-        self.create_meta = create.create(connection, include_metadata_timestamps=True)
+        self.create = create.create(self.connection)
+        self.create_meta = create.create(self.connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 

@@ -1,19 +1,19 @@
 import pytest
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import create, modify, conversion
 
 
 class package:
     def __init__(self, connection):
         self.connection = connection.connection
-        self.create = create.create(connection)
-        self.modify = modify.modify(connection)
+        self.create = create.create(self.connection)
+        self.modify = modify.modify(self.connection)
 
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 

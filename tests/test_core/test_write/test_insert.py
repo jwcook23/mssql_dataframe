@@ -5,7 +5,7 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = "raise"
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import insert
 
@@ -13,14 +13,14 @@ from mssql_dataframe.core.write import insert
 class package:
     def __init__(self, connection):
         self.connection = connection.connection
-        self.create = create.create(connection)
-        self.insert = insert.insert(connection)
-        self.insert_meta = insert.insert(connection, include_metadata_timestamps=True)
+        self.create = create.create(self.connection)
+        self.insert = insert.insert(self.connection)
+        self.insert_meta = insert.insert(self.connection, include_metadata_timestamps=True)
 
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
     yield package(db)
     db.connection.close()
 

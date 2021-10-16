@@ -1,19 +1,20 @@
 """Class for modifying SQL columns or primary keys."""
 from typing import Literal, List
+import pyodbc
 
 from mssql_dataframe.core import dynamic
 
 
 class modify:
-    def __init__(self, connection):
+    def __init__(self, connection: pyodbc.connect):
         """Class for modifying SQL table columns.
 
         Parameters
         ----------
-        connection (mssql_dataframe.connect) : connection for executing statement
+        connection (pyodbc.Connection) : connection for executing statement
         """
 
-        self._connection = connection.connection
+        self._connection = connection
 
     def column(
         self,

@@ -3,21 +3,22 @@ from typing import Literal, List
 import warnings
 
 import pandas as pd
+import pyodbc
 
 from mssql_dataframe.core import custom_warnings, dynamic, conversion, infer
 
 
 class create:
-    def __init__(self, connection, include_metadata_timestamps: bool = False):
+    def __init__(self, connection: pyodbc.connect, include_metadata_timestamps: bool = False):
         """Class for creating SQL tables manually or automatically from a dataframe.
 
         Parameters
         ----------
-        connection (mssql_dataframe.connect) : connection for executing statement
+        connection (pyodbc.Connection) : connection for executing statement
         include_metadata_timetstamps (bool, default=False) : if inserting data using table_from_dataframe, include _time_insert column
         """
 
-        self._connection = connection.connection
+        self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
 
     def table(

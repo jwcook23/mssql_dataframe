@@ -11,7 +11,7 @@ from mssql_dataframe.core.write import _exceptions
 class insert:
     def __init__(
         self,
-        connection,
+        connection: pyodbc.connect,
         include_metadata_timestamps: bool = False,
         autoadjust_sql_objects: bool = False,
     ):
@@ -19,13 +19,13 @@ class insert:
 
         Parameters
         ----------
-        connection (mssql_dataframe.connect) : connection for executing statement
+        connection (pyodbc.Connection) : connection for executing statement
         include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update for write operations
         autoadjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
 
         """
 
-        self._connection = connection.connection
+        self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
         self.autoadjust_sql_objects = autoadjust_sql_objects
 

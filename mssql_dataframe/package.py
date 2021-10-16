@@ -1,21 +1,21 @@
 """Classes for all functionality within mssql_dataframe in a convenient package."""
 import warnings
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, custom_errors, conversion, create, modify, read
 from mssql_dataframe.core.write.write import write
 
 
-class SQLServer:
+class SQLServer(connect):
     """Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
     If autoadjust_sql_objects is True SQL objects may be modified such as creating a table, adding a column,
-    or increasing the size of a column. The exepection is internal tracking metadata columns _time_insert and
+    or increasing the size of a column. The exception is internal tracking metadata columns _time_insert and
      _time_update which will always be created if include_metadata_timestamps=True.
 
     Parameters
     ----------
-    connection (mssql_dataframe.connect) : connection for executing statements
+    connection (pyodbc.Connection) : connection for executing statements
     include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
     autoadjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
 
@@ -37,19 +37,20 @@ class SQLServer:
 
     def __init__(
         self,
-        connection: connect.connect,
+        # connection: connect,
         include_metadata_timestamps: bool = False,
         autoadjust_sql_objects: bool = False,
     ):
 
+        connect.__init__(self)
+
         # initialize mssql_dataframe functionality with shared connection
         self.exceptions = custom_errors
-        self.connection = connection.connection
-        self.create = create.create(connection, include_metadata_timestamps)
-        self.modify = modify.modify(connection)
-        self.read = read.read(connection)
+        self.create = create.create(self.connection, include_metadata_timestamps)
+        self.modify = modify.modify(self.connection)
+        self.read = read.read(self.connection)
         self.write = write(
-            connection, include_metadata_timestamps, autoadjust_sql_objects
+            self.connection, include_metadata_timestamps, autoadjust_sql_objects
         )
 
         # issue warnings for automated functionality

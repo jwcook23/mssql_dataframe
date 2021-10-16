@@ -31,7 +31,7 @@ pip install mssql-dataframe
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.collection import SQLServer
+from mssql_dataframe.package import SQLServer
 
 # connect to database using pyodbc
 db = connect(database_name='master', server_name='localhost')
@@ -236,7 +236,7 @@ mssql_dataframe contains methods to adjust SQL columns.
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.collection import SQLServer
+from mssql_dataframe.package import SQLServer
 
 db = connect(database_name='master', server_name='localhost')
 sql = SQLServer(db)
@@ -270,7 +270,7 @@ SQL objects will be created/modified as needed if the class is initialized with 
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.collection import SQLServer
+from mssql_dataframe.package import SQLServer
 
 db = connect(database_name='master', server_name='localhost')
 sql = SQLServer(db, autoadjust_sql_objects=True)

@@ -2,17 +2,18 @@
 from typing import Literal
 
 import pandas as pd
+import pyodbc
 
 from mssql_dataframe.core import custom_errors, dynamic, conversion
 
 
 class read:
-    def __init__(self, connection):
+    def __init__(self, connection: pyodbc.connect):
         """Class for reading from SQL tables.
 
         Parameters
         ----------
-        connection (mssql_dataframe.connect) : connection for executing statement
+        connection (pyodbc.Connection) : connection for executing statement
         """
 
         self._connection = connection
@@ -55,7 +56,7 @@ class read:
         """
 
         # get table schema for conversion to pandas
-        schema, _ = conversion.get_schema(self._connection.connection, table_name)
+        schema, _ = conversion.get_schema(self._connection, table_name)
 
         # always read in primary key columns for dataframe index
         primary_key_columns = list(
@@ -65,7 +66,7 @@ class read:
         )
 
         # dynamic table and column names, and column_name development
-        table_name = dynamic.escape(self._connection.connection.cursor(), table_name)
+        table_name = dynamic.escape(self._connection.cursor(), table_name)
         if column_names is None:
             column_names = "*"
         else:
@@ -81,7 +82,7 @@ class read:
                     f"Column does not exist in table {table_name}:", missing
                 )
             column_names = dynamic.escape(
-                self._connection.connection.cursor(), column_names
+                self._connection.cursor(), column_names
             )
             column_names = "\n,".join(column_names)
 
@@ -90,7 +91,7 @@ class read:
             where_statement, where_args = ("", None)
         else:
             where_statement, where_args = dynamic.where(
-                self._connection.connection.cursor(), where
+                self._connection.cursor(), where
             )
 
         # format optional limit
@@ -112,7 +113,7 @@ class read:
         elif order_column is not None:
             order = (
                 "ORDER BY "
-                + dynamic.escape(self._connection.connection.cursor(), order_column)
+                + dynamic.escape(self._connection.cursor(), order_column)
                 + " "
                 + order_direction
             )
@@ -131,7 +132,7 @@ class read:
 
         # read sql query
         dataframe = conversion.read_values(
-            statement, schema, self._connection.connection, where_args
+            statement, schema, self._connection, where_args
         )
 
         return dataframe

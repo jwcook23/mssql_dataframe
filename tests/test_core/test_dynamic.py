@@ -3,14 +3,14 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = "raise"
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, dynamic
 
 
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
 
     # database cursor
     cursor = db.connection.cursor()

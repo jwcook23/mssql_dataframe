@@ -6,7 +6,7 @@ pd.options.mode.chained_assignment = "raise"
 import pytest
 import pyodbc
 
-from mssql_dataframe import connect
+from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, conversion, conversion_rules, dynamic
 from . import sample
 
@@ -31,7 +31,7 @@ def data():
 @pytest.fixture(scope="module")
 def sql(data):
     # create database cursor
-    db = connect.connect(database_name="tempdb", server_name="localhost")
+    db = connect(database_name="tempdb", server_name="localhost")
 
     # database cursor
     cursor = db.connection.cursor()
