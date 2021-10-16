@@ -12,8 +12,8 @@ class connect:
     Parameters
     ----------
 
-    database_name (str, default='master') : name of database to connect to
-    server_name (str, default='localhost') : name of server to connect to
+    database (str, default='master') : name of database to connect to
+    server (str, default='localhost') : name of server to connect to
     driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
     username (str, default=None) : if not given, use Windows account credentials to connect
     password (str, default=None) : if not given, use Windows account credentials to connect
@@ -30,10 +30,10 @@ class connect:
     db = connect()
 
     #### remote server using username and password
-    db = connect(database_name='master', server_name='<remote>', username='<username>', password='<password>')
+    db = connect(database='master', server='<remote>', username='<username>', password='<password>')
 
-    #### Azue SQL Server instance
-    db = connect(server_name='<server>.database.windows.net', username='<username>', password='<password>')
+    #### Azure SQL Server instance
+    db = connect(server='<server>.database.windows.net', username='<username>', password='<password>')
 
     #### using a specific driver
     db = connect(driver_name='ODBC Driver 17 for SQL Server')
@@ -42,8 +42,8 @@ class connect:
 
     def __init__(
         self,
-        database_name: str = "master",
-        server_name: str = "localhost",
+        database: str = "master",
+        server: str = "localhost",
         driver: str = None,
         username: str = None,
         password: str = None,
@@ -54,16 +54,16 @@ class connect:
         if username is None:
             self.connection = pyodbc.connect(
                 driver=driver,
-                server=server_name,
-                database=database_name,
+                server=server,
+                database=database,
                 autocommit=False,
                 trusted_connection="yes",
             )
         else:
             self.connection = pyodbc.connect(
                 driver=driver,
-                server=server_name,
-                database=database_name,
+                server=server,
+                database=database,
                 autocommit=False,
                 UID=username,
                 PWD=password,

@@ -10,7 +10,7 @@ from mssql_dataframe.core import custom_errors, dynamic
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
-    db = connect(database_name="tempdb", server_name="localhost")
+    db = connect(database="tempdb", server="localhost")
 
     # database cursor
     cursor = db.connection.cursor()

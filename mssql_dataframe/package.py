@@ -2,7 +2,14 @@
 import warnings
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, custom_errors, conversion, create, modify, read
+from mssql_dataframe.core import (
+    custom_warnings,
+    custom_errors,
+    conversion,
+    create,
+    modify,
+    read,
+)
 from mssql_dataframe.core.write.write import write
 
 
@@ -15,7 +22,11 @@ class SQLServer(connect):
 
     Parameters
     ----------
-    connection (pyodbc.Connection) : connection for executing statements
+    database (str, default='master') : name of database to connect to
+    server (str, default='localhost') : name of server to connect to
+    driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
+    username (str, default=None) : if not given, use Windows account credentials to connect
+    password (str, default=None) : if not given, use Windows account credentials to connect
     include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
     autoadjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
 
@@ -30,19 +41,24 @@ class SQLServer(connect):
     -------
 
     #### connect to a local host database, with the ability to automatically adjust SQL objects
-    db = connect()
+    sql = SQLServer(autoadjust_sql_objects=True)
 
-    sql = SQLServer(db, autoadjust_sql_objects=True)
+    #### connect to Azure SQL Server instance
+    sql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>')
     """
 
     def __init__(
         self,
-        # connection: connect,
+        database: str = "master",
+        server: str = "localhost",
+        driver: str = None,
+        username: str = None,
+        password: str = None,
         include_metadata_timestamps: bool = False,
         autoadjust_sql_objects: bool = False,
     ):
 
-        connect.__init__(self)
+        connect.__init__(self, database, server, driver, username, password)
 
         # initialize mssql_dataframe functionality with shared connection
         self.exceptions = custom_errors
@@ -78,6 +94,6 @@ class SQLServer(connect):
         schema (pandas.DataFrame) : table column specifications and conversion rules
         """
 
-        schema,_ = conversion.get_schema(self.connection, table_name)
+        schema, _ = conversion.get_schema(self.connection, table_name)
 
         return schema

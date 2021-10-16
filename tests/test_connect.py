@@ -14,12 +14,12 @@ def test_connect():
     # username/password without having to hardcode for testing
     with pytest.raises(pyodbc.InterfaceError):
         connect(
-            database_name="master",
-            server_name="localhost",
+            database="master",
+            server="localhost",
             username="admin",
             password="",
         )
 
     # invalid driver name
     with pytest.raises(custom_errors.EnvironmentODBCDriverNotFound):
-        connect(database_name="master", server_name="localhost", driver="")
+        connect(database="master", server="localhost", driver="")

@@ -161,7 +161,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     # only apply to columns in dataframe
     schema = schema[schema.index.isin(dataframe.columns)].copy()
 
-    # convert objects to the largest sql_category type to allow for size check 
+    # convert objects to the largest sql_category type to allow for size check
     # avoids downcast such as UInt8 value of 10000 to 16
     convert = dataframe.columns[dataframe.dtypes == "object"]
     try:
@@ -177,7 +177,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
         dataframe[columns] = dataframe[columns].astype("float64")
         # date time
         columns = convert[schema.loc[convert, "sql_category"] == "date time"]
-        dataframe[columns] = dataframe[columns].astype("datetime")
+        dataframe[columns] = dataframe[columns].astype("datetime64")
         # character string
         columns = convert[schema.loc[convert, "sql_category"] == "character string"]
         dataframe[columns] = dataframe[columns].astype("string")
@@ -190,8 +190,9 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     # check for insufficient column size, using min and max of dataframe contents
     check = dataframe.copy()
     strings = check.columns[check.dtypes == "string"]
-    schema.loc[strings, "max_value"] = schema.loc[strings, "column_size"]
-    check[strings] = check[strings].apply(lambda x: x.str.len())
+    if any(strings):
+        schema.loc[strings, "max_value"] = schema.loc[strings, "column_size"]
+        check[strings] = check[strings].apply(lambda x: x.str.len())
     check = check.agg([min, max]).transpose()
     check = check.merge(
         schema[["min_value", "max_value"]], left_index=True, right_index=True
@@ -221,7 +222,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     except TypeError:
         raise custom_errors.DataframeColumnInvalidValue(
             "Dataframe columns cannot be converted based on their SQL data type"
-        )        
+        )
 
     # set primary key column as dataframe's index
     if any(schema["pk_seq"].notna()):
@@ -302,10 +303,11 @@ def sql_spec(
     strings = schema[schema["sql_type"].isin(["varchar", "nvarchar"])].index
 
     # update odbc_size in schema
-    infer = dataframe[strings].apply(lambda x: x.str.len()).max()
-    infer = pd.DataFrame(infer, columns=["odbc_size"])
-    infer["odbc_size"] = infer["odbc_size"].fillna(1)
-    schema.update(infer)
+    if any(strings):
+        infer = dataframe[strings].apply(lambda x: x.str.len()).max()
+        infer = pd.DataFrame(infer, columns=["odbc_size"])
+        infer["odbc_size"] = infer["odbc_size"].fillna(1)
+        schema.update(infer)
     schema["odbc_size"] = schema["odbc_size"].astype("int64")
 
     # develop dictionary mapping of data types
@@ -348,7 +350,10 @@ def prepare_values(
 
     # SQL data type TIME as string since python datetime.time allows 6 decimal places but SQL allows 7
     dtype = schema[schema["odbc_type"] == pyodbc.SQL_SS_TIME2].index
-    truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
+    if any(dtype):
+        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
+    else:
+        truncation = []
     if any(truncation):
         truncation = list(truncation[truncation].index)
         warnings.warn(
@@ -369,13 +374,17 @@ def prepare_values(
         raise ValueError(
             f"columns {invalid} are out of range for SQL TIME data type. Allowable range is 00:00:00.0000000-23:59:59.9999999"
         )
-    prepped[dtype] = prepped[dtype].astype("str")
-    prepped[dtype] = prepped[dtype].replace({"NaT": None})
-    prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
+    if any(dtype):
+        prepped[dtype] = prepped[dtype].astype("str")
+        prepped[dtype] = prepped[dtype].replace({"NaT": None})
+        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
 
     # SQL data type DATETIME2 as string since python datetime.datetime allows 6 decimals but SQL allows 7
     dtype = schema[schema["odbc_type"] == pyodbc.SQL_TYPE_TIMESTAMP].index
-    truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
+    if any(dtype):
+        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
+    else:
+        truncation = []
     if any(truncation):
         truncation = list(truncation[truncation].index)
         warnings.warn(
@@ -387,10 +396,10 @@ def prepare_values(
         )
         dataframe[dtype] = dataframe[dtype].apply(lambda x: x.dt.floor(freq="us"))
         dataframe[dtype] = dataframe[dtype] + nanosecond
-
-    prepped[dtype] = prepped[dtype].astype("str")
-    prepped[dtype] = prepped[dtype].replace({"NaT": None})
-    prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
+    if any(dtype):
+        prepped[dtype] = prepped[dtype].astype("str")
+        prepped[dtype] = prepped[dtype].replace({"NaT": None})
+        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
 
     # treat pandas NA,NaT,etc as NULL in SQL
     prepped = prepped.fillna(np.nan).replace([np.nan], [None])

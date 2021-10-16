@@ -21,7 +21,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect(database_name="tempdb", server_name="localhost")
+    db = connect(database="tempdb", server="localhost")
     yield package(db)
     db.connection.close()
 
@@ -98,6 +98,26 @@ def test_insert_create_table(sql):
     assert result[expected.columns].equals(expected)
     assert all(result["_time_insert"].notna())
 
+def test_insert_create_table_indexpk(sql):
+
+    table_name = "##test_insert_create_table_indexpk"
+
+    dataframe = pd.DataFrame(
+        {"ColumnA": [1, 2, 3], "ColumnB": ["06/22/2021", "06-22-2021", "2021-06-22"]},
+        index=pd.Series([1,2,3], name='indexpk')
+    )
+
+    with warnings.catch_warnings(record=True) as warn:
+        dataframe = sql.insert.insert(
+            table_name, dataframe=dataframe
+        )
+        assert len(warn) == 2
+        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert "Creating table " + table_name in str(warn[0].message)
+        assert "Created table: " + table_name in str(warn[1].message)
+
+    schema,_ = conversion.get_schema(sql.connection, table_name)
+    assert schema.index[schema['pk_seq'].notna()].equals(pd.Index(['indexpk']))
 
 def test_insert_add_column(sql):
 

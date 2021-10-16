@@ -1,1 +1,1 @@
-from mssql_dataframe.package import SQLServer
+from mssql_dataframe.package import SQLServer  # noqa: F401

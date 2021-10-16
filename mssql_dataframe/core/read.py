@@ -81,9 +81,7 @@ class read:
                 raise custom_errors.SQLColumnDoesNotExist(
                     f"Column does not exist in table {table_name}:", missing
                 )
-            column_names = dynamic.escape(
-                self._connection.cursor(), column_names
-            )
+            column_names = dynamic.escape(self._connection.cursor(), column_names)
             column_names = "\n,".join(column_names)
 
         # format optional where_statement

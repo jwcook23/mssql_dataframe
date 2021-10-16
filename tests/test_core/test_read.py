@@ -22,7 +22,7 @@ class package:
 
 @pytest.fixture(scope="session")
 def sql():
-    db = connect(database_name="tempdb", server_name="localhost")
+    db = connect(database="tempdb", server="localhost")
     yield package(db)
     db.connection.close()
 

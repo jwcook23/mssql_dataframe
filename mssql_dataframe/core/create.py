@@ -9,7 +9,9 @@ from mssql_dataframe.core import custom_warnings, dynamic, conversion, infer
 
 
 class create:
-    def __init__(self, connection: pyodbc.connect, include_metadata_timestamps: bool = False):
+    def __init__(
+        self, connection: pyodbc.connect, include_metadata_timestamps: bool = False
+    ):
         """Class for creating SQL tables manually or automatically from a dataframe.
 
         Parameters

@@ -24,19 +24,26 @@ Run all terminal commands in the top level mssql_dataframe folder.
     pip install --upgrade pytest pytest-cov pytest-flake8 genbadge[tests,coverage] black
     ```
 
-4. Install mssql_dataframe in editable mode
+4. Install mssql_dataframe in editable mode and make changes
 
     ``` cmd
     pip install -e .
     ```
 
-5. Add additional tests, run existing tests, and view coverage report
+5. Format code to pep8 standards using flake8 & black
+
+    ``` cmd
+    black mssql_dataframe
+    flake8 mssql_dataframe
+    ```
+
+6. Add additional tests, run existing tests, and view coverage report
 
     ``` cmd
     pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml
     ```
 
-6. Generate coverage and test badges.
+7. Generate coverage and test badges.
 
     ```cmd
     genbadge tests -i reports/test.xml -o reports/tests.svg

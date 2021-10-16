@@ -17,7 +17,7 @@ class merge(insert):
         delete_requires: List[str] = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
-        With upsert=True, an update if exists otherwise insert action is performed without deleting anything. The 
+        With upsert=True, an update if exists otherwise insert action is performed without deleting anything. The
         delete_requires parameter allows for incremental merging by preventing records from being deleted if at least
         one record doesn't match in the column.
 

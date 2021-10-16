@@ -99,9 +99,9 @@ def create_table(
     )
 
     if any(dataframe.index.names):
-        primary_key="index"
+        primary_key = "index"
     else:
-        primary_key="infer"
+        primary_key = "infer"
 
     creator.table_from_dataframe(
         table_name, dataframe, primary_key=primary_key, insert_dataframe=False
@@ -190,7 +190,8 @@ def alter_columns(
     if any(changed["sql_category"]):
         changed = list(changed[changed["sql_category"]].index)
         raise custom_errors.DataframeColumnInvalidValue(
-            "Dataframe columns cannot be converted based on their SQL data type", changed
+            "Dataframe columns cannot be converted based on their SQL data type",
+            changed,
         )
     # drop primary key constraint prior to altering columns, if needed
     primary_key_columns = (

@@ -15,7 +15,7 @@ Provides efficient mechanisms for updating and merging from Python dataframes in
 
 [pandas](https://pandas.pydata.org/): Python DataFrames.
 
-[pyodbc](https://docs.microsoft.com/en-us/sql/connect/python/pyodbc/python-sql-driver-pyodbc?view=sql-server-ver15): ODBC driver used for executing Transact-SQL statements.
+[pyodbc](https://github.com/mkleehammer/pyodbc/wiki/): ODBC driver used for executing Transact-SQL statements.
 
 ## Installation
 
@@ -29,19 +29,15 @@ pip install mssql-dataframe
 
 ``` python
 import pandas as pd
-
-from mssql_dataframe.connect import connect
-from mssql_dataframe.package import SQLServer
+from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
-db = connect(database_name='master', server_name='localhost')
-# initialize the mssql_dataframe package
-sql = SQLServer(db)
+sql = SQLServer(database='master', server='localhost')
 ```
 
 ### Create Sample Table
 
-Create a global temporary table for this demonstration. Notice a dataframe is returned with better data types assigned, and the index corresponds to the primary key.
+Create a global temporary table for demonstration purposes. Notice a dataframe is returned with better data types assigned, and the index corresponds to the primary key.
 
 ``` python
 # create a demonstration dataframe
@@ -199,16 +195,16 @@ result = sql.read.table('##mssql_dataframe')
 
 ### include_metadata_timestamps
 
-If mssql_dataframe is initialized with include_metadata_timestamps=True, write operations will include values when records are inserted or updated.
+If mssql_dataframe is initialized with include_metadata_timestamps=True insert, update, and merge operations will include columns detailing when records are inserted or updated. These are timestamps in server time.
 
 ``` python
-db = connect(database_name='master', server_name='localhost')
-sql = SQLServer(db, include_metadata_timestamps=True)
+# intialized with flag to include metadata timestamps
+sql = SQLServer(include_metadata_timestamps=True)
 
 # create sample table
 df = pd.DataFrame({
     'ColumnA': ['1','2','3','4','5'],
-}, index=pd.Index([0, 1, 2, 3, 4, 5], name='PrimaryKey'))
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
 df = sql.create.table_from_dataframe(
     table_name='##mssql_metadata',
@@ -234,12 +230,9 @@ mssql_dataframe contains methods to adjust SQL columns.
 
 ``` python
 import pandas as pd
+from mssql_dataframe import SQLServer
 
-from mssql_dataframe.connect import connect
-from mssql_dataframe.package import SQLServer
-
-db = connect(database_name='master', server_name='localhost')
-sql = SQLServer(db)
+sql = SQLServer()
 
 # create sample table
 df = pd.DataFrame({
@@ -268,12 +261,9 @@ SQL objects will be created/modified as needed if the class is initialized with 
 
 ``` python
 import pandas as pd
+from mssql_dataframe import SQLServer
 
-from mssql_dataframe.connect import connect
-from mssql_dataframe.package import SQLServer
-
-db = connect(database_name='master', server_name='localhost')
-sql = SQLServer(db, autoadjust_sql_objects=True)
+sql = SQLServer(autoadjust_sql_objects=True)
 
 # sample dataframe
 df = pd.DataFrame({

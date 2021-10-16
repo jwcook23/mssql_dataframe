@@ -1,5 +1,7 @@
 import warnings
 
+import pandas as pd
+
 from mssql_dataframe.package import SQLServer
 from mssql_dataframe.core import custom_warnings
 
@@ -38,3 +40,13 @@ def test_SQLServer():
         )
         assert isinstance(adjustable, SQLServer)
         assert list(vars(sql).keys()) == attributes
+
+
+def test_SQLServer_schema():
+    
+    table_name = '##test_SQLServer_schema'
+    sql = SQLServer(autoadjust_sql_objects=False)
+    sql.create.table(table_name, columns={'ColumnA': 'bigint'})
+
+    schema = sql.get_schema(table_name)
+    assert schema.index.equals(pd.Index(['ColumnA']))
