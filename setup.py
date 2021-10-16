@@ -5,7 +5,7 @@ README = (pathlib.Path(__file__).parent/"README.md").read_text()
 
 setup(
     name = "mssql_dataframe",
-    version = "1.0.6",
+    version = "1.1.0",
     license='MIT',
     license_files="LICENSE",
     description="Update, Upsert, and Merge from Python dataframes to SQL Server and Azure SQL database.",
@@ -17,7 +17,7 @@ setup(
     python_requires='>=3.5',
     packages = find_packages(exclude=('tests',)),
     install_requires = [
-        'pyodbc>=4.0.24',       # version with Cursor.setinputsizes
-        'pandas'
+        'pyodbc>=4.0.24',       # Cursor.setinputsizes to specify odbc data type and size
+        'pandas>=1.0.0',        # expanded data types such as pandas.UInt8Dtype and pd.StringDtype
     ]
 )
