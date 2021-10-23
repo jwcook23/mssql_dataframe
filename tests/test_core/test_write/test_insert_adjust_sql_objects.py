@@ -4,12 +4,11 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
-
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion, conversion_rules
 from mssql_dataframe.core.write import insert, _exceptions
 
+pd.options.mode.chained_assignment = "raise"
 
 class package:
     def __init__(self, connection):

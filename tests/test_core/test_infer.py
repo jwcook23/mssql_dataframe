@@ -1,10 +1,11 @@
 import pandas as pd
-
-pd.options.mode.chained_assignment = "raise"
+import numpy as np
 import pytest
 
 from mssql_dataframe.core import custom_errors, infer
 from . import sample
+
+pd.options.mode.chained_assignment = "raise"
 
 
 def _check_schema(dtypes):
@@ -78,7 +79,8 @@ def test_default():
 
     # setup test data
     dataframe = sample.dataframe
-    dataframe["_nvarchar_default"] = None
+    dataframe["_nvarchar_default1"] = None
+    dataframe["_nvarchar_default2"] = np.nan
 
     # infer SQL properties
     dataframe, schema, not_nullable, pk = infer.sql(dataframe)

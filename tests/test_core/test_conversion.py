@@ -2,7 +2,6 @@ import warnings
 
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
 import pytest
 import pyodbc
 
@@ -10,6 +9,7 @@ from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, conversion, conversion_rules, dynamic
 from . import sample
 
+pd.options.mode.chained_assignment = "raise"
 
 @pytest.fixture(scope="module")
 def data():

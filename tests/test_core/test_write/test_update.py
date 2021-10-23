@@ -3,11 +3,11 @@ import warnings
 import pytest
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
-
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
 from mssql_dataframe.core.write import update
+
+pd.options.mode.chained_assignment = "raise"
 
 
 class package:

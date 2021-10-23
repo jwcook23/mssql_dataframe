@@ -82,19 +82,19 @@ Run all terminal commands in the top level mssql_dataframe folder.
 5. Upload Package to Test PyPI
 
     ``` cmd
-    twine upload --repository-url https://test.pypi.org/legacy/ dist.*
+    twine upload --repository-url https://test.pypi.org/legacy/ dist/*
     ```
 
-6. Upload Package to PyPI
-
-    ``` cmd
-    twine upload dist/*
-    ```
-
-7. Test Installation Locally
+6. Test Installation Locally
 
     ```cmd
     python -m venv TestDeployment
     ./TestDeployment/Scripts/activate
-    pip install mssql_dataframe
+    pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ mssql_dataframe
+    ```
+
+7. Upload Package to PyPI
+
+    ``` cmd
+    twine upload dist/*
     ```

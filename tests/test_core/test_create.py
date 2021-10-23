@@ -3,13 +3,12 @@ import warnings
 
 import pytest
 import pandas as pd
-
-pd.options.mode.chained_assignment = "raise"
 import pyodbc
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, conversion, create
 
+pd.options.mode.chained_assignment = "raise"
 
 class package:
     def __init__(self, connection):

@@ -135,7 +135,11 @@ def convert_date(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Convert objects to nullable string data type.
+    """Convert objects and all empty columns to nullable string data type.
+
+    All empty columns are likely composed of numeric numpy.nan by default
+    in pandas, but we favor them instead being nullable strings to allowing
+    storage of any value.
 
     Parameters
     ----------
@@ -146,7 +150,9 @@ def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
     dataframe (pandas.DataFrame) : contains columns possibly converted to nullable string
     """
 
-    columns = dataframe.columns[dataframe.dtypes == "object"]
+    columns = dataframe.columns[
+        (dataframe.dtypes == "object") | (dataframe.isna().all())
+    ]
     dataframe[columns] = dataframe[columns].astype("string")
 
     return dataframe

@@ -3,11 +3,12 @@ import warnings
 import pytest
 import pandas as pd
 
-pd.options.mode.chained_assignment = "raise"
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, read
 from mssql_dataframe.core.write import insert
+
+pd.options.mode.chained_assignment = "raise"
 
 table_name = "##test_select"
 

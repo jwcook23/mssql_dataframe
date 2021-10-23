@@ -1,7 +1,7 @@
 # mssql_dataframe
 
-![Tests Status](./reports/tests.svg?dummy=8484744)
-![Coverage Status](./reports/coverage.svg?dummy=8484744)
+![Test Status](https://raw.githubusercontent.com/jwcook23/mssql_dataframe/main/reports/tests.svg)
+![Coverage Status](https://raw.githubusercontent.com/jwcook23/mssql_dataframe/main/reports/coverage.svg)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
@@ -157,8 +157,8 @@ sample = sample[sample['ColumnA']!=9]
 merged = sql.write.merge('##mssql_dataframe', sample, delete_requires=['ColumnA'])
 
 # read the result from SQL after the merge
-# records for PrimaryKey 5 & 6 were not deleted since a value of 9 in ColumnA of the dataframe was not present
-# record for PrimaryKey 0 was deleted since a value of 0 in ColumnA of the dataframe was present
+# records for PrimaryKey 5 & 6 were not deleted (value 9 not in dataframe ColumnA)
+# record for PrimaryKey 0 was deleted (value 0 in dataframe ColumnA)
 # records for PrimaryKey 7 & 8 have been inserted
 # records for PrimaryKey 0, 3, & 4 have been updated
 result = sql.read.table('##mssql_dataframe')
