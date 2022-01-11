@@ -64,6 +64,14 @@ def test_where(cursor):
     )
     assert where_args == ["5", "2"]
 
+    where = "ColumnA <>5 AND ColumnB!=2 and ColumnANDC IS NOT NULL"
+    where_statement, where_args = dynamic.where(cursor, where)
+    assert (
+        where_statement
+        == "WHERE [ColumnA] <> ? AND [ColumnB] != ? and [ColumnANDC] IS NOT NULL"
+    )
+    assert where_args == ["5", "2"]    
+
     where = "ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL"
     where_statement, where_args = dynamic.where(cursor, where)
     assert (

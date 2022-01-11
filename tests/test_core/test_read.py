@@ -132,6 +132,17 @@ def test_select_where(sql, sample):
     assert all(dataframe.columns.isin(column_names))
     assert dataframe.equals(sample[dataframe.columns].query(query))
 
+    # test multi-length operators
+    column_names = ["ColumnB", "ColumnC", "ColumnD", "ColumnE"]
+    dataframe = sql.read.table(
+        table_name,
+        column_names,
+        where="ColumnB>=5 AND ColumnE !=a",
+    )
+    query = "(ColumnB>=5 and ColumnE!='a')"
+    assert all(dataframe.columns.isin(column_names))
+    assert dataframe.equals(sample[dataframe.columns].query(query))   
+
 
 def test_select_limit(sql, sample):
 
