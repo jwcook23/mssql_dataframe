@@ -77,15 +77,15 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     # regular expressions to parse where statement
     combine = r"\bAND\b|\bOR\b"
     comparison = [
-        "=",
-        ">",
-        "<",
         ">=",
         "<=",
         "<>",
         "!=",
         "!>",
         "!<",
+        "=",
+        ">",
+        "<",
         "IS NULL",
         "IS NOT NULL",
     ]
