@@ -122,26 +122,27 @@ def test_select_columns(sql, sample):
 
 def test_select_where(sql, sample):
 
+    # basic test
     column_names = ["ColumnB", "ColumnC", "ColumnD"]
     dataframe = sql.read.table(
         table_name,
         column_names,
-        where="ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL",
+        where="(ColumnB>4 AND ColumnC IS NOT NULL) OR ColumnD IS NULL",
     )
     query = "(ColumnB>5 and ColumnC.notnull()) or ColumnD.isnull()"
     assert all(dataframe.columns.isin(column_names))
     assert dataframe.equals(sample[dataframe.columns].query(query))
 
-    # test multi-length operators
+    # test multi-length operators and string literal
     column_names = ["ColumnB", "ColumnC", "ColumnD", "ColumnE"]
     dataframe = sql.read.table(
         table_name,
         column_names,
-        where="ColumnB>=5 AND ColumnE !=a",
+        where="ColumnB>=5 AND ColumnE !='a'",
     )
     query = "(ColumnB>=5 and ColumnE!='a')"
     assert all(dataframe.columns.isin(column_names))
-    assert dataframe.equals(sample[dataframe.columns].query(query))   
+    assert dataframe.equals(sample[dataframe.columns].query(query))
 
 
 def test_select_limit(sql, sample):

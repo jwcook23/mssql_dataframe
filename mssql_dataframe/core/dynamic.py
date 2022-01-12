@@ -93,6 +93,11 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
 
     # split on AND/OR
     conditions = re.split(combine, where, flags=re.IGNORECASE)
+    conditions = [x.strip() for x in conditions]
+    # identify parentheses grouping and remove
+    group_start = [idx for idx,x in enumerate(conditions) if x.startswith('(')]
+    group_end = [idx for idx,x in enumerate(conditions) if x.endswith(')')]
+    conditions = [re.sub(r'\(|\)','',x) for x in conditions]
     # split on comparison operator
     conditions = [re.split(comparison, x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions) == 1 and len(conditions[0]) == 1:
@@ -100,7 +105,6 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     # form dict for each colum, while handling IS NULL/IS NOT NULL split
     conditions = [[y.strip() for y in x] for x in conditions]
     conditions = {x[0]: (x[1::] if len(x[2]) > 0 else [x[1]]) for x in conditions}
-
     # santize column names
     column_names = escape(cursor, conditions.keys())
     column_names = dict(zip(conditions.keys(), column_names))
@@ -112,8 +116,13 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
         x[0] + " " + x[1][0] + " ?" if len(x[1]) > 1 else x[0] + " " + x[1][0]
         for x in conditions
     ]
+    # reintroduce grouping parentheses
+    statement = ['('+x if idx in group_start else x for idx,x in enumerate(statement)]
+    statement = [x+')' if idx in group_end else x for idx,x in enumerate(statement)]
+    # rejoin on AND/OR
     recombine = re.findall(combine, where, flags=re.IGNORECASE) + [""]
     statement = list(zip(statement, recombine))
+    # finalize where string
     statement = "WHERE " + " ".join([x[0] + " " + x[1] for x in statement])
     statement = statement.strip()
 
@@ -122,6 +131,8 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
         "param" + str(idx): x[1][1] for idx, x in enumerate(conditions) if len(x[1]) > 1
     }
     args = [x[1][1] for x in conditions if len(x[1]) > 1]
+    # remove single quotes that originate from statements such as WHERE 'ColumnA' IS NOT NULL
+    args = [re.sub(r"^'|'$","",x) for x in args]
 
     return statement, args
 
