@@ -95,9 +95,9 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     conditions = re.split(combine, where, flags=re.IGNORECASE)
     conditions = [x.strip() for x in conditions]
     # identify parentheses grouping and remove
-    group_start = [idx for idx,x in enumerate(conditions) if x.startswith('(')]
-    group_end = [idx for idx,x in enumerate(conditions) if x.endswith(')')]
-    conditions = [re.sub(r'\(|\)','',x) for x in conditions]
+    group_start = [idx for idx, x in enumerate(conditions) if x.startswith("(")]
+    group_end = [idx for idx, x in enumerate(conditions) if x.endswith(")")]
+    conditions = [re.sub(r"\(|\)", "", x) for x in conditions]
     # split on comparison operator
     conditions = [re.split(comparison, x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions) == 1 and len(conditions[0]) == 1:
@@ -117,8 +117,10 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
         for x in conditions
     ]
     # reintroduce grouping parentheses
-    statement = ['('+x if idx in group_start else x for idx,x in enumerate(statement)]
-    statement = [x+')' if idx in group_end else x for idx,x in enumerate(statement)]
+    statement = [
+        "(" + x if idx in group_start else x for idx, x in enumerate(statement)
+    ]
+    statement = [x + ")" if idx in group_end else x for idx, x in enumerate(statement)]
     # rejoin on AND/OR
     recombine = re.findall(combine, where, flags=re.IGNORECASE) + [""]
     statement = list(zip(statement, recombine))
@@ -132,7 +134,7 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     }
     args = [x[1][1] for x in conditions if len(x[1]) > 1]
     # remove single quotes that originate from statements such as WHERE 'ColumnA' IS NOT NULL
-    args = [re.sub(r"^'|'$","",x) for x in args]
+    args = [re.sub(r"^'|'$", "", x) for x in args]
 
     return statement, args
 
