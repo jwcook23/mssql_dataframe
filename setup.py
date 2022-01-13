@@ -5,7 +5,7 @@ README = (pathlib.Path(__file__).parent/"README.md").read_text()
 
 setup(
     name = "mssql_dataframe",
-    version = "1.1.3",
+    version = "1.1.4",
     license='MIT',
     license_files="LICENSE",
     description="Update, Upsert, and Merge from Python dataframes to SQL Server and Azure SQL database.",

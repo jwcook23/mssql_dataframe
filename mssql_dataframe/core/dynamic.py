@@ -102,14 +102,13 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
     conditions = [re.split(comparison, x, flags=re.IGNORECASE) for x in conditions]
     if len(conditions) == 1 and len(conditions[0]) == 1:
         raise custom_errors.SQLInvalidSyntax("invalid syntax for where = " + where)
-    # form dict for each colum, while handling IS NULL/IS NOT NULL split
+    # form list of lists for each column, while handling IS NULL/IS NOT NULL split
     conditions = [[y.strip() for y in x] for x in conditions]
-    conditions = {x[0]: (x[1::] if len(x[2]) > 0 else [x[1]]) for x in conditions}
+    conditions = [[x[0],x[1::]] if len(x[2])>0 else [x[0],[x[1]]] for x in conditions]
     # santize column names
-    column_names = escape(cursor, conditions.keys())
-    column_names = dict(zip(conditions.keys(), column_names))
-    conditions = dict((column_names[key], value) for (key, value) in conditions.items())
-    conditions = conditions.items()
+    column_names = [x[0] for x in conditions]
+    column_names = escape(cursor, column_names)
+    conditions = [[x,conditions[idx][1]] for idx,x in enumerate(column_names)]
 
     # form SQL where statement
     statement = [

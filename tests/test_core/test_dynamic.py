@@ -80,6 +80,14 @@ def test_where(cursor):
     )
     assert where_args == ["4"]
 
+    where = "ColumnA IS NULL OR ColumnA != 'CLOSED'"
+    where_statement, where_args = dynamic.where(cursor, where)
+    assert (
+        where_statement
+        == 'WHERE [ColumnA] IS NULL OR [ColumnA] != ?'
+    )
+    assert where_args == ["CLOSED"]
+
     conditions = "no operator present"
     with pytest.raises(custom_errors.SQLInvalidSyntax):
         dynamic.where(cursor, conditions)
