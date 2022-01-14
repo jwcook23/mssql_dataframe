@@ -1,11 +1,36 @@
+# Run for this report:
+#   pre-commit install
+# Check without committing:
+#   pre-commit run --all-files
+# Update revs:
+#   pre-commit autoupdate
+# Hooks:
+#   https://pre-commit.com/hooks.html
 repos:
+# pre-commit builtins
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+    rev: v4.1.0
     hooks:
-    -   id: check-yaml
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
+    # committing credentials
+    -   id: detect-private-key
+    # files larger than 500kB
+    -   id: check-added-large-files
+    # commits to master or main branch
+    -   id: no-commit-to-branch
+    # merge conflict strings
+    -   id: check-merge-conflict
+    # no debugging statements
+    -   id: debug-statements
+    # tests in format test*.py
+    -   id: name-tests-test
+        args: [----django]
+# black
 -   repo: https://github.com/psf/black
-    rev: 19.3b0
+    rev: 21.12b0
     hooks:
     -   id: black
+# flake8
+-   repo: https://github.com/PyCQA/flake8
+    rev: 4.0.1
+    hooks:
+    -   id: flake8
