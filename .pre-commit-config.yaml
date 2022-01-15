@@ -41,4 +41,5 @@ repos:
         name: tests and coverage
         language: system
         entry: pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml --cov-fail-under=100
+        always_run: true
         stages: [push]
