@@ -35,10 +35,11 @@ repos:
     hooks:
     -   id: flake8
 # pytest/coverage
-# -   repo: local
-#     hooks:
-#         - id: tests
-#         - name: test
-#         - entry: pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml --cov-fail-under=100
-#         - stages: [push]
+-   repo: local
+    hooks:
+    -   id: tests
+        name: tests and coverage
+        language: system
+        entry: pytest
+        stages: [push]
 # badges
