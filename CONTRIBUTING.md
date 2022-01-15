@@ -6,9 +6,9 @@ Run all terminal commands in the top level mssql_dataframe folder.
 
 ## Run Tests and Code Coverage Report
 
-1. Create a new branch.
+1. Use Git to clone the main branch and create a new branch.
 
-2. Create virtual environment
+2. Create python virtual environment
 
     ``` cmd
     python -m venv env
@@ -20,23 +20,28 @@ Run all terminal commands in the top level mssql_dataframe folder.
     .\env\Scripts\activate
     ```
 
-4. Install/update required testing, formatting, and coverage packages
+4. Install development depenancies
 
     ``` cmd
-    pip install --upgrade pytest pytest-cov pytest-flake8 genbadge[tests,coverage] black
+    pip install -r requirements-dev.txt
     ```
 
-5. Install mssql_dataframe in editable mode and make changes
+5. Install mssql_dataframe in editable mode and make changes to code and tests
 
     ``` cmd
     pip install -e .
     ```
 
-6. Format code to pep8 standards using flake8 & black
+6. Install git hooks using pre-commit to run these tasks automatically. These help ensure the CICD process will finish successfully without having to create additional pull requests.
 
-    ``` cmd
-    black mssql_dataframe
-    flake8 mssql_dataframe
+    - [flake8](https://github.com/psf/black) on commit: lint to check code quality
+    - [black](https://github.com/PyCQA/flake8) on commit: auto-format code to standard
+    - [pytest](https://github.com/pytest-dev/pytest) on push: test functionality of package components
+    - [pytest-cov](https://github.com/pytest-dev/pytest-cov) on push: ensure code is covered by tests
+    - [genbadge](https://github.com/smarie/python-genbadge) on push: generage badges for the other automatic steps
+
+    ```cmd
+    pre-commit install
     ```
 
 7. Add additional tests, run existing tests, and view coverage report
