@@ -7,18 +7,19 @@ import pyodbc
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_warnings, conversion, conversion_rules, dynamic
-from . import sample
+from mssql_dataframe import __sample__
 
 pd.options.mode.chained_assignment = "raise"
+
 
 @pytest.fixture(scope="module")
 def data():
     """Sample data for supported data types.
 
-    See Also: sample.py
+    See Also: mssql_dataframe/__sample__.py
     """
 
-    df = sample.dataframe
+    df = __sample__.dataframe
 
     # add id column to guarantee SQL read return order
     df.index.name = "id"
@@ -118,7 +119,9 @@ def test_sample(sql, data):
             str(warn[0].message)
             == "Nanosecond precision for dataframe columns ['_time'] will be truncated as SQL data type TIME allows 7 max decimal places."
         )
-        assert isinstance(warn[1].message, custom_warnings.SQLDataTypeDATETIME2Truncation)
+        assert isinstance(
+            warn[1].message, custom_warnings.SQLDataTypeDATETIME2Truncation
+        )
         assert (
             str(warn[1].message)
             == "Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
@@ -145,8 +148,7 @@ def test_sample(sql, data):
     statement = f"SELECT {columns} FROM {table} ORDER BY id ASC"
     result = conversion.read_values(statement, schema, connection=sql)
 
-    # compare result to insert
-    ## note comparing to dataframe as values may have changed during insert preperation
+    # compare result to insert, comparing to dataframe as values may have changed during insert preparation
     assert result.equals(dataframe.set_index(keys="id"))
 
 

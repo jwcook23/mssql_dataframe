@@ -43,10 +43,10 @@ def test_SQLServer():
 
 
 def test_SQLServer_schema():
-    
-    table_name = '##test_SQLServer_schema'
+
+    table_name = "##test_SQLServer_schema"
     sql = SQLServer(autoadjust_sql_objects=False)
-    sql.create.table(table_name, columns={'ColumnA': 'bigint'})
+    sql.create.table(table_name, columns={"ColumnA": "bigint"})
 
     schema = sql.get_schema(table_name)
-    assert schema.index.equals(pd.Index(['ColumnA']))
+    assert schema.index.equals(pd.Index(["ColumnA"]))

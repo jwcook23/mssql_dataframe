@@ -23,7 +23,7 @@ repos:
     -   id: debug-statements
     # tests in format test*.py
     -   id: name-tests-test
-        args: [----django]
+        args: [--django]
 # black
 -   repo: https://github.com/psf/black
     rev: 21.12b0

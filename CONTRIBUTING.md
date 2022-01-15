@@ -44,20 +44,13 @@ Run all terminal commands in the top level mssql_dataframe folder.
     pre-commit install
     ```
 
-7. Add additional tests, run existing tests, and view coverage report
+7. Optionally test the pre-commit steps before committing.
 
     ``` cmd
-    pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml
+    pre-commit run --all-files
     ```
 
-8. Generate coverage and test badges.
-
-    ```cmd
-    genbadge tests -i reports/test.xml -o reports/tests.svg
-    genbadge coverage -i reports/coverage.xml -o reports/coverage.svg
-    ```
-
-9. Commit and push the new branch. Create a pull request.
+8. Commit and push the new branch. Create a pull request.
 
 ## Python Package Index (PyPI)
 

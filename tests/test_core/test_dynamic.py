@@ -6,6 +6,7 @@ from mssql_dataframe.core import custom_errors, dynamic
 
 pd.options.mode.chained_assignment = "raise"
 
+
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
@@ -70,7 +71,7 @@ def test_where(cursor):
         where_statement
         == "WHERE [ColumnA] <> ? AND [ColumnB] != ? and [ColumnANDC] IS NOT NULL"
     )
-    assert where_args == ["5", "2"]    
+    assert where_args == ["5", "2"]
 
     where = "ColumnB>4 AND ColumnC IS NOT NULL OR ColumnD IS NULL"
     where_statement, where_args = dynamic.where(cursor, where)
@@ -82,10 +83,7 @@ def test_where(cursor):
 
     where = "ColumnA IS NULL OR ColumnA != 'CLOSED'"
     where_statement, where_args = dynamic.where(cursor, where)
-    assert (
-        where_statement
-        == 'WHERE [ColumnA] IS NULL OR [ColumnA] != ?'
-    )
+    assert where_statement == "WHERE [ColumnA] IS NULL OR [ColumnA] != ?"
     assert where_args == ["CLOSED"]
 
     conditions = "no operator present"

@@ -3,9 +3,21 @@ import numpy as np
 import pytest
 
 from mssql_dataframe.core import custom_errors, infer
-from . import sample
+from mssql_dataframe import __sample__
 
 pd.options.mode.chained_assignment = "raise"
+
+
+@pytest.fixture(scope="module")
+def data():
+    """Sample data for supported data types.
+
+    See Also: mssql_dataframe/__sample__.py
+    """
+
+    df = __sample__.dataframe
+
+    return df
 
 
 def _check_schema(dtypes):
@@ -31,12 +43,12 @@ def _check_dataframe(dataframe, dtypes):
     assert actual.equals(expected)
 
 
-def test_dtypes():
+def test_dtypes(data):
 
     # setup test data
-    dataframe = sample.dataframe
+    dataframe = data.copy()
     na = dataframe.isna()
-    dataframe = sample.dataframe.astype("str")
+    dataframe = dataframe.astype("str")
     dataframe[na] = None
     dataframe["_time"] = dataframe["_time"].str.replace("0 days ", "")
 
@@ -50,11 +62,10 @@ def test_dtypes():
     assert pk is None
 
 
-def test_pk():
+def test_pk(data):
 
     # setup test data
-    dataframe = sample.dataframe
-    dataframe = dataframe[dataframe.notna().all(axis="columns")].copy()
+    dataframe = data[data.notna().all(axis="columns")].copy()
     dataframe["_tinyint_smaller"] = pd.Series(range(0, len(dataframe)), dtype="UInt8")
     dataframe["_varchar_smaller"] = dataframe["_varchar"].str.slice(0, 1)
 
@@ -75,10 +86,10 @@ def test_pk():
     assert pk == "_varchar_smaller"
 
 
-def test_default():
+def test_default(data):
 
     # setup test data
-    dataframe = sample.dataframe
+    dataframe = data.copy()
     dataframe["_nvarchar_default1"] = None
     dataframe["_nvarchar_default2"] = np.nan
 
