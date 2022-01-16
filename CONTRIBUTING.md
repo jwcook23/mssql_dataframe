@@ -2,54 +2,58 @@
 
 Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition](https://www.microsoft.com/en-us/sql-server/sql-server-downloads)can be downloaded for free.
 
-Run all terminal commands in the top level mssql_dataframe folder.
+Run all terminal commands in the top level mssql_dataframe folder. The below commands are specific to a Windows systems.
 
 ## Run Tests and Code Coverage Report
 
 1. Use Git to clone the main branch and create a new branch.
 
-2. Create python virtual environment
+2. Create python virtual environment.
 
     ``` cmd
     python -m venv env
     ```
 
-3. Activate virtual environment
+3. Activate virtual environment.
 
     ``` cmd
     .\env\Scripts\activate
     ```
 
-4. Install development depenancies
+4. Install development depenancies.
 
     ``` cmd
     pip install -r requirements-dev.txt
     ```
 
-5. Install mssql_dataframe in editable mode and make changes to code and tests
+5. Install mssql_dataframe in editable mode and make changes to code and tests.
 
     ``` cmd
     pip install -e .
     ```
 
-6. Install git hooks using pre-commit to run these tasks automatically. These help ensure the CICD process will finish successfully without having to create additional pull requests.
+6. Ensure code is coverged by tests and that tests pass.
+
+    ``` cmd
+    python tests.py
+    ```
+
+7. Install git hooks using pre-commit to run these tasks automatically.
 
     - [flake8](https://github.com/psf/black) on commit: lint to check code quality
     - [black](https://github.com/PyCQA/flake8) on commit: auto-format code to standard
-    - [pytest](https://github.com/pytest-dev/pytest) on push: test functionality of package components
-    - [pytest-cov](https://github.com/pytest-dev/pytest-cov) on push: ensure code is covered by tests
 
     ```cmd
     pre-commit install
     ```
 
-7. Optionally test the pre-commit steps before committing.
+8. Optionally test the pre-commit steps before actually committing.
 
     ``` cmd
     pre-commit run --all-files
     ```
 
-8. Commit and push the new branch. Create a pull request.
+9. Commit and push the new branch. Create a pull request.
 
 ## Python Package Index (PyPI)
 

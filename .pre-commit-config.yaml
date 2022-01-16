@@ -1,6 +1,5 @@
 # Run for this repository:
 #   pre-commit install
-# Run prepush steps for this repository
 # Check without committing:
 #   pre-commit run --all-files
 # Update revs:
@@ -35,15 +34,3 @@ repos:
     rev: 4.0.1
     hooks:
     -   id: flake8
-# pytest/coverage
-# TODO make this run on push
-# TODO: genbadge tests -i reports/test.xml -o reports/tests.svg
-# TODO: genbadge coverage -i reports/coverage.xml -o reports/coverage.svg
--   repo: local
-    hooks:
-    -   id: tests
-        name: tests and coverage
-        language: system
-        entry: pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml --cov-fail-under=100
-        always_run: true
-        stages: [push]
