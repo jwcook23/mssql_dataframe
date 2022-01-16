@@ -35,6 +35,9 @@ repos:
     hooks:
     -   id: flake8
 # pytest/coverage
+# TODO make this run on push
+# TODO: genbadge tests -i reports/test.xml -o reports/tests.svg
+# TODO: genbadge coverage -i reports/coverage.xml -o reports/coverage.svg
 -   repo: local
     hooks:
     -   id: tests

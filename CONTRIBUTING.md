@@ -38,7 +38,6 @@ Run all terminal commands in the top level mssql_dataframe folder.
     - [black](https://github.com/PyCQA/flake8) on commit: auto-format code to standard
     - [pytest](https://github.com/pytest-dev/pytest) on push: test functionality of package components
     - [pytest-cov](https://github.com/pytest-dev/pytest-cov) on push: ensure code is covered by tests
-    - [genbadge](https://github.com/smarie/python-genbadge) on push: generage badges for the other automatic steps
 
     ```cmd
     pre-commit install
