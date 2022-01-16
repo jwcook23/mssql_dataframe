@@ -1,5 +1,6 @@
-# Run for this report:
+# Run for this repository:
 #   pre-commit install
+# Run prepush steps for this repository
 # Check without committing:
 #   pre-commit run --all-files
 # Update revs:
