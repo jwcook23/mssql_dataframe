@@ -50,6 +50,14 @@ def test_insert_errors(sql):
     with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.insert.insert(table_name, dataframe=pd.DataFrame({"ColumnA": [100000]}))
 
+    with pytest.raises(RecursionError):
+        sql.insert._adjust_sql_attempts = 0
+        sql.insert._target_table(
+            table_name="##non_existant",
+            dataframe=pd.DataFrame({"ColumnA": [100000]}),
+            cursor=sql.insert._connection.cursor(),
+        )
+
 
 def test_insert_dataframe(sql):
 

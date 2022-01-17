@@ -1,6 +1,6 @@
 pre-commit
 pytest
-pytest-cov
-pytest-flake8
+coverage
+flake8
 black
-genbadge[tests,coverage]
+genbadge

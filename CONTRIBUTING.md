@@ -32,28 +32,25 @@ Run all terminal commands in the top level mssql_dataframe folder. The below com
     pip install -e .
     ```
 
-6. Ensure code is coverged by tests and that tests pass.
+6. Ensure code will pass later CICD processes.
 
     ``` cmd
-    python tests.py
+    python cicd.py
     ```
 
-7. Install git hooks using pre-commit to run these tasks automatically.
-
-    - [flake8](https://github.com/psf/black) on commit: lint to check code quality
-    - [black](https://github.com/PyCQA/flake8) on commit: auto-format code to standard
+7. Install git hooks using pre-commit to check files before committing.
 
     ```cmd
     pre-commit install
     ```
 
-8. Optionally test the pre-commit steps before actually committing.
+    Optionally test the pre-commit steps before actually preforming the commit.
 
     ``` cmd
     pre-commit run --all-files
     ```
 
-9. Commit and push the new branch. Create a pull request.
+8. Commit and push the new branch. Create a pull request.
 
 ## Python Package Index (PyPI)
 

@@ -2,8 +2,6 @@
 #   pre-commit install
 # Check without committing:
 #   pre-commit run --all-files
-# Update revs:
-#   pre-commit autoupdate
 # Hooks:
 #   https://pre-commit.com/hooks.html
 repos:
@@ -24,13 +22,3 @@ repos:
     # tests in format test*.py
     -   id: name-tests-test
         args: [--django]
-# black
--   repo: https://github.com/psf/black
-    rev: 21.12b0
-    hooks:
-    -   id: black
-# flake8
--   repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
-    hooks:
-    -   id: flake8
