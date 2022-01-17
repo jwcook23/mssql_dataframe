@@ -9,6 +9,7 @@ from mssql_dataframe.core.write import merge
 
 pd.options.mode.chained_assignment = "raise"
 
+
 class package:
     def __init__(self, connection):
         self.connection = connection.connection
@@ -32,23 +33,20 @@ def test_merge_errors(sql):
     )
 
     with pytest.raises(custom_errors.SQLTableDoesNotExist):
-        sql.merge.merge(
-            "error" + table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1]})
-        )
+        sql.merge.merge("error" + table_name, dataframe=pd.DataFrame({"ColumnA": [1]}))
 
     with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
-            match_columns=["ColumnA"]
+            match_columns=["ColumnA"],
         )
 
     with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.merge.merge(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
-            match_columns=["ColumnA"]
+            match_columns=["ColumnA"],
         )
 
     with pytest.raises(ValueError):
@@ -56,7 +54,7 @@ def test_merge_errors(sql):
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
             upsert=True,
-            delete_requires=["ColumnB"]
+            delete_requires=["ColumnB"],
         )
 
 
@@ -78,11 +76,9 @@ def test_merge_upsert(sql):
     dataframe = dataframe.append(pd.Series([6], index=["ColumnA"], name=2))
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
-    dataframe = sql.merge.merge(
-        table_name, dataframe, upsert=True
-    )
+    dataframe = sql.merge.merge(table_name, dataframe, upsert=True)
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -115,7 +111,9 @@ def test_merge_one_match_column(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.merge_meta.merge(table_name, dataframe)
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -125,7 +123,7 @@ def test_merge_one_match_column(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -164,7 +162,9 @@ def test_merge_two_match_columns(sql):
             table_name, dataframe, match_columns=["_index", "State"]
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -174,7 +174,7 @@ def test_merge_two_match_columns(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -209,11 +209,11 @@ def test_merge_non_pk_column(sql):
 
     # merge values into table, using a single column that is not the primary key
     with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(
-            table_name, dataframe, match_columns=["State"]
-        )
+        dataframe = sql.merge_meta.merge(table_name, dataframe, match_columns=["State"])
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -223,7 +223,7 @@ def test_merge_non_pk_column(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name} ORDER BY _time_update DESC",
         schema,
@@ -258,7 +258,7 @@ def test_merge_composite_pk(sql):
     )
     dataframe = sql.merge.merge(table_name, dataframe)
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -300,7 +300,9 @@ def test_merge_one_delete_condition(sql):
             table_name, dataframe, match_columns=["_pk"], delete_requires=["State"]
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -310,7 +312,7 @@ def test_merge_one_delete_condition(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -367,7 +369,9 @@ def test_merge_two_delete_requires(sql):
             delete_requires=["State1", "State2"],
         )
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -377,7 +381,7 @@ def test_merge_two_delete_requires(sql):
             == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )

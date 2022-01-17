@@ -15,7 +15,9 @@ class package:
         self.connection = connection.connection
         self.create = create.create(self.connection)
         self.update = update.update(self.connection)
-        self.update_meta = update.update(self.connection, include_metadata_timestamps=True)
+        self.update_meta = update.update(
+            self.connection, include_metadata_timestamps=True
+        )
 
 
 @pytest.fixture(scope="module")
@@ -41,34 +43,33 @@ def test_update_errors(sql):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
-            match_columns=["ColumnA"]
+            match_columns=["ColumnA"],
         )
 
     with pytest.raises(custom_errors.SQLInsufficientColumnSize):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
-            match_columns=["ColumnA"]
+            match_columns=["ColumnA"],
         )
 
     with pytest.raises(custom_errors.SQLUndefinedPrimaryKey):
         sql.update.update(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]})
+            table_name, dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]})
         )
 
     with pytest.raises(custom_errors.SQLColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"], "ColumnC": [1]}),
-            match_columns=["ColumnC"]
+            match_columns=["ColumnC"],
         )
 
     with pytest.raises(custom_errors.DataframeColumnDoesNotExist):
         sql.update.update(
             table_name,
             dataframe=pd.DataFrame({"ColumnA": [1]}),
-            match_columns=["ColumnB"]
+            match_columns=["ColumnB"],
         )
 
 
@@ -88,14 +89,14 @@ def test_update_primary_key(sql):
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
-    updated = sql.update.update(
-        table_name, dataframe=dataframe[["ColumnC"]]
-    )
+    updated = sql.update.update(table_name, dataframe=dataframe[["ColumnC"]])
     dataframe["ColumnC"] = updated["ColumnC"]
 
     # test result
-    schema,_ = conversion.get_schema(sql.connection, table_name)
-    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -118,15 +119,15 @@ def test_update_nonpk_column(sql):
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
     updated = sql.update.update(
-        table_name,
-        dataframe=dataframe[["ColumnB", "ColumnC"]],
-        match_columns="ColumnC"
+        table_name, dataframe=dataframe[["ColumnB", "ColumnC"]], match_columns="ColumnC"
     )
     dataframe["ColumnB"] = updated["ColumnB"]
 
     # test result
-    schema,_ = conversion.get_schema(sql.connection, table_name)
-    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
     assert dataframe.equals(result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -147,7 +148,7 @@ def test_update_two_match_columns(sql):
         assert "Created table" in str(warn[0].message)
 
     # update values in table, using the primary key created in SQL and ColumnA
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     dataframe = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -164,8 +165,10 @@ def test_update_two_match_columns(sql):
         )
 
     # test result
-    schema,_ = conversion.get_schema(sql.connection, table_name)
-    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
     assert updated.equals(result[updated.columns])
     assert result["_time_update"].notna().all()
 
@@ -187,9 +190,11 @@ def test_update_composite_pk(sql):
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]
-    updated= sql.update.update(table_name, dataframe)
+    updated = sql.update.update(table_name, dataframe)
 
     # test result
-    schema,_ = conversion.get_schema(sql.connection, table_name)
-    result = conversion.read_values(f"SELECT * FROM {table_name}", schema, sql.connection)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
     assert result.equals(updated)

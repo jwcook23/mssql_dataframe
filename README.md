@@ -2,6 +2,7 @@
 
 ![Test Status](https://raw.githubusercontent.com/jwcook23/mssql_dataframe/main/reports/tests.svg)
 ![Coverage Status](https://raw.githubusercontent.com/jwcook23/mssql_dataframe/main/reports/coverage.svg)
+![Flake8 Status](https://raw.githubusercontent.com/jwcook23/mssql_dataframe/main/reports/flake8.svg)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 

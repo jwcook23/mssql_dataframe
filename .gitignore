@@ -1,6 +1,3 @@
-# Project specific
-/tests/work/
-
 # Visual Studio Code
 *.code-workspace
 

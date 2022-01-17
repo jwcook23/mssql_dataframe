@@ -2,57 +2,55 @@
 
 Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition](https://www.microsoft.com/en-us/sql-server/sql-server-downloads)can be downloaded for free.
 
-Run all terminal commands in the top level mssql_dataframe folder.
+Run all terminal commands in the top level mssql_dataframe folder. The below commands are specific to a Windows systems.
 
 ## Run Tests and Code Coverage Report
 
-1. Create a new branch.
+1. Use Git to clone the main branch and create a new branch.
 
-2. Create virtual environment
+2. Create python virtual environment.
 
     ``` cmd
     python -m venv env
     ```
 
-3. Activate virtual environment
+3. Activate virtual environment.
 
     ``` cmd
     .\env\Scripts\activate
     ```
 
-4. Install/update required testing, formatting, and coverage packages
+4. Install development depenancies.
 
     ``` cmd
-    pip install --upgrade pytest pytest-cov pytest-flake8 genbadge[tests,coverage] black
+    pip install -r requirements-dev.txt
     ```
 
-5. Install mssql_dataframe in editable mode and make changes
+5. Install mssql_dataframe in editable mode and make changes to code and tests.
 
     ``` cmd
     pip install -e .
     ```
 
-6. Format code to pep8 standards using flake8 & black
+6. Ensure code will pass later CICD processes.
 
     ``` cmd
-    black mssql_dataframe
-    flake8 mssql_dataframe
+    python cicd.py
     ```
 
-7. Add additional tests, run existing tests, and view coverage report
-
-    ``` cmd
-    pytest --junitxml=reports/test.xml --cov=mssql_dataframe --cov-report=html:reports/coverage --cov-report=xml:reports/coverage.xml
-    ```
-
-8. Generate coverage and test badges.
+7. Install git hooks using pre-commit to check files before committing.
 
     ```cmd
-    genbadge tests -i reports/test.xml -o reports/tests.svg
-    genbadge coverage -i reports/coverage.xml -o reports/coverage.svg
+    pre-commit install
     ```
 
-9. Commit and push the new branch. Create a pull request.
+    Optionally test the pre-commit steps before actually preforming the commit.
+
+    ``` cmd
+    pre-commit run --all-files
+    ```
+
+8. Commit and push the new branch. Create a pull request.
 
 ## Python Package Index (PyPI)
 

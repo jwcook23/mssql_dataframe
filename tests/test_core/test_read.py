@@ -1,5 +1,3 @@
-import warnings
-
 import pytest
 import pandas as pd
 
@@ -17,7 +15,11 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(self.connection)
-        self.insert = insert.insert(self.connection, include_metadata_timestamps=False, autoadjust_sql_objects=False)
+        self.insert = insert.insert(
+            self.connection,
+            include_metadata_timestamps=False,
+            autoadjust_sql_objects=False,
+        )
         self.read = read.read(self.connection)
 
 

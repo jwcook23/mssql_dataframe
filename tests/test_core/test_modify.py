@@ -70,7 +70,7 @@ def test_column_alter(sql):
     schema, _ = conversion.get_schema(sql.connection, table_name)
     assert "B" in schema.index
     assert schema.at["B", "sql_type"] == "int"
-    assert schema.at["B", "is_nullable"] == True
+    assert schema.at["B", "is_nullable"]
 
     sql.modify.column(
         table_name, modify="alter", column_name="C", data_type="INT", is_nullable=False
@@ -78,7 +78,7 @@ def test_column_alter(sql):
     schema, _ = conversion.get_schema(sql.connection, table_name)
     assert "C" in schema.index
     assert schema.at["C", "sql_type"] == "int"
-    assert schema.at["C", "is_nullable"] == False
+    assert not schema.at["C", "is_nullable"]
 
 
 def test_primary_key_input_error(sql):

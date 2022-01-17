@@ -1,6 +1,0 @@
-[flake8]
-ignore = 
-    # E501: line too long (x > 79 characters)
-    E501,
-    # W503: line break before binary opertor : black prefers this style
-    W503

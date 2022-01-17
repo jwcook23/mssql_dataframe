@@ -15,7 +15,11 @@ class package:
         self.connection = connection.connection
         self.create = create.create(self.connection)
         self.update = update.update(self.connection, autoadjust_sql_objects=True)
-        self.update_meta = update.update(self.connection, include_metadata_timestamps=True, autoadjust_sql_objects=True)
+        self.update_meta = update.update(
+            self.connection,
+            include_metadata_timestamps=True,
+            autoadjust_sql_objects=True,
+        )
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +46,9 @@ def test_update_add_column(sql):
     table_name = "##test_update_add_column"
     dataframe = pd.DataFrame({"ColumnA": [1, 2]})
     with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create.table_from_dataframe(
+            table_name, dataframe, primary_key="index"
+        )
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
@@ -53,7 +59,9 @@ def test_update_add_column(sql):
         updated = sql.update_meta.update(table_name, dataframe[["NewColumn"]])
         dataframe["NewColumn"] = updated["NewColumn"]
         assert len(warn) == 2
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -63,7 +71,7 @@ def test_update_add_column(sql):
             == f"Creating column NewColumn in table {table_name} with data type tinyint."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -92,7 +100,9 @@ def test_update_alter_column(sql):
         )
         dataframe[["ColumnB", "ColumnC"]] = updated[["ColumnB", "ColumnC"]]
         assert len(warn) == 3
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -106,7 +116,7 @@ def test_update_alter_column(sql):
             == f"Altering column ColumnC in table {table_name} to data type smallint with is_nullable=False."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
@@ -119,7 +129,9 @@ def test_update_add_and_alter_column(sql):
     table_name = "##test_update_add_and_alter_column"
     dataframe = pd.DataFrame({"ColumnA": [1, 2], "ColumnB": ["a", "b"]})
     with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
+        dataframe = sql.create.table_from_dataframe(
+            table_name, dataframe, primary_key="index"
+        )
         assert len(warn) == 1
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert "Created table" in str(warn[0].message)
@@ -133,7 +145,9 @@ def test_update_add_and_alter_column(sql):
         )
         dataframe[["ColumnB", "NewColumn"]] = updated[["ColumnB", "NewColumn"]]
         assert len(warn) == 3
-        assert all([isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn])
+        assert all(
+            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
+        )
         assert (
             str(warn[0].message)
             == f"Creating column _time_update in table {table_name} with data type DATETIME2."
@@ -147,7 +161,7 @@ def test_update_add_and_alter_column(sql):
             == f"Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=False."
         )
 
-    schema,_ = conversion.get_schema(sql.connection, table_name)
+    schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
