@@ -1,3 +1,4 @@
+import env
 import warnings
 
 import pandas as pd
@@ -32,7 +33,7 @@ def data():
 @pytest.fixture(scope="module")
 def sql(data):
     # create database cursor
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
 
     # database cursor
     cursor = db.connection.cursor()

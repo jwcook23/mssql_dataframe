@@ -1,3 +1,4 @@
+import env
 import warnings
 
 import pytest
@@ -22,7 +23,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
     yield package(db)
     db.connection.close()
 

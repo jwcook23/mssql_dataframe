@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition](https://www.microsoft.com/en-us/sql-server/sql-server-downloads)can be downloaded for free.
+Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition or SQL Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) can be downloaded for free.
 
 Run all terminal commands in the top level mssql_dataframe folder. The below commands are specific to a Windows systems.
 
@@ -32,10 +32,16 @@ Run all terminal commands in the top level mssql_dataframe folder. The below com
     pip install -e .
     ```
 
-6. Ensure code will pass later CICD processes.
+6. Ensure code will pass later CICD processes. This will run coverage, tests, and other build tasks.
 
     ``` cmd
     python cicd.py
+    ```
+
+    Steps such as pytest can be ran manually during development. Pytest will accept the same arguments as `mssql_dataframe.connect.py`.
+
+    ``` cmd
+    pytest --server='localhost'
     ```
 
 7. Install git hooks using pre-commit to check files before committing.

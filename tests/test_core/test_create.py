@@ -1,3 +1,5 @@
+import env
+
 from datetime import datetime
 import warnings
 
@@ -22,7 +24,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
     yield package(db)
     db.connection.close()
 

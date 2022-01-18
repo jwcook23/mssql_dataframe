@@ -1,3 +1,5 @@
+import env
+
 import pytest
 import pandas as pd
 
@@ -10,7 +12,7 @@ pd.options.mode.chained_assignment = "raise"
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
 
     # database cursor
     cursor = db.connection.cursor()
