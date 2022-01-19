@@ -7,6 +7,12 @@ pool:
   vmImage: windows-latest
 
 steps:
+- task: PowerShell@2
+  displayName: 'SQL Server Epress LocalDB'
+  inputs:
+    targetType: 'inline'
+    script: 'sqllocaldb start mssqllocaldb'
+
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '$3.9'
@@ -17,7 +23,13 @@ steps:
     pip install -r requirements-dev.txt
   displayName: 'Install development and build dependancies'
 
-- script: |
-    pip install pytest pytest-azurepipelines
-    pytest
-  displayName: 'pytest'
+# - script: |
+#     pip install pytest pytest-azurepipelines
+#     pytest
+#   displayName: 'pytest'
+
+- task: PythonScript@0
+  inputs:
+    scriptSource: filePath
+    script: cicd.py
+    arguments: --server=(localdb)\\MSSQLLocalDB
