@@ -3,40 +3,62 @@
 # https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 #
-# See also: CICD Build Pipelines
+# See also: Contributing.md > CICD Build Pipelines
 
-trigger:
-- main
+parameters:
+- name: remote_agent
+  displayName: Remote Agent
+  type: boolean
+  default: True
 
-# windows image for SQL Server Express to be included
-pool: Local Laptop
+jobs:
+  - job: remote
+    condition: eq(${{ parameters.remote_agent }}, True)
+    displayName: 'pipeline using remote agent'
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+      - script: echo running pipeline using remote agent
+
+  - job: local
+    condition: eq(${{ parameters.remote_agent }}, False)
+    displayName: 'pipeline using local agent'
+    pool: 'Local Laptop'
+      
+    steps:
+      - script: echo running pipeline using local agent
+
+# trigger:
+# - main
+
+# # windows image for SQL Server Express to be included
 # pool:
 #   vmImage: windows-latest
 
-steps:
-# include SQL Server Express
-- task: PowerShell@2
-  displayName: 'SQL Server Express LocalDB'
-  inputs:
-    targetType: 'inline'
-    script: 'sqllocaldb start mssqllocaldb'
+# steps:
+# # include SQL Server Express
+# - task: PowerShell@2
+#   displayName: 'SQL Server Express LocalDB'
+#   inputs:
+#     targetType: 'inline'
+#     script: 'sqllocaldb start mssqllocaldb'
 
-# test using multiple Python versions
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '$3.9'
-  displayName: 'Use Python 3.9'
+# # test using multiple Python versions
+# - task: UsePythonVersion@0
+#   inputs:
+#     versionSpec: '$3.9'
+#   displayName: 'Use Python 3.9'
 
-# install development and build dependancies
-- script: |
-    python -m pip install --upgrade pip
-    pip install -r requirements-dev.txt
-  displayName: 'Install development and build dependancies'
+# # install development and build dependancies
+# - script: |
+#     python -m pip install --upgrade pip
+#     pip install -r requirements-dev.txt
+#   displayName: 'Install development and build dependancies'
 
-# azure integration with pytest
-- script: |
-    pip installpytest-azurepipelines
-  displayName: 'pytest'
+# # azure integration with pytest
+# - script: |
+#     pip installpytest-azurepipelines
+#   displayName: 'pytest'
 
 # execute cicd.py script
 # - task: PythonScript@0
