@@ -1,10 +1,17 @@
+# CICD Build Pipeline
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/?view=azure-devops
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
+#
+# See also: CICD Build Pipelines
 
 trigger:
 - main
 
-pool:
-  vmImage: windows-latest
+# pool:
+#   vmImage: windows-latest
+
+pool: Local Laptop
 
 steps:
 - task: PowerShell@2

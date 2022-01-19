@@ -1,3 +1,6 @@
+# local Azure pipeline
+/azure-local-pipeline
+
 # Visual Studio Code
 *.code-workspace
 
