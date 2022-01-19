@@ -9,7 +9,6 @@ See Also
 conftest.py for command line arguments allowed
 setup.cfg for associated settings
 """
-import webbrowser
 import os
 import subprocess
 import configparser
@@ -83,12 +82,8 @@ def coverage_xml(config):
 def coverage_html(config):
     """coverage html report for user viewing"""
     run_cmd(["coverage", "html"])
-    print(f"generated coverage html file{config['coverage:html']['directory']}")
-    print("opening coverage report in default webbrowser")
-    webbrowser.open(
-        os.path.join(
-            "file:", os.path.abspath(config["coverage:html"]["directory"]), "index.html"
-        )
+    print(
+        f"generated coverage html file: {os.path.join(config['coverage:html']['directory'], 'index.html')}"
     )
 
 
@@ -129,3 +124,4 @@ if __name__ == "__main__":
     coverage_xml(config)
     coverage_html(config)
     generage_badges(config)
+    # TODO: build package to PyPi
