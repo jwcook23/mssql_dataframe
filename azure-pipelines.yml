@@ -8,35 +8,38 @@
 trigger:
 - main
 
-# pool:
-#   vmImage: windows-latest
-
-pool: Local Laptop
+# windows image for SQL Server Express to be included
+pool:
+  vmImage: windows-latest
 
 steps:
+# include SQL Server Express
 - task: PowerShell@2
-  displayName: 'SQL Server Epress LocalDB'
+  displayName: 'SQL Server Express LocalDB'
   inputs:
     targetType: 'inline'
     script: 'sqllocaldb start mssqllocaldb'
 
+# test using multiple Python versions
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '$3.9'
   displayName: 'Use Python 3.9'
 
+# install development and build dependancies
 - script: |
     python -m pip install --upgrade pip
     pip install -r requirements-dev.txt
   displayName: 'Install development and build dependancies'
 
-# - script: |
-#     pip install pytest pytest-azurepipelines
-#     pytest
-#   displayName: 'pytest'
+# azure integration with pytest
+- script: |
+    pip installpytest-azurepipelines
+  displayName: 'pytest'
 
-- task: PythonScript@0
-  inputs:
-    scriptSource: filePath
-    script: cicd.py
-    arguments: --server=(localdb)\\MSSQLLocalDB
+# execute cicd.py script
+# - task: PythonScript@0
+#   inputs:
+#     scriptSource: filePath
+#     script: cicd.py
+#     arguments: --server=(localdb)\\MSSQLLocalDB
