@@ -9,8 +9,9 @@ trigger:
 - main
 
 # windows image for SQL Server Express to be included
-pool:
-  vmImage: windows-latest
+pool: Local Laptop
+# pool:
+#   vmImage: windows-latest
 
 steps:
 # include SQL Server Express
