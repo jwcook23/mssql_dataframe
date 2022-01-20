@@ -49,7 +49,7 @@ jobs:
       - task: PythonScript@0
         inputs:
           scriptSource: filePath
-          script: cicd.py
+          scriptPath: cicd.py
           arguments: --server=(localdb)\\MSSQLLocalDB
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
@@ -66,8 +66,8 @@ jobs:
           targetType: 'inline'
           script: 
             try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
-            python -m venv env_local;
-            .\env_local\Scripts\Activate.ps1;
+            python -m venv env;
+            .\env\Scripts\Activate.ps1;
         
       # install requirements from PyPi.org
       - task: PowerShell@2
@@ -81,7 +81,7 @@ jobs:
       - task: PythonScript@0
         inputs:
           scriptSource: filePath
-          script: cicd.py
+          scriptPath: cicd.py
           arguments: --server=localhost\SQLEXPRESS
       # deactivate then delete the created environment
       - task: PowerShell@2
@@ -90,4 +90,4 @@ jobs:
           targetType: 'inline'
           script: 
             deactivate;
-            Remove-Item .\env_local -Recurse -Force;
+            Remove-Item .\env -Recurse -Force;
