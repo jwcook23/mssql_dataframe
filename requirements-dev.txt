@@ -6,4 +6,3 @@ black
 genbadge
 setuptools
 wheel
-pytest-azurepipelines
