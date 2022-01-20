@@ -3,7 +3,18 @@
 # https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema
 # https://docs.microsoft.com/azure/devops/pipelines/languages/python
 #
-# See also: Contributing.md > CICD Build Pipelines
+# Remote Execution
+# 1 Run pipeline in Azure DevOps with remote_agent option selected
+#
+# Local Execution
+# 1 Open PowerShell
+# 2 Start the local Azure DevOps agent if previously configured (if not see Contributing.md > CICD Build Pipelines > Local Azure DevOps)
+# 2a cd azure-local-pipeline; .\run.cmd;
+# 3 Run pipeline in Azure DevOps with remote_agent option deselected
+#
+# See Also
+# --------
+#  Contributing.md > CICD Build Pipelines
 
 parameters:
 - name: remote_agent
@@ -17,11 +28,10 @@ jobs:
   - job: remote
     condition: eq(${{ parameters.remote_agent }}, True)
     displayName: 'pipeline using remote agent'
+    # use Windows image for SQL Server Express to be included
     pool:
-      # Windows image for SQL Server Express to be included
       vmImage: 'windows-latest'
     steps:
-      - script: echo running pipeline using remote agent
       - task: PowerShell@2
         displayName: 'start SQL Server Express LocalDB'
         inputs:
@@ -34,34 +44,40 @@ jobs:
       - script: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-        displayName: 'Install development and build dependancies'
-      # - script: |
-      #     pip installpytest-azurepipelines
-      #   displayName: 'pytest'
+        displayName: 'Install Dependancies'
+      # execute cicd.py script
+      - task: PythonScript@0
+        inputs:
+          scriptSource: filePath
+          script: cicd.py
+          arguments: --server=(localdb)\\MSSQLLocalDB
 
-  # run locally on laptop
+  # run locally on laptop (requires Python and SQL Server Express to be installed)
   - job: local
     condition: eq(${{ parameters.remote_agent }}, False)
     displayName: 'pipeline using local agent'
     # local agent set up as described in Contributing.md
     pool: 'Local Laptop'
     steps:
-      - script: echo running pipeline using local agent
+      # deactivate any environment if activate, then create and activate a new environment
+      - script:
+          try {deactivate} catch [Management.Automation.CommandNotFoundException] {}
+          python -m venv env_local
+          .\env_local\Scripts\Activate.ps1
+        displayName: 'Create Environment'
+      # install requirements from PyPi.org
       - script: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
-        displayName: 'Install development and build dependancies'
-
-# trigger:
-# - main
-
-# # windows image for SQL Server Express to be included
-# pool:
-#   vmImage: windows-latest
-
-# execute cicd.py script
-# - task: PythonScript@0
-#   inputs:
-#     scriptSource: filePath
-#     script: cicd.py
-#     arguments: --server=(localdb)\\MSSQLLocalDB
+        displayName: 'Install Dependancies'
+      # run the CICD script that contains tests, coverage, etc.
+      - task: PythonScript@0
+        inputs:
+          scriptSource: filePath
+          script: cicd.py
+          arguments: --server=localhost\SQLEXPRESS
+      # deactivate then delete the created environment
+      - script:
+          deactivate
+          Remove-Item .\env_local -Recurse -Force
+        displayName: 'Delete Environment'
