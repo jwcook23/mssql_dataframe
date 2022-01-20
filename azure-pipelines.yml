@@ -60,14 +60,14 @@ jobs:
     pool: 'Local Laptop'
     steps:
       # deactivate any environment if activate, then create and activate a new environment        
-      - task: PowerShell@2
-        displayName: 'Create Environment'
-        inputs:
-          targetType: 'inline'
-          script: 
-            try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
-            python -m venv env;
-            .\env\Scripts\Activate.ps1;
+      # - task: PowerShell@2
+      #   displayName: 'Create Environment'
+      #   inputs:
+      #     targetType: 'inline'
+      #     script: 
+      #       try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
+      #       python -m venv env;
+      #       .\env\Scripts\Activate.ps1;
         
       # install requirements from PyPi.org
       - task: PowerShell@2
@@ -83,11 +83,11 @@ jobs:
           scriptSource: filePath
           scriptPath: cicd.py
           arguments: --server=localhost\SQLEXPRESS
-      # deactivate then delete the created environment
-      - task: PowerShell@2
-        displayName: 'Delete Environment'
-        inputs:
-          targetType: 'inline'
-          script: 
-            deactivate;
-            Remove-Item .\env -Recurse -Force;
+      # # deactivate then delete the created environment
+      # - task: PowerShell@2
+      #   displayName: 'Delete Environment'
+      #   inputs:
+      #     targetType: 'inline'
+      #     script: 
+      #       deactivate;
+      #       Remove-Item .\env -Recurse -Force;
