@@ -68,7 +68,6 @@ jobs:
             try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
             python -m venv env;
             .\env\Scripts\Activate.ps1;
-        
       # install requirements from PyPi.org
       - task: PowerShell@2
         displayName: 'Install Dependancies'
@@ -77,7 +76,9 @@ jobs:
           script: 
             python -m pip install --upgrade pip;
             pip install -r requirements-dev.txt;
+      # TODO: install package in editable mode if needed (pip install -e .)
       # run the CICD script that contains tests, coverage, etc.
+      # TODO: execute Python script using the environment Python
       - task: PythonScript@0
         inputs:
           scriptSource: filePath

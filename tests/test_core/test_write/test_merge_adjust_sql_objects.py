@@ -139,7 +139,7 @@ def test_merge_alter_column(sql):
         )
         assert (
             str(warn[2].message)
-            == f"Altering column ColumnA in table {table_name} to data type bigint with is_nullable=False."
+            == f"Altering column ColumnA in table {table_name} to data type smallint with is_nullable=False."
         )
         assert (
             str(warn[3].message)

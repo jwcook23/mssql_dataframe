@@ -115,17 +115,15 @@ def test_sample(sql, data):
     with warnings.catch_warnings(record=True) as warn:
         dataframe, values = conversion.prepare_values(schema, data)
         assert len(warn) == 2
-        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeTIMETruncation)
+        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeTIMERounding)
         assert (
             str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_time'] will be truncated as SQL data type TIME allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type TIME allows 7 max decimal places."
         )
-        assert isinstance(
-            warn[1].message, custom_warnings.SQLDataTypeDATETIME2Truncation
-        )
+        assert isinstance(warn[1].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
         assert (
             str(warn[1].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type DATETIME2 allows 7 max decimal places."
         )
 
     # prepare cursor for input data types and sizes

@@ -77,8 +77,10 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "date",
             "sql_category": "date time",
-            "min_value": (pd.Timestamp.min + pd.DateOffset(days=1)).date(),
-            "max_value": pd.Timestamp.max.date(),
+            "min_value": pd.Timestamp(
+                (pd.Timestamp.min + pd.DateOffset(days=1)).date()
+            ),
+            "max_value": pd.Timestamp(pd.Timestamp.max.date()),
             "pandas_type": "datetime64[ns]",
             "odbc_type": pyodbc.SQL_TYPE_DATE,
             "odbc_size": 10,

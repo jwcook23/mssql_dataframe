@@ -155,6 +155,8 @@ python cicd.py
 
 1. Increment the version in setup.py as appropriate. Given example version A.B.C
 
+    <!--#TODO: implement script to build and increment version-->
+
     ```txt
     A.B.C
 
