@@ -65,27 +65,27 @@ jobs:
         inputs:
           targetType: 'inline'
           script: 
-            # try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
+            try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
             python -m venv env;
-            # .\env\Scripts\Activate.ps1;
+            .\env\Scripts\Activate.ps1;
       # install requirements from PyPi.org
       - task: PowerShell@2
         displayName: 'Install Dependancies'
         inputs:
           targetType: 'inline'
           script: 
+            .\env\Scripts\Activate.ps1;
             python -m pip install --upgrade pip;
             pip install -r requirements-dev.txt;
-          workingDirectory: .\env\Scripts
       # TODO: install package in editable mode if needed (pip install -e .)
       # run the CICD script that contains tests, coverage, etc.
       # TODO: execute Python script using the environment Python
-      - task: PythonScript@0
-        inputs:
-          scriptSource: filePath
-          scriptPath: cicd.py
-          arguments: --server=localhost\SQLEXPRESS
-          workingDirectory: .\env\Scripts
+      # - task: PythonScript@0
+      #   inputs:
+      #     scriptSource: filePath
+      #     scriptPath: cicd.py
+      #     arguments: --server=localhost\SQLEXPRESS
+      #     workingDirectory: .\env\Scripts
       # # deactivate then delete the created environment
       # - task: PowerShell@2
       #   displayName: 'Delete Environment'
