@@ -60,32 +60,35 @@ jobs:
     pool: 'Local Laptop'
     steps:
       # deactivate any environment if activate, then create and activate a new environment        
+      # - task: PowerShell@2
+      #   displayName: 'Create Environment'
+      #   inputs:
+      #     targetType: 'inline'
+      #     script: 
+      #       try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
+      #       python -m venv env;
+      #       .\env\Scripts\Activate.ps1;
+      # create Python virtualenv and install requirements
       - task: PowerShell@2
-        displayName: 'Create Environment'
+        displayName: 'Create Environment & Install Dependancies'
         inputs:
           targetType: 'inline'
-          script: 
-            try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
+          script:
             python -m venv env;
-            .\env\Scripts\Activate.ps1;
-      # install requirements from PyPi.org
-      - task: PowerShell@2
-        displayName: 'Install Dependancies'
-        inputs:
-          targetType: 'inline'
-          script: 
             .\env\Scripts\Activate.ps1;
             python -m pip install --upgrade pip;
             pip install -r requirements-dev.txt;
+            pip install -e.;
       # TODO: install package in editable mode if needed (pip install -e .)
       # run the CICD script that contains tests, coverage, etc.
       # TODO: execute Python script using the environment Python
-      # - task: PythonScript@0
-      #   inputs:
-      #     scriptSource: filePath
-      #     scriptPath: cicd.py
-      #     arguments: --server=localhost\SQLEXPRESS
-      #     workingDirectory: .\env\Scripts
+      - task: PythonScript@0
+        inputs:
+          scriptSource: filePath
+          scriptPath: cicd.py
+          arguments: --server=localhost\SQLEXPRESS
+          # workingDirectory: $(Build.SourcesDirectory)\env\Scripts\
+          pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
       # # deactivate then delete the created environment
       # - task: PowerShell@2
       #   displayName: 'Delete Environment'
