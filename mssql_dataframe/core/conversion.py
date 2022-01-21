@@ -350,21 +350,7 @@ def prepare_values(
 
     # SQL data type TIME as string since python datetime.time allows 6 decimal places but SQL allows 7
     dtype = schema[schema["odbc_type"] == pyodbc.SQL_SS_TIME2].index
-    if any(dtype):
-        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
-    else:
-        truncation = []
-    if any(truncation):
-        truncation = list(truncation[truncation].index)
-        warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type TIME allows 7 max decimal places.",
-            custom_warnings.SQLDataTypeTIMETruncation,
-        )
-        nanosecond = dataframe[dtype].apply(
-            lambda x: pd.to_timedelta((x.dt.nanoseconds // 100) * 100)
-        )
-        dataframe[dtype] = dataframe[dtype].apply(lambda x: x.dt.floor(freq="us"))
-        dataframe[dtype] = dataframe[dtype] + nanosecond
+    # check for valid range in SQL
     invalid = (
         (prepped[dtype] >= pd.Timedelta(days=1))
         | (prepped[dtype] < pd.Timedelta(days=0))
@@ -374,6 +360,33 @@ def prepare_values(
         raise ValueError(
             f"columns {invalid} are out of range for SQL TIME data type. Allowable range is 00:00:00.0000000-23:59:59.9999999"
         )
+    # round and truncate if needed
+    if any(dtype):
+        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
+    else:
+        truncation = []
+    if any(truncation):
+        truncation = list(truncation[truncation].index)
+        warnings.warn(
+            f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type TIME allows 7 max decimal places.",
+            custom_warnings.SQLDataTypeTIMERounding,
+        )
+    # round nanosecond to the 7th decimal place ...123456789 -> ...123456800
+    for col in dtype:
+        rounded = dataframe[col].apply(
+            lambda x: pd.Timedelta(
+                days=x.components.days,
+                hours=x.components.hours,
+                minutes=x.components.minutes,
+                seconds=x.components.seconds,
+                microseconds=x.components.microseconds,
+                nanoseconds=round(x.components.nanoseconds / 100) * 100,
+            )
+            if pd.notnull(x)
+            else x
+        )
+        dataframe[col] = rounded
+        prepped[col] = rounded
     if any(dtype):
         prepped[dtype] = prepped[dtype].astype("str")
         prepped[dtype] = prepped[dtype].replace({"NaT": None})
@@ -381,6 +394,7 @@ def prepare_values(
 
     # SQL data type DATETIME2 as string since python datetime.datetime allows 6 decimals but SQL allows 7
     dtype = schema[schema["odbc_type"] == pyodbc.SQL_TYPE_TIMESTAMP].index
+    # round and truncate if needed
     if any(dtype):
         truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
     else:
@@ -388,14 +402,27 @@ def prepare_values(
     if any(truncation):
         truncation = list(truncation[truncation].index)
         warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be truncated as SQL data type DATETIME2 allows 7 max decimal places.",
-            custom_warnings.SQLDataTypeDATETIME2Truncation,
+            f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type DATETIME2 allows 7 max decimal places.",
+            custom_warnings.SQLDataTypeDATETIME2Rounding,
         )
-        nanosecond = dataframe[dtype].apply(
-            lambda x: pd.to_timedelta((x.dt.nanosecond // 100) * 100)
-        )
-        dataframe[dtype] = dataframe[dtype].apply(lambda x: x.dt.floor(freq="us"))
-        dataframe[dtype] = dataframe[dtype] + nanosecond
+        # round nanosecond to the 7th decimal place ...145224193 -> ...145224200
+        for col in dtype:
+            rounded = dataframe[col].apply(
+                lambda x: pd.Timestamp(
+                    x.year,
+                    x.month,
+                    x.day,
+                    x.hour,
+                    x.minute,
+                    x.second,
+                    x.microsecond,
+                    round(x.nanosecond / 100) * 100,
+                )
+                if pd.notnull(x)
+                else x
+            )
+            dataframe[col] = rounded
+            prepped[col] = rounded
     if any(dtype):
         prepped[dtype] = prepped[dtype].astype("str")
         prepped[dtype] = prepped[dtype].replace({"NaT": None})

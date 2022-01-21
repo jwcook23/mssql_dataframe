@@ -7,13 +7,13 @@ class SQLObjectAdjustment(Warning):
     pass
 
 
-class SQLDataTypeTIMETruncation(Warning):
+class SQLDataTypeTIMERounding(Warning):
     """SQL TIME only supports 7 decimal places for precision but pandas Timedelta supports 9."""
 
     pass
 
 
-class SQLDataTypeDATETIME2Truncation(Warning):
+class SQLDataTypeDATETIME2Rounding(Warning):
     """SQL DATETIME2 only supports 7 decimal places for precision but pandas Timestamp supports 9."""
 
     pass

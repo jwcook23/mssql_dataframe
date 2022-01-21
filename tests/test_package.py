@@ -1,3 +1,4 @@
+import env
 import warnings
 
 import pandas as pd
@@ -13,13 +14,27 @@ def test_SQLServer():
     # autoadjust_sql_objects==False
     with warnings.catch_warnings(record=True) as warn:
         assert len(warn) == 0
-        sql = SQLServer(autoadjust_sql_objects=False)
+        sql = SQLServer(
+            env.database,
+            env.server,
+            env.driver,
+            env.username,
+            env.password,
+            autoadjust_sql_objects=False,
+        )
         assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
     # include_metadata_timestamps==True
     with warnings.catch_warnings(record=True) as warn:
-        adjustable = SQLServer(include_metadata_timestamps=True)
+        adjustable = SQLServer(
+            env.database,
+            env.server,
+            env.driver,
+            env.username,
+            env.password,
+            include_metadata_timestamps=True,
+        )
         assert len(warn) == 1
         assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
@@ -31,7 +46,14 @@ def test_SQLServer():
 
     # autoadjust_sql_objects==True
     with warnings.catch_warnings(record=True) as warn:
-        adjustable = SQLServer(autoadjust_sql_objects=True)
+        adjustable = SQLServer(
+            env.database,
+            env.server,
+            env.driver,
+            env.username,
+            env.password,
+            autoadjust_sql_objects=True,
+        )
         assert len(warn) == 1
         assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
@@ -45,7 +67,14 @@ def test_SQLServer():
 def test_SQLServer_schema():
 
     table_name = "##test_SQLServer_schema"
-    sql = SQLServer(autoadjust_sql_objects=False)
+    sql = SQLServer(
+        env.database,
+        env.server,
+        env.driver,
+        env.username,
+        env.password,
+        autoadjust_sql_objects=False,
+    )
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 
     schema = sql.get_schema(table_name)

@@ -1,3 +1,4 @@
+import env
 import warnings
 
 import pytest
@@ -24,7 +25,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
     yield package(db)
     db.connection.close()
 
@@ -138,7 +139,7 @@ def test_merge_alter_column(sql):
         )
         assert (
             str(warn[2].message)
-            == f"Altering column ColumnA in table {table_name} to data type bigint with is_nullable=False."
+            == f"Altering column ColumnA in table {table_name} to data type smallint with is_nullable=False."
         )
         assert (
             str(warn[3].message)

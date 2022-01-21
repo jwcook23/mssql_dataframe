@@ -57,7 +57,9 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
     columns = dataframe.select_dtypes(
         include=["object", "number"], exclude="timedelta"
     ).columns
-    dataframe[columns] = dataframe[columns].replace({"True": "1", "False": "0"})
+    # BUG: https://github.com/pandas-dev/pandas/pull/44533, ignore Boolean types using string replacement
+    strings = dataframe.select_dtypes("object").columns
+    dataframe[strings] = dataframe[strings].replace({"True": "1", "False": "0"})
     for col in columns:
         # skip missing since pd.to_numeric doesn't work with nullable integer types
         notna = ~dataframe[col].isna()

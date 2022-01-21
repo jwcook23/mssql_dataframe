@@ -3,4 +3,6 @@ pytest
 coverage
 flake8
 black
-genbadge
+genbadge[all]
+setuptools
+wheel

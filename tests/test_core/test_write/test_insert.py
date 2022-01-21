@@ -1,3 +1,4 @@
+import env
 import warnings
 
 import pytest
@@ -22,7 +23,7 @@ class package:
 
 @pytest.fixture(scope="module")
 def sql():
-    db = connect(database="tempdb", server="localhost")
+    db = connect(env.database, env.server, env.driver, env.username, env.password)
     yield package(db)
     db.connection.close()
 
@@ -121,12 +122,10 @@ def test_insert_dataframe(sql):
     with warnings.catch_warnings(record=True) as warn:
         dataframe = sql.insert_meta.insert(table_name, dataframe)
         assert len(warn) == 1
-        assert isinstance(
-            warn[0].message, custom_warnings.SQLDataTypeDATETIME2Truncation
-        )
+        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
         assert (
             str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be truncated as SQL data type DATETIME2 allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type DATETIME2 allows 7 max decimal places."
         )
 
     # test result
