@@ -63,6 +63,7 @@ def run_coverage_pytest(config, args):
         f"--source={config['module']['name']}",
         "pytest",
         f"--junitxml={config['user:pytest']['junitxml']}",
+        "-v",
     ]
     # add optional arguments defined by conftest.py options
     cmd += ["--" + k + "=" + v for k, v in args.items()]
