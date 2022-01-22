@@ -59,15 +59,6 @@ jobs:
     # local agent set up as described in Contributing.md
     pool: 'Local Laptop'
     steps:
-      # deactivate any environment if activate, then create and activate a new environment        
-      # - task: PowerShell@2
-      #   displayName: 'Create Environment'
-      #   inputs:
-      #     targetType: 'inline'
-      #     script: 
-      #       try {deactivate} catch [Management.Automation.CommandNotFoundException] {};
-      #       python -m venv env;
-      #       .\env\Scripts\Activate.ps1;
       # create Python virtualenv and install requirements
       - task: PowerShell@2
         displayName: 'Create Environment & Install Dependancies'
@@ -79,20 +70,20 @@ jobs:
             python -m pip install --upgrade pip;
             pip install -r requirements-dev.txt;
             pip install -e.;
-      # TODO: install package in editable mode if needed (pip install -e .)
       # run the CICD script that contains tests, coverage, etc.
-      # TODO: execute Python script using the environment Python
       - task: PythonScript@0
         inputs:
           scriptSource: filePath
           scriptPath: cicd.py
           arguments: --server=localhost\SQLEXPRESS
-          # workingDirectory: $(Build.SourcesDirectory)\env\Scripts\
           pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
-      # # deactivate then delete the created environment
-      # - task: PowerShell@2
-      #   displayName: 'Delete Environment'
-      #   inputs:
-      #     targetType: 'inline'
-      #     script: 
-      #       Remove-Item .\env -Recurse -Force;
+      # publish test results
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFiles: $(Build.SourcesDirectory)\reports\test.xml
+      # publish code coverage results
+      - task: PublishCodeCoverageResults@1
+        inputs:
+          codeCoverageTool: Cobertura
+          summaryFileLocation: $(Build.SourcesDirectory)\reports\coverage.xml
