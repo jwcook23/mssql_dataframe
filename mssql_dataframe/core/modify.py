@@ -57,10 +57,6 @@ class modify:
 
         """
 
-        options = ["add", "alter", "drop"]
-        if modify not in options:
-            raise ValueError("modify must be one of: " + str(options))
-
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
             DECLARE @TableName SYSNAME = ?;
@@ -93,7 +89,8 @@ class modify:
         elif modify == "add" or modify == "alter":
             if modify == "add":
                 syntax = "'ADD'"
-            elif modify == "alter":
+            else:
+                # modify == "alter"
                 syntax = "'ALTER COLUMN'"
             declare_type = "DECLARE @ColumnType SYSNAME = ?;"
             type_column = "+' '+QUOTENAME(@ColumnType)"
@@ -116,6 +113,9 @@ class modify:
                 null_column = "+' NOT NULL'"
 
             args += [dtypes_sql, size]
+        else:
+            options = ["add", "alter", "drop"]
+            raise ValueError("modify must be one of: " + str(options))
 
         statement = statement.format(
             declare_type=declare_type,
@@ -167,10 +167,6 @@ class modify:
 
         """
 
-        options = ["add", "drop"]
-        if modify not in options:
-            raise ValueError("modify must be one of: " + str(options))
-
         if isinstance(columns, str):
             columns = [columns]
 
@@ -218,6 +214,9 @@ class modify:
             keys = ""
             parameter = ""
             value = ""
+        else:
+            options = ["add", "drop"]
+            raise ValueError("modify must be one of: " + str(options))
         statement = statement.format(
             declare=declare, syntax=syntax, keys=keys, parameter=parameter, value=value
         )

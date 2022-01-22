@@ -75,6 +75,9 @@ def handle(
     elif isinstance(failure, custom_errors.SQLInsufficientColumnSize):
         dataframe = alter_columns(table_name, dataframe, columns, modifier)
 
+    else:
+        raise failure
+
     return dataframe
 
 

@@ -59,6 +59,7 @@ def run_coverage_pytest(config, args):
     cmd = [
         "coverage",
         "run",
+        "--branch",
         "-m",
         f"--source={config['module']['name']}",
         "pytest",
