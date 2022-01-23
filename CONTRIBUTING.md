@@ -32,10 +32,10 @@ Run all terminal commands in the top level mssql_dataframe folder. The below com
     pip install -e .
     ```
 
-6. Ensure code will pass later CICD processes. This will run coverage, tests, and other build tasks.
+6. Ensure code will pass later CI processes. This will run coverage, tests, and other build tasks.
 
     ``` cmd
-    python cicd.py
+    python continuous_integration.py
     ```
 
     Steps such as pytest can be ran manually during development. Pytest will accept the same arguments as `mssql_dataframe.connect.py`.
@@ -64,7 +64,7 @@ Continuous Integration Continous Delievery can be accomplished in multiple ways.
 
 1. Remote Azure DevOps pipeline. This is the default build process that happens with a pull request.
 2. Local Azure DevOps pipeline for testing.
-3. Local `cicd.py` for CICD process testing build without Azure.
+3. Local `continous_integration.py` for local continous integration testing build without Azure.
 
 ### 1. Remote Azure DevOps
 
@@ -143,19 +143,19 @@ cd azure-local-pipeline;
 .\run.cmd;
 ```
 
-### 3. Local cicd.py
+### 3. Local continuous_integration.py
 
 Simply run the script.
 
 ``` cmd
-python cicd.py
+python continuous_integration.py
 ```
 
 ## Python Package Index (PyPI)
 
 1. Increment the version in setup.py as appropriate. Given example version A.B.C
 
-    <!--#TODO: implement script to build and increment version-->
+    <!--#TODO: where to handle incrementing the version-->
 
     ```txt
     A.B.C

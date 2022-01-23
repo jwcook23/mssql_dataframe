@@ -45,11 +45,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
         displayName: 'Install Dependancies'
-      # execute cicd.py script
+      # execute continuous_integration.py script
       - task: PythonScript@0
         inputs:
           scriptSource: filePath
-          scriptPath: cicd.py
+          scriptPath: continuous_integration.py
           arguments: --server=(localdb)\\MSSQLLocalDB
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
@@ -70,11 +70,11 @@ jobs:
             python -m pip install --upgrade pip;
             pip install -r requirements-dev.txt;
             pip install -e.;
-      # run the CICD script that contains tests, coverage, etc.
+      # run the continuous_integration.py script that contains tests, coverage, etc.
       - task: PythonScript@0
         inputs:
           scriptSource: filePath
-          scriptPath: cicd.py
+          scriptPath: continuous_integration.py
           arguments: --server=localhost\SQLEXPRESS
           pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
       # publish test results

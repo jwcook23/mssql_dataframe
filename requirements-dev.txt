@@ -6,3 +6,4 @@ black
 genbadge[all]
 setuptools
 wheel
+twine

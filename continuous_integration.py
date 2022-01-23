@@ -2,7 +2,7 @@ r""" Run the CICD process to ensure pull request will succeed. Optional argument
 
 Examples
 --------
-cicd.py --server=localhost\SQLEXPRESS
+continuous_integration.py --server=localhost\SQLEXPRESS
 
 See Also
 --------
@@ -10,6 +10,7 @@ conftest.py for command line arguments allowed
 setup.cfg for associated settings
 """
 import os
+import shutil
 import subprocess
 import configparser
 import argparse
@@ -46,7 +47,7 @@ def run_flake8(config):
 def support_file_black_flake8():
     """additionally run black and flake8 for support files."""
     for cmd in ["black", "flake8"]:
-        for fp in ["tests/", "cicd.py", "conftest.py"]:
+        for fp in ["tests/", "conftest.py", "continuous_integration.py"]:
             print(f"running {cmd} for {fp}")
             run_cmd([cmd, fp])
 
@@ -77,16 +78,16 @@ def run_coverage_pytest(config, args):
 
 def coverage_xml(config):
     """coverage xml report for genbadge"""
+    print(f"generating coverage xml file: {config['coverage:xml']['output']}")
     run_cmd(["coverage", "xml"])
-    print(f"generated coverage xml file: {config['coverage:xml']['output']}")
 
 
 def coverage_html(config):
     """coverage html report for user viewing"""
-    run_cmd(["coverage", "html"])
     print(
-        f"generated coverage html file: {os.path.join(config['coverage:html']['directory'], 'index.html')}"
+        f"generating coverage html file: {os.path.join(config['coverage:html']['directory'], 'index.html')}"
     )
+    run_cmd(["coverage", "html"])
 
 
 def generage_badges(config):
@@ -98,8 +99,26 @@ def generage_badges(config):
     }
     for b, i in badges.items():
         fp = f"{config['genbadge']['output']}{b}.svg"
+        print(f"generating badge for {b} at: {fp}")
         run_cmd(["genbadge", b, "-i", i, "-o", fp])
-        print(f"generated badge for {b} at: {fp}")
+
+
+def build_package():
+    "build Python package for upload to PyPi.org"
+
+    dist = "./dist"
+    print(f"building package in directory: {dist}")
+
+    # create or empty ./dist folder that may exist from previous builds
+    if os.path.exists(dist):
+        shutil.rmtree(dist)
+    os.makedirs(dist)
+
+    # build package .gz and .whl files
+    run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
+
+    # check build status
+    run_cmd(["twine", "check", "dist/*"])
 
 
 if __name__ == "__main__":
@@ -126,4 +145,4 @@ if __name__ == "__main__":
     coverage_xml(config)
     coverage_html(config)
     generage_badges(config)
-    # TODO: build package to PyPi
+    build_package()
