@@ -52,4 +52,3 @@ jobs:
       - template: cicd.yml
         parameters:
           server: parameters.server
-          remote_agent: parameters.remote_agent
