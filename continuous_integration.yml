@@ -51,4 +51,4 @@ jobs:
     steps:
       - template: cicd.yml
         parameters:
-          server: parameters.server
+          server: localhost\SQLEXPRESS
