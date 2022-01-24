@@ -50,6 +50,6 @@ jobs:
     pool: 'Local Laptop'
     steps:
       - template: cicd_template.yml
-        parameters:
-          server: parameters.server
-          remote_agent: parameters.remote_agent
+        # parameters:
+        #   server: parameters.server
+        #   remote_agent: parameters.remote_agent

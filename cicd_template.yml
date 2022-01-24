@@ -1,11 +1,11 @@
-parameters:
-- name: server
-  displayName: Server Connection Name
-  type: string
-- name: remote_agent
-  displayName: Remote Agent (Unselect to Run Local)
-  type: boolean
-  default: True
+# parameters:
+#   - name: server
+#     displayName: Server Connection Name
+#     type: string
+#   - name: remote_agent
+#     displayName: Remote Agent (Unselect to Run Local)
+#     type: boolean
+#     default: True
 
 stages:
   - stage: 'CICD Core Tasks'
@@ -29,7 +29,8 @@ stages:
             inputs:
               scriptSource: filePath
               scriptPath: continuous_integration.py
-              arguments: --server=${{ parameters.remote_agent }}
+              # arguments: --server=${{ parameters.server }}
+              arguments: --server=(localdb)\\MSSQLLocalDB
               pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
           # publish test results
           - task: PublishTestResults@2
