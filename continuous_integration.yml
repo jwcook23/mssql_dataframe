@@ -12,44 +12,46 @@ parameters:
   type: boolean
   default: True
 
-jobs:
+stages:
+  - stage:
+    jobs:
 
-  # run using Azure DevOps provided virtual machine
-  - job: remote
-    condition: eq(${{ parameters.remote_agent }}, True)
-    displayName: 'pipeline using remote agent'
-    # use Windows image for SQL Server Express to be included
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-      - task: PowerShell@2
-        displayName: 'Start SQL Server Express LocalDB'
-        inputs:
-          targetType: 'inline'
-          script: 'sqllocaldb start mssqllocaldb'
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: '$3.9'
-        displayName: 'Use Python 3.9'
-      # - script: |
-      #     python -m pip install --upgrade pip
-      #     pip install -r requirements-dev.txt
-      #   displayName: 'Install Dependancies'
-      # # execute continuous_integration.py script
-      # - task: PythonScript@0
-      #   inputs:
-      #     scriptSource: filePath
-      #     scriptPath: continuous_integration.py
-      #     arguments: --server=(localdb)\\MSSQLLocalDB
+      # run using Azure DevOps provided virtual machine
+      - job: remote
+        condition: eq(${{ parameters.remote_agent }}, True)
+        displayName: 'pipeline using remote agent'
+        # use Windows image for SQL Server Express to be included
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - task: PowerShell@2
+            displayName: 'Start SQL Server Express LocalDB'
+            inputs:
+              targetType: 'inline'
+              script: 'sqllocaldb start mssqllocaldb'
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$3.9'
+            displayName: 'Use Python 3.9'
+          # - script: |
+          #     python -m pip install --upgrade pip
+          #     pip install -r requirements-dev.txt
+          #   displayName: 'Install Dependancies'
+          # # execute continuous_integration.py script
+          # - task: PythonScript@0
+          #   inputs:
+          #     scriptSource: filePath
+          #     scriptPath: continuous_integration.py
+          #     arguments: --server=(localdb)\\MSSQLLocalDB
 
-  # run locally on laptop (requires Python and SQL Server Express to be installed)
-  - job: local
-    condition: eq(${{ parameters.remote_agent }}, False)
-    displayName: 'pipeline using local agent'
-    # local agent set up as described in Contributing.md
-    pool: 'Local Laptop'
-    steps:
-      - template: cicd_template.yml
-        # parameters:
-        #   server: parameters.server
-        #   remote_agent: parameters.remote_agent
+      # run locally on laptop (requires Python and SQL Server Express to be installed)
+      - job: local
+        condition: eq(${{ parameters.remote_agent }}, False)
+        displayName: 'pipeline using local agent'
+        # local agent set up as described in Contributing.md
+        pool: 'Local Laptop'
+        steps:
+          - template: cicd_template.yml
+            # parameters:
+            #   server: parameters.server
+            #   remote_agent: parameters.remote_agent
