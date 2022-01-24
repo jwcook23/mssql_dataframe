@@ -49,7 +49,7 @@ jobs:
     # local agent set up as described in Contributing.md
     pool: 'Local Laptop'
     steps:
-      - template: cicd.template.yml
+      - template: cicd_template.yml
         parameters:
           server: parameters.server
           remote_agent: parameters.remote_agent
