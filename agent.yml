@@ -20,14 +20,11 @@ steps:
     inputs:
       versionSpec: '$3.9'
     displayName: 'Use Python 3.9'
-
+  # tasks for local agent only
+  # TODO: local agent ensure Python is installed
   # tasks for any agent type
-  # - task: PowerShell@2
-  #   displayName: Check SQL Express Connection
-  #   inputs:
-  #     targetType: 'inline'
-  #     script: ''
-  # tasks for local agent
-  # TODO: ensure Python is installed
-  # TODO: ensure SQL Express isinstalled
-  # sqlcmd -S localhost\SQLEXPRESS
+  - task: PowerShell@2
+    displayName: Check SQL Express Connection
+    inputs:
+      targetType: 'inline'
+      script: sqlcmd -S ${{ parameters.server }}

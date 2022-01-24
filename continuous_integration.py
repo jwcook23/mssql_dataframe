@@ -126,6 +126,7 @@ def build_package():
     os.makedirs(dist)
 
     # build package .gz and .whl files
+    # TODO: override build version by using an input parameter
     run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
 
     # check build status

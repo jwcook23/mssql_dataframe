@@ -1,4 +1,7 @@
-# Azure Pipelines Continuous Deployment that runs automatically after... # TODO document the CD portion
+# Azure Pipelines Continuous Deployment that runs automatically after a pull request is complete. 
+# Steps performed are essentially the same as the CI pipeline, but require a comment to be made
+# after the pull request before the build continues. Additional the package is uploaded to PyPI.
+# TODO: document pull request along with comment that is needed
 #
 # See Also
 # --------
@@ -11,12 +14,37 @@ parameters:
   type: boolean
   default: True
 
-stages:
-- template: stages/build.yml@YAMLTemplates
-  parameters:
-    environmentName: Build
-    serviceName: ${{ parameters.serviceName}}
-- template: stages/env_deploy.yml@YAMLTemplates
-  parameters:
-    environmentName: Dev
-    serviceName: ${{ parameters.serviceName}}
+jobs:
+
+  # run using Azure DevOps provided virtual machine
+  - job: remote
+    condition: eq(${{ parameters.remote_agent }}, True)
+    displayName: 'CICD Pipeline Using Remote Agent'
+    # use Windows image for SQL Server Express to be included
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+      - template: agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+          server: (localdb)\\MSSQLLocalDB
+      - template: cicd.yml
+        parameters:
+          server: (localdb)\\MSSQLLocalDB
+      # TODO: upload to PyPI
+
+  # run locally on laptop (requires Python and SQL Server Express to be installed)
+  - job: local
+    condition: eq(${{ parameters.remote_agent }}, False)
+    displayName: 'CICD Pipeline Using Local Agent'
+    # local agent set up as described in CONTRIBUTUTING.md
+    pool: 'Local Laptop'
+    steps:
+      - template: agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+          server: localhost\SQLEXPRESS
+      - template: cicd.yml
+        parameters:
+          server: localhost\SQLEXPRESS
+      # TODO: upload to PyPI
