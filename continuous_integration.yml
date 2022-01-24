@@ -1,10 +1,11 @@
 # Azure Pipelines Continuous Integration that runs automatically on commit. Creates a build environment before
-# calling the core CI Python script, then uploads test and coverage results.
+# calling the core cicd.yml template.
 #
 # See Also
 # --------
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.py for the core of the CI process
+# cicd.yml for the core CICD pipeline template
 
 parameters:
 - name: remote_agent
@@ -17,38 +18,30 @@ jobs:
   # run using Azure DevOps provided virtual machine
   - job: remote
     condition: eq(${{ parameters.remote_agent }}, True)
-    displayName: 'pipeline using remote agent'
+    displayName: 'CI Pipeline Using Remote Agent'
     # use Windows image for SQL Server Express to be included
     pool:
       vmImage: 'windows-latest'
     steps:
-      - task: PowerShell@2
-        displayName: 'Start SQL Server Express LocalDB'
-        inputs:
-          targetType: 'inline'
-          script: 'sqllocaldb start mssqllocaldb'
-      - task: UsePythonVersion@0
-        inputs:
-          versionSpec: '$3.9'
-        displayName: 'Use Python 3.9'
-      # - script: |
-      #     python -m pip install --upgrade pip
-      #     pip install -r requirements-dev.txt
-      #   displayName: 'Install Dependancies'
-      # # execute continuous_integration.py script
-      # - task: PythonScript@0
-      #   inputs:
-      #     scriptSource: filePath
-      #     scriptPath: continuous_integration.py
-      #     arguments: --server=(localdb)\\MSSQLLocalDB
+      - template: agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+          server: (localdb)\\MSSQLLocalDB
+      - template: cicd.yml
+        parameters:
+          server: (localdb)\\MSSQLLocalDB
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
   - job: local
     condition: eq(${{ parameters.remote_agent }}, False)
-    displayName: 'pipeline using local agent'
-    # local agent set up as described in Contributing.md
+    displayName: 'CI Pipeline Using Local Agent'
+    # local agent set up as described in CONTRIBUTUTING.md
     pool: 'Local Laptop'
     steps:
+      - template: agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+          server: localhost\SQLEXPRESS
       - template: cicd.yml
         parameters:
           server: localhost\SQLEXPRESS

@@ -1,3 +1,5 @@
+# Azure Pipelines CICD template steps that apply to both local and remote agents.
+
 parameters:
 - name: server
   displayName: Server Connection Name
