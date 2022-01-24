@@ -1,4 +1,4 @@
-r""" Run the CICD process to ensure pull request will succeed. Optional arguments are defined in conftest.py.
+r""" Continuous integration by performing tests, coverage, formatting, and package building. Optional arguments are defined in conftest.py.
 
 Examples
 --------
