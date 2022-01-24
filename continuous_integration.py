@@ -1,8 +1,8 @@
 r""" Continuous integration by performing tests, coverage, formatting, and package building.
 
 1. if this script runs locally to success, the CI process should also run successfully
-2. continuous_integration.py executes automatically in an Azure DevOps Pipeline on commit
-3. CI results can be viewed after a commit at: #TODO add link
+2. continuous_integration.py executes automatically in an Azure DevOps Pipeline on push
+3. CI results can be viewed after a push at: #TODO add link
 4. if CI succeeds in the Azure DevOps pipeline, submit a pull request to complete the continuous deployment build and release
 
 Examples

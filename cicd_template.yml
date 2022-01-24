@@ -1,11 +1,13 @@
-# parameters:
-#   - name: server
-#     displayName: Server Connection Name
-#     type: string
-#   - name: remote_agent
-#     displayName: Remote Agent (Unselect to Run Local)
-#     type: boolean
-#     default: True
+# File: cicd_template.yml
+
+parameters:
+  - name: server
+    displayName: Server Connection Name
+    type: string
+  - name: remote_agent
+    displayName: Remote Agent (Unselect to Run Local)
+    type: boolean
+    default: True
 
 stages:
   - stage: 'CICD Core Tasks'
