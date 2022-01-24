@@ -1,13 +1,24 @@
-r""" Continuous integration by performing tests, coverage, formatting, and package building. Optional arguments are defined in conftest.py.
+r""" Continuous integration by performing tests, coverage, formatting, and package building.
+
+1. if this script runs locally to success, the CI process should also run successfully
+2. continuous_integration.py executes automatically in an Azure DevOps Pipeline on commit
+3. CI results can be viewed after a commit at: #TODO add link
+4. if CI succeeds in the Azure DevOps pipeline, submit a pull request to complete the continuous deployment build and release
 
 Examples
 --------
-continuous_integration.py --server=localhost\SQLEXPRESS
+#### default CI process
+python continuous_integration.py
+#### using command line arguments specified in conftest.py options
+python continuous_integration.py --server=localhost\SQLEXPRESS
 
 See Also
 --------
-conftest.py for command line arguments allowed
-setup.cfg for associated settings
+CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
+conftest.py options variable for command line arguments allowed
+setup.cfg for CICD associated settings
+continuous_integration.yml for Azure DevOps Pipeline CI definition
+continuous_deployment.py and continuous_deployment.yml for continuous deployment
 """
 import os
 import shutil
@@ -121,28 +132,26 @@ def build_package():
     run_cmd(["twine", "check", "dist/*"])
 
 
-if __name__ == "__main__":
+# parameters from setup.cfg
+config = configparser.ConfigParser()
+config.read("setup.cfg")
 
-    # parameters from setup.cfg
-    config = configparser.ConfigParser()
-    config.read("setup.cfg")
+# command line arguments from confest options since both pytest and argparse use the same parameters
+parser = argparse.ArgumentParser()
+for opt in options:
+    parser.add_argument(opt, **options[opt])
+args = parser.parse_args()
 
-    # command line arguments from confest options since both pytest and argparse use the same parameters
-    parser = argparse.ArgumentParser()
-    for opt in options:
-        parser.add_argument(opt, **options[opt])
-    args = parser.parse_args()
+# convert args to dictionary to allow to be used as command line args
+args = vars(args)
+# ignore None as would be passed as "None"
+args = {k: v for k, v in args.items() if v is not None}
 
-    # convert args to dictionary to allow to be used as command line args
-    args = vars(args)
-    # ignore None as would be passed as "None"
-    args = {k: v for k, v in args.items() if v is not None}
-
-    run_black(config)
-    run_flake8(config)
-    support_file_black_flake8()
-    run_coverage_pytest(config, args)
-    coverage_xml(config)
-    coverage_html(config)
-    generage_badges(config)
-    build_package()
+run_black(config)
+run_flake8(config)
+support_file_black_flake8()
+run_coverage_pytest(config, args)
+coverage_xml(config)
+coverage_html(config)
+generage_badges(config)
+build_package()

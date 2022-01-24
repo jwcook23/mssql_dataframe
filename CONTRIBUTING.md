@@ -66,6 +66,20 @@ Continuous Integration Continous Delievery can be accomplished in multiple ways.
 2. Local Azure DevOps pipeline for testing.
 3. Local `continous_integration.py` for local continous integration testing build without Azure.
 
+<!-- # https://docs.microsoft.com/en-us/azure/devops/pipelines/?view=azure-devops
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=azure-devops&tabs=schema%2Cparameter-schema
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/repos/github?view=azure-devops&tabs=yaml
+#
+# Remote Execution
+# 1 Run pipeline in Azure DevOps with remote_agent option selected
+#
+# Local Execution
+# 1 Open PowerShell
+# 2 Start the local Azure DevOps agent if previously configured (if not see Contributing.md > CICD Build Pipelines > Local Azure DevOps)
+# 2a cd azure-local-pipeline; .\run.cmd;
+# 3 Run pipeline in Azure DevOps with remote_agent option deselected -->
+
 ### 1. Remote Azure DevOps
 
 <!-- #TODO: document default build process -->
