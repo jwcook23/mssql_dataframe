@@ -10,3 +10,4 @@ build-backend = "setuptools.build_meta"
 
 # package version number based on git tag
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
