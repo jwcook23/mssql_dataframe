@@ -31,24 +31,28 @@ from conftest import options
 
 def run_cmd(cmd):
     """Generic command line process and error if needed."""
+    # run all commands in virtual environment
+    cmd[0] = os.path.join(os.getcwd(), "env", "Scripts", cmd[0])
+    # call command line process
     status = subprocess.run(cmd, capture_output=True)
     if status.returncode != 0:
-        raise RuntimeError(status.stdout)
+        # status = subprocess.call(cmd, shell=True)
+        raise RuntimeError(status.stderr)
 
 
 def run_black(config):
     """black to auto-format code to standard."""
-    print(f"running black for module: {config['module']['name']}")
-    run_cmd(["black", config["module"]["name"]])
+    print(f"running black for module: {config['metadata']['name']}")
+    run_cmd(["black", config["metadata"]["name"]])
 
 
 def run_flake8(config):
     """flake8 to lint and check code quality"""
-    print(f"running flake8 for module: {config['module']['name']}")
+    print(f"running flake8 for module: {config['metadata']['name']}")
     run_cmd(
         [
             "flake8",
-            config["module"]["name"],
+            config["metadata"]["name"],
             f"--output-file={config['flake8']['output-file']}",
         ]
     )
@@ -65,7 +69,7 @@ def support_file_black_flake8():
 
 def run_coverage_pytest(config, args):
     """pytest and coverage to ensure code works as desired and is covered by tests. Also produces test xml report for genbadge."""
-    print(f"running coverage for module: {config['module']['name']}")
+    print(f"running coverage for module: {config['metadata']['name']}")
     print(f"running tests for directory: {config['tool:pytest']['testpaths']}")
     # required arguments
     cmd = [
@@ -73,7 +77,7 @@ def run_coverage_pytest(config, args):
         "run",
         "--branch",
         "-m",
-        f"--source={config['module']['name']}",
+        f"--source={config['metadata']['name']}",
         "pytest",
         f"--junitxml={config['user:pytest']['junitxml']}",
         "-v",
@@ -128,7 +132,7 @@ def build_package():
     # build package .gz and .whl files
     # TODO: override build version by using an input parameter
     # run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
-    run_cmd(["python","-m","build"])
+    run_cmd(["python", "-m", "build"])
 
     # check build status
     run_cmd(["twine", "check", "dist/*"])
