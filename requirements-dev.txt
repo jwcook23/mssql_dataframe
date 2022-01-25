@@ -4,6 +4,4 @@ coverage
 flake8
 black
 genbadge[all]
-setuptools
-wheel
 twine
