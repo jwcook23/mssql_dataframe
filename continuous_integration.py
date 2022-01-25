@@ -127,7 +127,8 @@ def build_package():
 
     # build package .gz and .whl files
     # TODO: override build version by using an input parameter
-    run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
+    # run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
+    run_cmd(["python","-m","build"])
 
     # check build status
     run_cmd(["twine", "check", "dist/*"])

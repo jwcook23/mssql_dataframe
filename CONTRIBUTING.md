@@ -1,10 +1,12 @@
 # Contributing Guide
 
-Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Server Developer Edition or SQL Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) can be downloaded for free.
+Testing requires a local SQL Server running with the ability to connect using Windows account credentials.  [SQL Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) can be downloaded for free and is the default for testing. SQL Server Developer Edition may also be used.
 
 Run all terminal commands in the top level mssql_dataframe folder. The below commands are specific to a Windows systems.
 
 ## Run Tests and Code Coverage Report
+
+<!-- TODO: define git tag, setuptools_scm, and build steps -->
 
 1. Use Git to clone the main branch and create a new branch.
 
