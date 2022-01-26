@@ -24,11 +24,6 @@ steps:
   # TODO: local agent ensure Python is installed
   # tasks for any agent type
   - task: PowerShell@2
-    displayName: List SQL Databases
-    inputs:
-      targetType: 'inline'
-      script: sqlcmd -L
-  - task: PowerShell@2
     displayName: Check SQL Express Connection
     inputs:
       targetType: 'inline'
