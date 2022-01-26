@@ -13,15 +13,14 @@ options = {
     "--database": {"action": "store", "default": "tempdb", "help": "Database name."},
     "--server": {
         "action": "store",
-        "default": r"localhost\SQLEXPRESS",
+        "default": r"(localdb)\mssqllocaldb",
         "choices": [
             # local SQL Server
             "localhost",
-            # local SQL Epress
-            r"localhost\SQLEXPRESS",
+            # local SQL Express
+            r"localhost\sqlexpress",
             # Azure DevOps, included with pipeline
-            # TODO: ensure this is actually the server for DevOps
-            r"(localdb)\\MSSQLLocalDB",
+            r"(localdb)\mssqllocaldb",
         ],
         "help": "Server name for testing locally or in CICD.",
     },

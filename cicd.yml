@@ -1,10 +1,5 @@
 # Azure Pipelines CICD template steps that apply to both local and remote agents.
 
-parameters:
-- name: server
-  displayName: Server Connection Name
-  type: string
-
 steps:
   # create Python virtualenv and install requirements
   - task: PowerShell@2
@@ -22,7 +17,6 @@ steps:
     inputs:
       scriptSource: filePath
       scriptPath: continuous_integration.py
-      arguments: --server=${{ parameters.server }}
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
   # publish test results
   - task: PublishTestResults@2

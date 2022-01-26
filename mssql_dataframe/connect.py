@@ -6,7 +6,7 @@ from mssql_dataframe.core import custom_errors
 
 
 class connect:
-    """
+    r"""
     Connect to local, remote, or cloud SQL Server using ODBC connection.
 
     Parameters
@@ -34,6 +34,9 @@ class connect:
 
     #### Azure SQL Server instance
     db = connect(server='<server>.database.windows.net', username='<username>', password='<password>')
+
+    #### SQL Express Local DB
+    db = connect(server=r"(localdb)\mssqllocaldb")
 
     #### using a specific driver
     db = connect(driver_name='ODBC Driver 17 for SQL Server')

@@ -3,28 +3,23 @@ parameters:
   displayName: Remote Agent (Unselect to Run Local)
   type: boolean
   default: True
-- name: server
-  displayName: Server Instance Name myServer\instanceName
-  type: string
 
 steps:
+
   # tasks for remote agent only
-  - task: PowerShell@2
+  - task: UsePythonVersion@0
     condition: eq(${{ parameters.remote_agent }}, True)
+    inputs:
+      versionSpec: '3.9'
+    displayName: 'Use Python 3.9'
+
+  # tasks for local agent only
+  # TODO: local agent ensure Python is installed
+  
+  # tasks for local or remote
+  - task: PowerShell@2
     displayName: 'Start SQL Server Express LocalDB'
     inputs:
       targetType: 'inline'
       script: 'sqllocaldb start mssqllocaldb'
-  # - task: UsePythonVersion@0
-  #   condition: eq(${{ parameters.remote_agent }}, True)
-  #   inputs:
-  #     versionSpec: '3.9'
-  #   displayName: 'Use Python 3.9'
-  # tasks for local agent only
-  # TODO: local agent ensure Python is installed
-  # tasks for any agent type
-  - task: PowerShell@2
-    displayName: Check SQL Express Connection
-    inputs:
-      targetType: 'inline'
-      script: sqlcmd -S ${{ parameters.server }} -E
+  

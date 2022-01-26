@@ -48,15 +48,18 @@ def run_black(config):
 
 def run_flake8(config):
     """flake8 to lint and check code quality"""
-    print(f"running flake8 for module: {config['metadata']['name']}")
-    run_cmd(
-        [
-            "flake8",
-            config["metadata"]["name"],
-            f"--output-file={config['flake8']['output-file']}",
-        ]
-    )
-    print(f"generated flake8 statistics file: {config['flake8']['output-file']}")
+    try:
+        run_cmd(
+            [
+                "flake8",
+                config["metadata"]["name"],
+                f"--output-file={config['flake8']['output-file']}",
+            ]
+        )
+        print(f"generated flake8 statistics file: {config['flake8']['output-file']}")
+    except RuntimeError:
+        print(f"see file for flake8 errors: {config['flake8']['output-file']}")
+        raise
 
 
 def support_file_black_flake8():
