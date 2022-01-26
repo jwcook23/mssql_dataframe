@@ -26,10 +26,10 @@ jobs:
       - template: agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
-          server: (localdb)\\MSSQLLocalDB
+          server: localdb\mssqllocaldb
       - template: cicd.yml
         parameters:
-          server: (localdb)\\MSSQLLocalDB
+          server: localdb\mssqllocaldb
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
   - job: local
