@@ -33,4 +33,4 @@ steps:
     displayName: Check SQL Express Connection
     inputs:
       targetType: 'inline'
-      script: sqlcmd -S ${{ parameters.server }}
+      script: sqlcmd -S ${{ parameters.server }} -E
