@@ -31,14 +31,16 @@ jobs:
           # server: localdb\mssqllocaldb
           # server: localhost\mssqllocaldb
           # server: $(Agent.MachineName)\mssqllocaldb
-          server: $(Agent.MachineName)\SQLEXPRESS
+          # server: $(Agent.MachineName)\SQLEXPRESS
+          server: .\mssqllocalb
       - template: cicd.yml
         parameters:
           # server: '(localdb)\\MSSQLLocalDB'
           # server: localdb\mssqllocaldb
           # server: localhost\mssqllocaldb
           # server: $(Agent.MachineName)\mssqllocaldb
-          server: $(Agent.MachineName)\SQLEXPRESS
+          # server: $(Agent.MachineName)\SQLEXPRESS
+          server: .\mssqllocalb
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
   - job: local
