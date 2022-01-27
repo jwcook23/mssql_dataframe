@@ -25,7 +25,7 @@ jobs:
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
-      - template: continuous-deployment.yml
+      - template: continuous-delivery.yml
 
   - job: LocalAgent
     condition: eq(${{ parameters.remote_agent }}, False)
@@ -36,4 +36,4 @@ jobs:
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
-      - template: continuous-deployment.xml
+      - template: continuous-delivery.xml
