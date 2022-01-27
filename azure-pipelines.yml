@@ -36,4 +36,4 @@ jobs:
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
-      - template: continuous-delivery.xml
+      - template: continuous-delivery.yml
