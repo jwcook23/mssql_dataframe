@@ -41,6 +41,6 @@ jobs:
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
-      - template: continuous-delivery.xml
+      - template: continuous-delivery.yml
         parameters:
-          perform_cd: eq(variables.perform_cd, 'true')
+            perform_cd: eq(variables.perform_cd, 'true')
