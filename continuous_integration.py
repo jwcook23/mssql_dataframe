@@ -37,7 +37,11 @@ def run_cmd(cmd):
     status = subprocess.run(cmd, capture_output=True)
     if status.returncode != 0:
         # status = subprocess.call(cmd, shell=True)
-        raise RuntimeError(status.stderr)
+        if len(status.stderr) > 0:
+            msg = status.stderr.decode("utf-8")
+        else:
+            msg = status.stdout.decode("utf-8")
+        raise RuntimeError(msg)
 
 
 def run_black(config):
@@ -94,18 +98,18 @@ def run_coverage_pytest(config, args):
     print(f"generated test xml file: {config['user:pytest']['junitxml']}")
 
 
-def coverage_xml(config):
-    """coverage xml report for genbadge"""
-    print(f"generating coverage xml file: {config['coverage:xml']['output']}")
-    run_cmd(["coverage", "xml"])
-
-
 def coverage_html(config):
     """coverage html report for user viewing"""
     print(
         f"generating coverage html file: {os.path.join(config['coverage:html']['directory'], 'index.html')}"
     )
     run_cmd(["coverage", "html"])
+
+
+def coverage_xml(config):
+    """coverage xml report for genbadge"""
+    print(f"generating coverage xml file: {config['coverage:xml']['output']}")
+    run_cmd(["coverage", "xml"])
 
 
 def generage_badges(config):
@@ -133,8 +137,6 @@ def build_package():
     os.makedirs(dist)
 
     # build package .gz and .whl files
-    # TODO: override build version by using an input parameter
-    # run_cmd(["python", "setup.py", "sdist", "bdist_wheel"])
     run_cmd(["python", "-m", "build"])
 
     # check build status
@@ -160,7 +162,7 @@ run_black(config)
 run_flake8(config)
 support_file_black_flake8()
 run_coverage_pytest(config, args)
-coverage_xml(config)
 coverage_html(config)
+coverage_xml(config)
 generage_badges(config)
 build_package()

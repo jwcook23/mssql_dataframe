@@ -52,21 +52,31 @@ class connect:
         password: str = None,
     ):
 
-        driver = self._get_driver(driver)
-
+        driver, drivers_installed = self._get_driver(driver)
+        self._conn = {
+            "database": database,
+            "server": server,
+            "driver": driver,
+            "drivers_installed": drivers_installed,
+        }
         if username is None:
+            self._conn["trusted_connection"] = True
+        else:
+            self._conn["trusted_connection"] = False
+
+        if self._conn["trusted_connection"]:
             self.connection = pyodbc.connect(
-                driver=driver,
-                server=server,
-                database=database,
+                driver=self._conn["driver"],
+                server=self._conn["server"],
+                database=self._conn["database"],
                 autocommit=False,
                 trusted_connection="yes",
             )
         else:
             self.connection = pyodbc.connect(
-                driver=driver,
-                server=server,
-                database=database,
+                driver=self._conn["driver"],
+                server=self._conn["server"],
+                database=self._conn["database"],
                 autocommit=False,
                 UID=username,
                 PWD=password,
@@ -86,6 +96,7 @@ class connect:
         -------
 
         driver (str) : name of ODBC driver
+        drivers_installed (list) : drivers install for SQL Server
         """
         installed = [x for x in pyodbc.drivers() if x.endswith(" for SQL Server")]
         if driver_search is None:
@@ -98,4 +109,4 @@ class connect:
             )
         driver = max(driver)
 
-        return driver
+        return driver, installed

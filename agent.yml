@@ -22,4 +22,15 @@ steps:
     inputs:
       targetType: 'inline'
       script: 'sqllocaldb start mssqllocaldb'
+  - task: PythonScript@0
+    displayName: Output Debugging Info
+    inputs:
+      scriptSource: inline
+      script: |
+        import sys
+        from mssql_dataframe import SQLServer
+        sql = SQLServer(server=r"(localdb)\mssqllocaldb")
+        sys.stdout.write("Connection: \n"+str(sql._conn)+"\n")
+        sys.stdout.write("Versions: \n"+str(sql._versions)+"\n")
+      pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
   

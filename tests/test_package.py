@@ -3,13 +3,28 @@ import warnings
 
 import pandas as pd
 
+import mssql_dataframe
 from mssql_dataframe.package import SQLServer
 from mssql_dataframe.core import custom_warnings
 
-attributes = ["connection", "exceptions", "create", "modify", "read", "write"]
+
+def test_version():
+    assert isinstance(mssql_dataframe.__version__, str)
+    assert len(mssql_dataframe.__version__) > 0
 
 
 def test_SQLServer():
+
+    attributes = [
+        "_conn",
+        "connection",
+        "exceptions",
+        "create",
+        "modify",
+        "read",
+        "write",
+        "_versions",
+    ]
 
     # autoadjust_sql_objects==False
     with warnings.catch_warnings(record=True) as warn:

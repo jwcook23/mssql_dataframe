@@ -14,6 +14,7 @@ steps:
         pip install -e.;
   # run the continuous_integration.py script that contains tests, coverage, etc.
   - task: PythonScript@0
+    displayName: Continuous Integration
     inputs:
       scriptSource: filePath
       scriptPath: continuous_integration.py
