@@ -22,6 +22,17 @@ steps:
     inputs:
       targetType: 'inline'
       script: 'sqllocaldb start mssqllocaldb'
+  # create Python virtualenv and install requirements
+  - task: PowerShell@2
+    displayName: 'Create Environment & Install Dependancies'
+    inputs:
+      targetType: 'inline'
+      script:
+        python -m venv env;
+        .\env\Scripts\Activate.ps1;
+        python -m pip install --upgrade pip;
+        pip install -r requirements-dev.txt;
+        pip install -e.;
   - task: PythonScript@0
     displayName: Output Debugging Info
     inputs:
