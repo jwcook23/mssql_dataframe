@@ -24,11 +24,11 @@ jobs:
     pool:
       vmImage: 'windows-latest'
     steps:
-      - template: cicd/agent.yml
+      - template: agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
           server: (localdb)\\MSSQLLocalDB
-      - template: cicd/cicd.yml
+      - template: cicd.yml
         parameters:
           server: (localdb)\\MSSQLLocalDB
       # TODO: upload to PyPI
@@ -40,11 +40,11 @@ jobs:
     # local agent set up as described in CONTRIBUTUTING.md
     pool: 'Local Laptop'
     steps:
-      - template: cicd/agent.yml
+      - template: agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
           server: localhost\SQLEXPRESS
-      - template: cicd/cicd.yml
+      - template: cicd.yml
         parameters:
           server: localhost\SQLEXPRESS
       # TODO: upload to PyPI
