@@ -10,7 +10,7 @@
 
 steps:
   - task: PowerShell@2
-    condition: eq($(Build.DefinitionName), continuous deployment)
+    condition: eq($(Build.DefinitionName), continuous-delivery)
     displayName: 'Just a test'
     inputs:
       targetType: 'inline'
