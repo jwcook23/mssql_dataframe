@@ -27,10 +27,7 @@ jobs:
       - template: agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
-          server: (localdb)\\MSSQLLocalDB
       - template: cicd.yml
-        parameters:
-          server: (localdb)\\MSSQLLocalDB
       # TODO: upload to PyPI
 
   # run locally on laptop (requires Python and SQL Server Express to be installed)
@@ -43,8 +40,5 @@ jobs:
       - template: agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
-          server: localhost\SQLEXPRESS
       - template: cicd.yml
-        parameters:
-          server: localhost\SQLEXPRESS
       # TODO: upload to PyPI
