@@ -14,31 +14,36 @@ parameters:
   type: boolean
   default: True
 
-jobs:
+extends:
+  template: continuous_integration.yml
+  parameters:
+    remote_agent: ${{ parameters.remote_agent }}
 
-  # run using Azure DevOps provided virtual machine
-  - job: remote
-    condition: eq(${{ parameters.remote_agent }}, True)
-    displayName: 'CICD Pipeline Using Remote Agent'
-    # use Windows image for SQL Server Express to be included
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-      - template: agent.yml
-        parameters:
-          remote_agent: ${{ parameters.remote_agent }}
-      - template: cicd.yml
-      # TODO: upload to PyPI
+# jobs:
 
-  # run locally on laptop (requires Python and SQL Server Express to be installed)
-  - job: local
-    condition: eq(${{ parameters.remote_agent }}, False)
-    displayName: 'CICD Pipeline Using Local Agent'
-    # local agent set up as described in CONTRIBUTUTING.md
-    pool: 'Local Laptop'
-    steps:
-      - template: agent.yml
-        parameters:
-          remote_agent: ${{ parameters.remote_agent }}
-      - template: cicd.yml
-      # TODO: upload to PyPI
+#   # run using Azure DevOps provided virtual machine
+#   - job: remote
+#     condition: eq(${{ parameters.remote_agent }}, True)
+#     displayName: 'CICD Pipeline Using Remote Agent'
+#     # use Windows image for SQL Server Express to be included
+#     pool:
+#       vmImage: 'windows-latest'
+#     steps:
+#       - template: agent.yml
+#         parameters:
+#           remote_agent: ${{ parameters.remote_agent }}
+#       - template: cicd.yml
+#       # TODO: upload to PyPI
+
+#   # run locally on laptop (requires Python and SQL Server Express to be installed)
+#   - job: local
+#     condition: eq(${{ parameters.remote_agent }}, False)
+#     displayName: 'CICD Pipeline Using Local Agent'
+#     # local agent set up as described in CONTRIBUTUTING.md
+#     pool: 'Local Laptop'
+#     steps:
+#       - template: agent.yml
+#         parameters:
+#           remote_agent: ${{ parameters.remote_agent }}
+#       - template: cicd.yml
+#       # TODO: upload to PyPI
