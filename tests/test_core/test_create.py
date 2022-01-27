@@ -97,7 +97,11 @@ def test_table_pk(sql):
     assert all(schema["is_nullable"] == [False, False, True])
     assert all(~schema["ss_is_identity"])
     assert schema["pk_seq"].equals(
-        pd.Series([1, pd.NA, pd.NA], index=["A", "B", "C"], dtype="Int64")
+        pd.Series(
+            [1, pd.NA, pd.NA],
+            index=pd.Series(["A", "B", "C"], dtype="string"),
+            dtype="Int64",
+        )
     )
     assert all(schema["pk_name"].isna() == [False, True, True])
     assert all(schema["pandas_type"] == ["UInt8", "string", "float64"])
@@ -129,7 +133,11 @@ def test_table_composite_pk(sql):
     assert all(schema["is_nullable"] == [False, False, True])
     assert all(~schema["ss_is_identity"])
     assert schema["pk_seq"].equals(
-        pd.Series([1, 2, pd.NA], index=["A", "B", "C"], dtype="Int64")
+        pd.Series(
+            [1, 2, pd.NA],
+            index=pd.Series(["A", "B", "C"], dtype="string"),
+            dtype="Int64",
+        )
     )
     assert all(schema["pk_name"].isna() == [False, False, True])
     assert all(schema["pandas_type"] == ["UInt8", "string", "float64"])
@@ -170,7 +178,9 @@ def test_table_sqlpk(sql):
     assert all(schema["is_nullable"] == [False, True])
     assert all(schema["ss_is_identity"] == [True, False])
     assert schema["pk_seq"].equals(
-        pd.Series([1, pd.NA], index=["_pk", "A"], dtype="Int64")
+        pd.Series(
+            [1, pd.NA], index=pd.Series(["_pk", "A"], dtype="string"), dtype="Int64"
+        )
     )
     assert all(schema["pk_name"].isna() == [False, True])
     assert all(schema["pandas_type"] == ["Int32", "string"])
@@ -220,7 +230,7 @@ def test_table_from_dataframe_datestr(sql):
 
     expected = pd.DataFrame(
         {
-            "column_name": pd.Series(["ColumnA", "_time_insert"]),
+            "column_name": pd.Series(["ColumnA", "_time_insert"], dtype="string"),
             "sql_type": pd.Series(["date", "datetime2"], dtype="string"),
             "is_nullable": pd.Series([False, True]),
             "ss_is_identity": pd.Series([False, False]),

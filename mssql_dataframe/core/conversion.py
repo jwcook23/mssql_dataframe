@@ -122,6 +122,7 @@ def get_schema(
     schema.loc[identity, "sql_type"] = "int identity"
 
     # key column_name as index, check for undefined conversion rule
+    schema["column_name"] = schema["column_name"].astype("string")
     schema = schema.set_index(keys="column_name")
     missing = schema[conversion_rules.rules.columns].isna().any(axis="columns")
     if any(missing):
@@ -429,12 +430,17 @@ def prepare_values(
         prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
 
     # treat pandas NA,NaT,etc as NULL in SQL
-    prepped = prepped.fillna(np.nan).replace([np.nan], [None])
+    # prepped = prepped.fillna(np.nan).replace([np.nan], [None])
 
-    # convert single column of datetime to objects
-    # otherwise tolist() will produce ints instead of datetimes
-    if prepped.shape[1] == 1 and prepped.select_dtypes("datetime").shape[1] == 1:
-        prepped = prepped.astype(object)
+    # # convert single column of datetime to objects
+    # # otherwise tolist() will produce ints instead of datetimes
+    # if prepped.shape[1] == 1 and prepped.select_dtypes("datetime").shape[1] == 1:
+    #     prepped = prepped.astype(object)
+
+    # BUG: treat pandas NA,NaT,etc as NULL in SQL
+    # ideally we woudn't want to convert everything to an object
+    prepped = prepped.astype(object)
+    prepped = prepped.where(pd.notnull(prepped), None)
 
     # values for pyodbc cursor executemany
     values = prepped.values.tolist()

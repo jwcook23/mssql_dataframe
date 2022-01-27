@@ -89,6 +89,9 @@ class SQLServer(connect):
                 custom_warnings.SQLObjectAdjustment,
             )
 
+    def output_debug(self):
+        """Generate useful debugging info to stdout. Includes connection info along with versions for Python, SQL, and required packages."""
+
         # determine versions for debugging
         self._versions = {}
         # Python
@@ -101,6 +104,11 @@ class SQLServer(connect):
         names = ["mssql-dataframe", "pyodbc", "pandas"]
         for name in names:
             self._versions[name] = version(name)
+
+        # output actual connection info (possibly derived within connection object)
+        sys.stdout.write("Connection: \n" + str(self._conn) + "\n")
+        # output Python/SQL/package versions
+        sys.stdout.write("Versions: \n" + str(self._versions) + "\n")
 
     def get_schema(self, table_name: str):
         """Get schema of an SQL table and the defined conversion rules between data types.

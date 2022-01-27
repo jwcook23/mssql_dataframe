@@ -23,7 +23,6 @@ def test_SQLServer():
         "modify",
         "read",
         "write",
-        "_versions",
     ]
 
     # autoadjust_sql_objects==False
@@ -78,6 +77,11 @@ def test_SQLServer():
         assert isinstance(adjustable, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
+    # output debug info
+    sql.output_debug()
+    assert isinstance(sql._conn, dict)
+    assert isinstance(sql._versions, dict)
+
 
 def test_SQLServer_schema():
 
@@ -93,4 +97,4 @@ def test_SQLServer_schema():
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 
     schema = sql.get_schema(table_name)
-    assert schema.index.equals(pd.Index(["ColumnA"]))
+    assert schema.index.equals(pd.Index(["ColumnA"], dtype="string"))
