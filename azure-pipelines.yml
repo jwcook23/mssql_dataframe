@@ -14,6 +14,9 @@ parameters:
   type: boolean
   default: True
 
+variables:
+  perform_cd: $[eq(variables['Build.DefinitionName'], 'continuous-delivery')]
+
 jobs:
   - job: AzureAgent
     condition: eq(${{ parameters.remote_agent }}, True)
@@ -26,6 +29,8 @@ jobs:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
       - template: continuous-delivery.yml
+        parameters:
+          perform_cd: eq(variables.perform_cd, 'true')
 
   - job: LocalAgent
     condition: eq(${{ parameters.remote_agent }}, False)
@@ -37,3 +42,5 @@ jobs:
           remote_agent: ${{ parameters.remote_agent }}
       - template: continuous-integration.yml
       - template: continuous-delivery.xml
+        parameters:
+          perform_cd: eq(variables.perform_cd, 'true')
