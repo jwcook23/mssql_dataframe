@@ -1,19 +1,16 @@
 # Azure Pipelines CICD template steps that apply to both local and remote agents.
 
 steps:
-  # run the continuous_integration.py script that contains tests, coverage, etc.
   - task: PythonScript@0
     displayName: Continuous Integration
     inputs:
       scriptSource: filePath
       scriptPath: continuous_integration.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
-  # publish test results
   - task: PublishTestResults@2
     condition: succeededOrFailed()
     inputs:
       testResultsFiles: $(Build.SourcesDirectory)\reports\test.xml
-  # publish code coverage results
   - task: PublishCodeCoverageResults@1
     inputs:
       codeCoverageTool: Cobertura

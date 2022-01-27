@@ -1,0 +1,39 @@
+# Azure Pipelines Continuous Deployment that runs automatically after a pull request is complete. 
+# Steps performed are essentially the same as the CI pipeline, but require a comment to be made
+# after the pull request before the build continues. Additional the package is uploaded to PyPI.
+# TODO: document pull request along with comment that is needed
+#
+# See Also
+# --------
+# CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
+# continuous_integration.py and continuous_integration.yml for the core of the CI process
+
+parameters:
+- name: remote_agent
+  displayName: Azure Agent (Unselect for Local)
+  type: boolean
+  default: True
+
+jobs:
+  - job: AzureAgent
+    condition: eq(${{ parameters.remote_agent }}, True)
+    displayName: 'CICD Pipeline Using Azure Provided Agent'
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+      - template: setup-agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+      - template: continuous-integration.yml
+      - template: continuous-deployment.yml
+
+  - job: LocalAgent
+    condition: eq(${{ parameters.remote_agent }}, False)
+    displayName: 'CICD Pipeline Using Local Agent'
+    pool: 'Local Laptop'
+    steps:
+      - template: setup-agent.yml
+        parameters:
+          remote_agent: ${{ parameters.remote_agent }}
+      - template: continuous-integration.yml
+      - template: continuous-deployment.xml

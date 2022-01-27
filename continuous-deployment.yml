@@ -1,0 +1,17 @@
+# Azure Pipelines Continuous Deployment that runs automatically after a pull request is complete. 
+# Steps performed are essentially the same as the CI pipeline, but require a comment to be made
+# after the pull request before the build continues. Additional the package is uploaded to PyPI.
+# TODO: document pull request along with comment that is needed
+#
+# See Also
+# --------
+# CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
+# continuous_integration.py and continuous_integration.yml for the core of the CI process
+
+steps:
+  - task: PowerShell@2
+    condition: eq($(Build.DefinitionName), continuous deployment)
+    displayName: 'Just a test'
+    inputs:
+      targetType: 'inline'
+      script: echo just a test
