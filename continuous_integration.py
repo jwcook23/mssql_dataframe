@@ -72,7 +72,7 @@ def support_file_black_flake8():
         for fp in [
             "tests/",
             "conftest.py",
-            os.path.join("cicd", "continuous_integration.py"),
+            "continuous_integration.py",
         ]:
             print(f"running {cmd} for {fp}")
             run_cmd([cmd, fp])
