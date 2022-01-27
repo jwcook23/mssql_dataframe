@@ -23,10 +23,10 @@ jobs:
     pool:
       vmImage: 'windows-latest'
     steps:
-      - template: agent.yml
+      - template: cicd/agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
-      - template: cicd.yml
+      - template: cicd/cicd.yml
 
   # run locally on laptop
   - job: local
@@ -35,7 +35,7 @@ jobs:
     # local agent set up as described in CONTRIBUTUTING.md
     pool: 'Local Laptop'
     steps:
-      - template: agent.yml
+      - template: cicd/agent.yml
         parameters:
           remote_agent: ${{ parameters.remote_agent }}
-      - template: cicd.yml
+      - template: cicd/cicd.yml

@@ -69,7 +69,11 @@ def run_flake8(config):
 def support_file_black_flake8():
     """additionally run black and flake8 for support files."""
     for cmd in ["black", "flake8"]:
-        for fp in ["tests/", "conftest.py", "continuous_integration.py"]:
+        for fp in [
+            "tests/",
+            "conftest.py",
+            os.path.join("cicd", "continuous_integration.py"),
+        ]:
             print(f"running {cmd} for {fp}")
             run_cmd([cmd, fp])
 

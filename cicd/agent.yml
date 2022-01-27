@@ -38,5 +38,5 @@ steps:
     displayName: Output Debugging Info
     inputs:
       scriptSource: filePath
-      scriptPath: version_check.py
+      scriptPath: cicd/version_check.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
