@@ -21,10 +21,10 @@ continuous_integration.yml for Azure DevOps Pipeline CI definition
 continuous_deployment.py and continuous_deployment.yml for continuous deployment
 """
 import os
-import shutil
 import subprocess
 import configparser
 import argparse
+import glob
 
 from conftest import options
 
@@ -132,19 +132,16 @@ def generage_badges(config):
 def build_package():
     "build Python package for upload to PyPi.org"
 
-    dist = "./dist"
-    print(f"building package in directory: {dist}")
-
-    # create or empty ./dist folder that may exist from previous builds
-    if os.path.exists(dist):
-        shutil.rmtree(dist)
-    os.makedirs(dist)
+    outdir = os.path.join(os.getcwd(), "dist")
+    print(f"building package in directory: {outdir}")
 
     # build package .gz and .whl files
-    run_cmd(["python", "-m", "build"])
+    run_cmd(["python", "-m", "build", f"--outdir={outdir}"])
+    print(f"built source archive {glob.glob(os.path.join(outdir,'*.tar.gz'))}")
+    print(f"built distribution {glob.glob(os.path.join(outdir,'*.whl'))}")
 
-    # check build status
-    run_cmd(["twine", "check", "dist/*"])
+    # check build result
+    run_cmd(["twine", "check", os.path.join(outdir, "*")])
 
 
 # parameters from setup.cfg

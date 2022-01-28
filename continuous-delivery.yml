@@ -15,9 +15,12 @@ parameters:
   default: false
 
 steps:
-  - task: PowerShell@2
+  - task: TwineAuthenticate@1
     condition: eq(${{ parameters.perform_cd }}, 'true')
-    displayName: 'Just a test'
+    displayName: Twine Authenticate
     inputs:
-      targetType: 'inline'
-      script: echo just a test
+      artifactFeed: mssql_dataframe/mssql_dataframe
+  - script: |
+      $(Build.SourcesDirectory)\env\Scripts\python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+    condition: eq(${{ parameters.perform_cd }}, 'true')
+    displayName: Upload Artifact
