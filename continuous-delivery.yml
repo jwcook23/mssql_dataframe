@@ -14,5 +14,5 @@ steps:
     inputs:
       artifactFeed: mssql_dataframe/mssql_dataframe
   - script: |
-      $(Build.SourcesDirectory)\env\Scripts\python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+      python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
     displayName: Upload Artifact

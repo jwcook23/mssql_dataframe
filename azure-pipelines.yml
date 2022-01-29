@@ -19,21 +19,23 @@ pool:
 
 stages:
 
-  - stage: ContinuousIntegration
-    jobs:
-      - job: ContinuousIntegration
-        steps:
-          - template: setup-agent.yml
-          - template: continuous-integration.yml
+  # - stage: ContinuousIntegration
+  #   jobs:
+  #     - job: ContinuousIntegration
+  #       steps:
+  #         - template: setup-agent.yml
+  #         - template: continuous-integration.yml
           
   - stage: ContinuousDelivery
     jobs:
       - deployment: ContinuousDelivery
         # eq($(Build.SourceBranch), 'refs/heads/master')
         condition: eq(${{ parameters.trigger_cd }}, True)
+        continueOnError: True
         environment: deploy
         strategy:
           runOnce:
             deploy:
               steps:
-                - template: continuous-delivery.yml
+                # - template: continuous-delivery.yml
+                - script: echo CD
