@@ -5,4 +5,5 @@ flake8
 black
 genbadge[all]
 build
+setuptools_scm
 twine

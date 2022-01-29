@@ -22,7 +22,6 @@ stages:
   - stage: ContinuousDelivery
     jobs:
       - deployment: ContinuousDelivery
-        # condition: eq($(Build.SourceBranch), 'refs/heads/master')
         environment: deploy
         strategy:
           runOnce:
@@ -33,5 +32,6 @@ stages:
                   inputs:
                     artifactFeed: mssql_dataframe/mssql_dataframe
                 - script: |
-                    python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+                    $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
                   displayName: Upload Artifact
+                  condition: eq($(Build.SourceBranch), 'refs/heads/master')
