@@ -31,7 +31,7 @@ stages:
   - stage: ContinuousDelivery
     jobs:
       - deployment: ContinuousDelivery
-        condition: or(eq($[Build.SourceBranch], 'refs/heads/master'), eq(${{ parameters.trigger_cd }}, True))
+        condition: or(eq($(Build.SourceBranch), 'refs/heads/master'), eq(${{ parameters.trigger_cd }}, True))
         environment: deploy
         strategy:
           runOnce:
