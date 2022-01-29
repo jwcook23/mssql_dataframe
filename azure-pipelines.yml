@@ -18,16 +18,14 @@ pool:
       vmImage: windows-latest
 
 stages:
-  - stage: SetupAgent
-    jobs:
-      - job: SetupAgent
-        steps:
-          - template: setup-agent.yml
+
   - stage: ContinuousIntegration
     jobs:
       - job: ContinuousIntegration
         steps:
+          - template: setup-agent.yml
           - template: continuous-integration.yml
+          
   - stage: ContinuousDelivery
     jobs:
       - deployment: ContinuousDelivery
