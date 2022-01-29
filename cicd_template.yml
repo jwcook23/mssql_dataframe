@@ -1,3 +1,5 @@
+# Azure Pipelines CICD template steps that apply to both local and remote agents.
+
 steps:
 
   - task: UsePythonVersion@0
@@ -28,3 +30,20 @@ steps:
       scriptSource: filePath
       scriptPath: version_check.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
+
+  - task: PythonScript@0
+    displayName: Continuous Integration
+    inputs:
+      scriptSource: filePath
+      scriptPath: cicd_template.py
+      pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFiles: $(Build.SourcesDirectory)\reports\test.xml
+
+  - task: PublishCodeCoverageResults@1
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: $(Build.SourcesDirectory)\reports\coverage.xml

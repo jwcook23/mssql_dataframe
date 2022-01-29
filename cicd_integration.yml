@@ -8,11 +8,13 @@
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.py and continuous_integration.yml for the core of the CI process
 
-steps:
-  - task: TwineAuthenticate@1
-    displayName: Twine Authenticate
-    inputs:
-      artifactFeed: mssql_dataframe/mssql_dataframe
-  - script: |
-      python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-    displayName: Upload Artifact
+pool: 
+      vmImage: windows-latest
+
+stages:
+
+  - stage: ContinuousIntegration
+    jobs:
+      - job: ContinuousIntegration
+        steps:
+          - template: cicd_template.yml

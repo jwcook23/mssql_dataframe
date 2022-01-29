@@ -44,19 +44,22 @@ def run_cmd(cmd):
         raise RuntimeError(msg)
 
 
-def run_black(config):
+def run_black():
     """black to auto-format code to standard."""
-    print(f"running black for module: {config['metadata']['name']}")
-    run_cmd(["black", config["metadata"]["name"]])
+    print("running black for all Python files not excluded by .gitignore")
+    run_cmd(["black", "."])
 
 
 def run_flake8(config):
     """flake8 to lint and check code quality"""
     try:
+        print(
+            "running flake8 for all Python files excluding virtual environment directory named 'env'"
+        )
         run_cmd(
             [
                 "flake8",
-                config["metadata"]["name"],
+                "--exclude=env",
                 f"--output-file={config['flake8']['output-file']}",
             ]
         )
@@ -64,18 +67,6 @@ def run_flake8(config):
     except RuntimeError:
         print(f"see file for flake8 errors: {config['flake8']['output-file']}")
         raise
-
-
-def support_file_black_flake8():
-    """additionally run black and flake8 for support files."""
-    for cmd in ["black", "flake8"]:
-        for fp in [
-            "tests/",
-            "conftest.py",
-            "continuous_integration.py",
-        ]:
-            print(f"running {cmd} for {fp}")
-            run_cmd([cmd, fp])
 
 
 def run_coverage_pytest(config, args):
@@ -159,9 +150,8 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
-run_black(config)
+run_black()
 run_flake8(config)
-support_file_black_flake8()
 run_coverage_pytest(config, args)
 coverage_html(config)
 coverage_xml(config)

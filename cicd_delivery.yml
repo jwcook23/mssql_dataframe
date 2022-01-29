@@ -8,41 +8,30 @@
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.py and continuous_integration.yml for the core of the CI process
 
-parameters:
-- name: trigger_cd
-  displayName: Trigger Continuous Delivery Approval
-  type: boolean
-  default: False
-
 pool: 
       vmImage: windows-latest
 
 stages:
 
-  # - stage: ContinuousIntegration
-  #   jobs:
-  #     - job: ContinuousIntegration
-  #       steps:
-  #         - template: setup-agent.yml
-  #         - template: continuous-integration.yml
-          
+  - stage: ContinuousIntegration
+    jobs:
+      - job: ContinuousIntegration
+        steps:
+          - template: cicd_template.yml
+
   - stage: ContinuousDelivery
     jobs:
       - deployment: ContinuousDelivery
-        # eq($(Build.SourceBranch), 'refs/heads/master')
-        condition: eq(${{ parameters.trigger_cd }}, True)
-        continueOnError: True
+        # condition: eq($(Build.SourceBranch), 'refs/heads/master')
         environment: deploy
         strategy:
           runOnce:
             deploy:
               steps:
-                # - template: continuous-delivery.yml
-                - script: echo run CD
-            on:
-              failure:
-                steps:
-                  - script: echo skip CD
-              success:
-                steps:
-                  - script: echo CD completed
+                - task: TwineAuthenticate@1
+                  displayName: Twine Authenticate
+                  inputs:
+                    artifactFeed: mssql_dataframe/mssql_dataframe
+                - script: |
+                    python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+                  displayName: Upload Artifact
