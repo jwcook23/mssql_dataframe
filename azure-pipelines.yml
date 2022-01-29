@@ -38,4 +38,11 @@ stages:
             deploy:
               steps:
                 # - template: continuous-delivery.yml
-                - script: echo CD
+                - script: echo run CD
+            on:
+              failure:
+                steps:
+                  - script: echo skip CD
+              success:
+                steps:
+                  - script: echo CD completed
