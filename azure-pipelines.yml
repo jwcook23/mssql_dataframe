@@ -9,38 +9,32 @@
 # continuous_integration.py and continuous_integration.yml for the core of the CI process
 
 parameters:
-- name: remote_agent
-  displayName: Azure Agent (Unselect for Local)
+- name: trigger_cd
+  displayName: Trigger Continuous Delivery Approval
   type: boolean
-  default: True
+  default: False
 
-variables:
-  perform_cd: $[eq(variables['Build.DefinitionName'], 'continuous-delivery')]
+pool: 
+      vmImage: windows-latest
 
-jobs:
-  - job: AzureAgent
-    condition: eq(${{ parameters.remote_agent }}, True)
-    displayName: 'CICD Pipeline Using Azure Provided Agent'
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-      - template: setup-agent.yml
-        parameters:
-          remote_agent: ${{ parameters.remote_agent }}
-      - template: continuous-integration.yml
-      - template: continuous-delivery.yml
-        parameters:
-          perform_cd: variables.perform_cd
-
-  - job: LocalAgent
-    condition: eq(${{ parameters.remote_agent }}, False)
-    displayName: 'CICD Pipeline Using Local Agent'
-    pool: 'Local Laptop'
-    steps:
-      - template: setup-agent.yml
-        parameters:
-          remote_agent: ${{ parameters.remote_agent }}
-      - template: continuous-integration.yml
-      - template: continuous-delivery.yml
-        parameters:
-            perform_cd: variables.perform_cd
+stages:
+  - stage: SetupAgent
+    jobs:
+      - job: SetupAgent
+        steps:
+          - template: setup-agent.yml
+  - stage: ContinuousIntegration
+    jobs:
+      - job: ContinuousIntegration
+        steps:
+          - template: continuous-integration.yml
+  - stage: ContinuousDelivery
+    jobs:
+      - deployment: ContinuousDelivery
+        condition: or(eq($[Build.SourceBranch], 'refs/heads/master'), eq(${{ parameters.trigger_cd }}, True))
+        environment: deploy
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: continuous-delivery.yml

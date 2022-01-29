@@ -8,19 +8,11 @@
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.py and continuous_integration.yml for the core of the CI process
 
-parameters:
-- name: perform_cd
-  displayName: Perform Continuous Delivery
-  type: string
-  default: false
-
 steps:
   - task: TwineAuthenticate@1
-    condition: eq(${{ parameters.perform_cd }}, 'true')
     displayName: Twine Authenticate
     inputs:
       artifactFeed: mssql_dataframe/mssql_dataframe
   - script: |
       $(Build.SourcesDirectory)\env\Scripts\python -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-    condition: eq(${{ parameters.perform_cd }}, 'true')
     displayName: Upload Artifact

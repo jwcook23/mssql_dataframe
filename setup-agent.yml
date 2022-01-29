@@ -1,28 +1,16 @@
-parameters:
-- name: remote_agent
-  displayName: Remote Agent (Unselect to Run Local)
-  type: boolean
-  default: True
-
 steps:
 
-  # tasks for remote agent only
   - task: UsePythonVersion@0
-    condition: eq(${{ parameters.remote_agent }}, True)
     inputs:
       versionSpec: '3.9'
     displayName: 'Use Python 3.9'
 
-  # tasks for local agent only
-  # TODO: local agent ensure Python is installed
-  
-  # tasks for local or remote
   - task: PowerShell@2
     displayName: 'Start SQL Server Express LocalDB'
     inputs:
       targetType: 'inline'
       script: 'sqllocaldb start mssqllocaldb'
-  # create Python virtualenv and install requirements
+
   - task: PowerShell@2
     displayName: 'Create Environment & Install Dependancies'
     inputs:
@@ -33,7 +21,7 @@ steps:
         python -m pip install --upgrade pip;
         pip install -r requirements-dev.txt;
         pip install -e .;
-  # log debugging info from mssql_dataframe
+
   - task: PythonScript@0
     displayName: Output Debugging Info
     inputs:
