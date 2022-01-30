@@ -18,20 +18,12 @@ stages:
       - job: ContinuousIntegration
         steps:
           - template: cicd_template.yml
-
-  - stage: ContinuousDelivery
-    jobs:
-      - deployment: ContinuousDelivery
-        environment: deploy
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - task: TwineAuthenticate@1
-                  displayName: Twine Authenticate
-                  inputs:
-                    artifactFeed: mssql_dataframe/mssql_dataframe
-                - script: |
-                    $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-                  displayName: Upload Artifact
-                  condition: eq($(Build.SourceBranch), 'refs/heads/master')
+            displayName: CICD Template
+          - task: TwineAuthenticate@1
+            displayName: Twine Authenticate
+            inputs:
+              artifactFeed: mssql_dataframe/mssql_dataframe
+          - script: |
+              $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+            displayName: Upload Artifact
+            condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
