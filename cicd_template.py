@@ -163,11 +163,11 @@ args = vars(args)
 args = {k: v for k, v in args.items() if v is not None}
 
 # TODO: pre-commit install
-# run_black()
-# run_flake8(config)
-# run_coverage_pytest(config, args)
-# coverage_html(config)
-# coverage_xml(config)
-# generage_badges()
+run_black()
+run_flake8(config)
+run_coverage_pytest(config, args)
+coverage_html(config)
+coverage_xml(config)
+generage_badges()
 check_version()
-# build_package()
+build_package()
