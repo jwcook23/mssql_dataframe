@@ -30,7 +30,7 @@ dataframe = pd.DataFrame(
         ),
         "_date": pd.Series(
             [
-                (pd.Timestamp.min + pd.DateOffset(days=1)).date(),
+                (pd.Timestamp.min + pd.Timedelta(days=1)).date(),
                 pd.Timestamp.max.date(),
                 None,
                 None,

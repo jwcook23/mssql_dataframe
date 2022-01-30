@@ -1,0 +1,12 @@
+[build-system]
+requires = [
+    # for building
+    "setuptools>=45",
+    "wheel",
+    # package version number based on git tag
+    "setuptools_scm>=6.2"
+]
+build-backend = "setuptools.build_meta"
+
+# package version number based on git tag
+[tool.setuptools_scm]

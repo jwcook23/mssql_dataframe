@@ -135,7 +135,9 @@ def test_insert_create_table_indexpk(sql):
         assert "Created table: " + table_name in str(warn[1].message)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
-    assert schema.index[schema["pk_seq"].notna()].equals(pd.Index(["indexpk"]))
+    assert schema.index[schema["pk_seq"].notna()].equals(
+        pd.Index(["indexpk"], dtype="string")
+    )
 
 
 def test_insert_add_column(sql):

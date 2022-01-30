@@ -37,6 +37,7 @@ def _check_dataframe(dataframe, dtypes):
     expected.name = "pandas_type"
     expected.index.name = "column_name"
     expected = expected.reset_index()
+    expected["column_name"] = expected["column_name"].astype("string")
     expected = expected.sort_values(by="column_name", ignore_index=True)
     actual = dtypes["pandas_type"].reset_index()
     actual = actual.sort_values(by="column_name", ignore_index=True)

@@ -19,6 +19,8 @@ class package:
         self.insert_meta = insert.insert(
             self.connection, include_metadata_timestamps=True
         )
+        self.insert_errors = insert.insert(self.connection)
+        self.insert_errors._adjust_sql_attempts = -1
 
 
 @pytest.fixture(scope="module")
@@ -52,8 +54,7 @@ def test_insert_errors(sql):
         sql.insert.insert(table_name, dataframe=pd.DataFrame({"ColumnA": [100000]}))
 
     with pytest.raises(RecursionError):
-        sql.insert._adjust_sql_attempts = 0
-        sql.insert._target_table(
+        sql.insert_errors._target_table(
             table_name="##non_existant",
             dataframe=pd.DataFrame({"ColumnA": [100000]}),
             cursor=sql.insert._connection.cursor(),
@@ -78,7 +79,7 @@ def test_insert_dataframe(sql):
             ),
             "_date": pd.Series(
                 [
-                    (pd.Timestamp.min + pd.DateOffset(days=1)).date(),
+                    (pd.Timestamp.min + pd.Timedelta(days=1)).date(),
                     pd.Timestamp.max.date(),
                     None,
                 ],

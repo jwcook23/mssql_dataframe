@@ -247,10 +247,6 @@ class create:
         df = create.table_from_dataframe('##DFInferPK', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
         """
 
-        options = [None, "sql", "index", "infer"]
-        if primary_key not in options:
-            raise ValueError("primary_key must be one of: " + str(options))
-
         # determine primary key
         if primary_key is None:
             sql_primary_key = False
@@ -267,6 +263,9 @@ class create:
         elif primary_key == "infer":
             sql_primary_key = False
             primary_key_column = None
+        else:
+            options = [None, "sql", "index", "infer"]
+            raise ValueError("primary_key must be one of: " + str(options))
 
         # infer SQL specifications from contents of dataframe
         dataframe, schema, not_nullable, pk = infer.sql(dataframe)

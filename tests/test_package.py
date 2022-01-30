@@ -3,13 +3,27 @@ import warnings
 
 import pandas as pd
 
+import mssql_dataframe
 from mssql_dataframe.package import SQLServer
 from mssql_dataframe.core import custom_warnings
 
-attributes = ["connection", "exceptions", "create", "modify", "read", "write"]
+
+def test_version():
+    assert isinstance(mssql_dataframe.__version__, str)
+    assert len(mssql_dataframe.__version__) > 0
 
 
 def test_SQLServer():
+
+    attributes = [
+        "_conn",
+        "connection",
+        "exceptions",
+        "create",
+        "modify",
+        "read",
+        "write",
+    ]
 
     # autoadjust_sql_objects==False
     with warnings.catch_warnings(record=True) as warn:
@@ -63,6 +77,11 @@ def test_SQLServer():
         assert isinstance(adjustable, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
+    # output debug info
+    sql.output_debug()
+    assert isinstance(sql._conn, dict)
+    assert isinstance(sql._versions, dict)
+
 
 def test_SQLServer_schema():
 
@@ -78,4 +97,4 @@ def test_SQLServer_schema():
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 
     schema = sql.get_schema(table_name)
-    assert schema.index.equals(pd.Index(["ColumnA"]))
+    assert schema.index.equals(pd.Index(["ColumnA"], dtype="string"))

@@ -1,5 +1,7 @@
 """Classes for all functionality within mssql_dataframe in a convenient package."""
 import warnings
+from importlib.metadata import version
+import sys
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import (
@@ -45,6 +47,11 @@ class SQLServer(connect):
 
     #### connect to Azure SQL Server instance
     sql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>')
+
+    Debugging
+    ---------
+    self._conn (dict) : values actually used in the connection, possibly derived by the connection
+    self._versions (dict) : version numbers of required packages and the SQL server
     """
 
     def __init__(
@@ -81,6 +88,27 @@ class SQLServer(connect):
                 "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
                 custom_warnings.SQLObjectAdjustment,
             )
+
+    def output_debug(self):
+        """Generate useful debugging info to stdout. Includes connection info along with versions for Python, SQL, and required packages."""
+
+        # determine versions for debugging
+        self._versions = {}
+        # Python
+        self._versions["python"] = sys.version_info
+        # SQL
+        cur = self.connection.cursor()
+        name = cur.execute("SELECT @@VERSION").fetchone()
+        self._versions["sql"] = name[0]
+        # packages
+        names = ["mssql-dataframe", "pyodbc", "pandas"]
+        for name in names:
+            self._versions[name] = version(name)
+
+        # output actual connection info (possibly derived within connection object)
+        sys.stdout.write("Connection: \n" + str(self._conn) + "\n")
+        # output Python/SQL/package versions
+        sys.stdout.write("Versions: \n" + str(self._versions) + "\n")
 
     def get_schema(self, table_name: str):
         """Get schema of an SQL table and the defined conversion rules between data types.

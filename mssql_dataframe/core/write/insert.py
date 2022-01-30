@@ -110,7 +110,7 @@ class insert:
         dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
         """
 
-        for attempt in range(0, self._adjust_sql_attempts + 1):
+        for _ in range(0, self._adjust_sql_attempts + 1):
             try:
                 # dataframe values converted according to SQL data type
                 schema, dataframe = conversion.get_schema(
@@ -126,10 +126,6 @@ class insert:
                 custom_errors.SQLInsufficientColumnSize,
             ) as failure:
                 cursor.rollback()
-                if attempt == self._adjust_sql_attempts:
-                    raise RecursionError(
-                        f"adjust_sql_attempts={self._adjust_sql_attempts} reached"
-                    )
                 # dataframe values may be converted according to SQL data type
                 dataframe = _exceptions.handle(
                     failure,
@@ -144,6 +140,10 @@ class insert:
             except Exception as err:
                 cursor.rollback()
                 raise err
+        else:
+            raise RecursionError(
+                f"adjust_sql_attempts={self._adjust_sql_attempts} reached"
+            )
 
         return schema, dataframe
 

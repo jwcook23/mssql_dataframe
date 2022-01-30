@@ -78,10 +78,10 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
 
     # convert Int8 to nullable boolean if multiple values of only 0,1, or NA
     columns = [k for k, v in dataframe.dtypes.items() if v.name == "Int8"]
-    # insure conversion doesn't change values outside of range to limit of 0 or 1
+    # ensure conversion doesn't change values outside of range to limit of 0 or 1
     converted = dataframe[columns].astype("boolean")
     skip = (~(dataframe[columns] == converted)).any()
-    # insure there are multiple instances of 0 or 1
+    # ensure there are multiple instances of 0 or 1
     multiple = dataframe[columns].isin([0, 1]).sum() > 2
     # convert if rules upheld
     columns = [
@@ -98,7 +98,7 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
     columns = [
         k for k, v in dataframe.dtypes.items() if v.name == "Int8" or v.name == "Int16"
     ]
-    # insure conversion doesn't change values outside of range to limit of 0 or 255
+    # ensure conversion doesn't change values outside of range to limit of 0 or 255
     converted = dataframe[columns].astype("UInt8")
     skip = (~(dataframe[columns] == converted)).any()
     # convert if rules are upheld
@@ -247,11 +247,16 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     # determine SQL type for pandas datetime64[ns]
     schema = _deduplicate_datetime(dataframe, schema)
 
-    # insure schema is in same order ad dataframe columns
+    # ensure schema is in same order as dataframe columns
     schema = schema.loc[dataframe.columns]
     schema.index.name = "column_name"
 
-    # insure schema contains same needed columns as returned from conversion.get_schema
+    # ensure index is string type
+    schema = schema.reset_index()
+    schema["column_name"] = schema["column_name"].astype("string")
+    schema = schema.set_index(keys="column_name")
+
+    # ensure schema contains same needed columns as returned from conversion.get_schema
     schema["column_size"] = schema["max_value"]
 
     return schema
@@ -287,7 +292,8 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
             resolved = deduplicate[deduplicate["sql_type"] == "varchar"].loc[col]
         # add resolution into schema
         schema = schema[schema.index != col]
-        schema = schema.append(resolved)
+        schema = pd.concat([schema, resolved.to_frame().T])
+        schema.index.name = "column_name"
 
     return schema
 
@@ -317,6 +323,7 @@ def _deduplicate_datetime(
             resolved = deduplicate[deduplicate["sql_type"] == "datetime2"].loc[col]
         # add resolution into schema
         schema = schema[schema.index != col]
-        schema = schema.append(resolved)
+        schema = pd.concat([schema, resolved.to_frame().T])
+        schema.index.name = "column_name"
 
     return schema
