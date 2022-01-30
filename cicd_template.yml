@@ -39,7 +39,6 @@ steps:
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
 
   - task: PublishTestResults@2
-    condition: succeededOrFailed()
     inputs:
       testResultsFiles: $(Build.SourcesDirectory)\reports\test.xml
 

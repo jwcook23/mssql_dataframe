@@ -25,7 +25,6 @@ import subprocess
 import configparser
 import argparse
 import glob
-import re
 
 from conftest import options
 
@@ -168,6 +167,6 @@ run_flake8(config)
 run_coverage_pytest(config, args)
 coverage_html(config)
 coverage_xml(config)
-generage_badges()
+generage_badges(config)
 check_version()
 build_package()

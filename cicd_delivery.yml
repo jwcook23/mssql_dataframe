@@ -28,4 +28,4 @@ jobs:
       - script: |
           $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
         displayName: Upload Artifact
-        condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
+        condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
