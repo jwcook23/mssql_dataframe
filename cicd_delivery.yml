@@ -20,12 +20,12 @@ jobs:
         inputs:
           targetType: FilePath
           filePath: package_version.ps1
-      # - template: cicd_template.yml
-      # - task: TwineAuthenticate@1
-      #   displayName: Twine Authenticate
-      #   inputs:
-      #     artifactFeed: mssql_dataframe/mssql_dataframe
-      # - script: |
-      #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-      #   displayName: Upload Artifact
-      #   condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
+      - template: cicd_template.yml
+      - task: TwineAuthenticate@1
+        displayName: Twine Authenticate
+        inputs:
+          artifactFeed: mssql_dataframe/mssql_dataframe
+      - script: |
+          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+        displayName: Upload Artifact
+        condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
