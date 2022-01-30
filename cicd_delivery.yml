@@ -11,19 +11,16 @@
 pool: 
       vmImage: windows-latest
 
-stages:
 
-  - stage: ContinuousIntegration
-    jobs:
-      - job: ContinuousIntegration
-        steps:
-          - template: cicd_template.yml
-            displayName: CICD Template
-          - task: TwineAuthenticate@1
-            displayName: Twine Authenticate
-            inputs:
-              artifactFeed: mssql_dataframe/mssql_dataframe
-          - script: |
-              $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-            displayName: Upload Artifact
-            condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
+jobs:
+  - job: ContinuousIntegration
+    steps:
+      - template: cicd_template.yml
+      - task: TwineAuthenticate@1
+        displayName: Twine Authenticate
+        inputs:
+          artifactFeed: mssql_dataframe/mssql_dataframe
+      - script: |
+          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+        displayName: Upload Artifact
+        condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
