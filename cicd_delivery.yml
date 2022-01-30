@@ -15,28 +15,12 @@ pool:
 jobs:
   - job: ContinuousDelivery
     steps:
-    - task: PowerShell@2
-      inputs:
-        targetType: 'inline'
-        script: python -m pip install setuptools_scm
-    - task: PowerShell@2
-      inputs:
-        targetType: inline
-        script: python -m setuptools_scm
-    - task: PowerShell@2
-      inputs:
-        targetType: 'inline'
-        script: git describe
-    - task: PowerShell@2
-      inputs:
-        targetType: 'inline'
-        script:  git describe --tags (git rev-list --tags --max-count=1)
-      # - template: cicd_template.yml
-      # - task: TwineAuthenticate@1
-      #   displayName: Twine Authenticate
-      #   inputs:
-      #     artifactFeed: mssql_dataframe/mssql_dataframe
-      # - script: |
-      #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-      #   displayName: Upload Artifact
-      #   condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
+      - template: cicd_template.yml
+      - task: TwineAuthenticate@1
+        displayName: Twine Authenticate
+        inputs:
+          artifactFeed: mssql_dataframe/mssql_dataframe
+      - script: |
+          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+        displayName: Upload Artifact
+        condition: eq(variables['build.sourceBranch'], 'refs/heads/main')
