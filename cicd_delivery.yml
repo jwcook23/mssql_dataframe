@@ -18,8 +18,8 @@ jobs:
       - task: PowerShell@2
         displayName: Set Package Version
         inputs:
-          targetType: inline
-          script: git describe --tags (git rev-list --tags --max-count=1) 
+          targetType: FilePath
+          filePath: package_version.ps1
       # - template: cicd_template.yml
       # - task: TwineAuthenticate@1
       #   displayName: Twine Authenticate
