@@ -1,6 +1,7 @@
 # mssql_dataframe
 
 ![Test Status](/reports/tests.svg)
+![Test Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/tests.svg?raw=true)
 ![Coverage Status](reports/coverage.svg)
 ![Flake8 Status](/reports/flake8.svg)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
