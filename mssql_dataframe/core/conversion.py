@@ -44,6 +44,13 @@ def get_schema(
     cursor = connection.cursor()
 
     # add cataglog for temporary tables
+    try:
+        schema_name, table_name = table_name.split(".")
+    except ValueError as err:
+        if err.args[0].startswith("not enough values to unpack"):
+            schema_name = None
+        else:
+            raise
     if table_name.startswith("#"):
         catalog = "tempdb"
     else:
@@ -51,14 +58,14 @@ def get_schema(
 
     # get schema
     schema = []
-    cursor = cursor.columns(table=table_name, catalog=catalog)
+    cursor = cursor.columns(table=table_name, catalog=catalog, schema=schema_name)
     for col in cursor:
         schema.append(list(col))
     schema = pd.DataFrame(schema, columns=[x[0] for x in cursor.description])
     # check for no SQL table
     if len(schema) == 0:
         raise custom_errors.SQLTableDoesNotExist(
-            f"catalog = {catalog}, table_name = {table_name}"
+            f"catalog = {catalog}, table_name = {table_name}, schema_name={schema_name}"
         )
     # check for missing columns not expected to be in dataframe
     # such as include_metadata_timestamps columns like _time_insert or _time_update

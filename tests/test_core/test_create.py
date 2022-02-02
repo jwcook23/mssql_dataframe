@@ -59,7 +59,7 @@ def test_table_errors(sql):
 
 def test_table_column(sql):
 
-    table_name = "##test_table_column"
+    table_name = "dbo.##test_table_column"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
     schema, _ = conversion.get_schema(sql.connection, table_name)
