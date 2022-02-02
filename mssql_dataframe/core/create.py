@@ -35,7 +35,7 @@ class create:
 
         Parameters
         ----------
-        table_name (str) : name of table to create
+        table_name (str) : name of table to create, may also contain schema name in the form schema_name.table_name
         columns (dict) : keys = column names, values = data types and optionally size/precision if applicable
         not_nullable (list|str, default=[]) : columns to set as not null
         primary_key_column (str|list, default=None) : column(s) to set as the primary key, if a list a composite primary key is created
@@ -60,16 +60,15 @@ class create:
 
         statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
-        DECLARE @TableName SYSNAME = ?;
         {declare}
-        SET @SQLStatement = N'CREATE TABLE '+QUOTENAME(@TableName)+' ('+
+        SET @SQLStatement = N'CREATE TABLE {table} ('+
         {syntax}
         {pk}
         +');'
         EXEC sp_executesql
         @SQLStatement,
-        N'@TableName SYSNAME, {parameters}',
-        @TableName=@TableName, {values};
+        N'{parameters}',
+        {values};
         """
 
         # check inputs
@@ -83,6 +82,7 @@ class create:
             primary_key_column = [primary_key_column]
 
         # parse inputs
+        table_name = dynamic.escape(self._connection.cursor(), table_name)
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0, len(column_names)))]
         size, dtypes_sql = dynamic.column_spec(columns.values())
@@ -189,7 +189,12 @@ class create:
 
         # join components into final synax
         statement = statement.format(
-            declare=declare, syntax=syntax, pk=pk, parameters=parameters, values=values
+            table=table_name,
+            declare=declare,
+            syntax=syntax,
+            pk=pk,
+            parameters=parameters,
+            values=values,
         )
 
         # create variables for execute method
@@ -197,7 +202,6 @@ class create:
             zip([x for x in column_names], [x for x in dtypes_sql], [x for x in size])
         )
         args = [item for sublist in args for item in sublist if item is not None]
-        args = [table_name] + args
         if primary_key_column is not None:
             args += primary_key_column
 
@@ -218,7 +222,7 @@ class create:
 
         Parameters
         ----------
-        table_name (str) : name of table
+        table_name (str) : name of table to create, may also contain schema name in the form schema_name.table_name
         dataframe (pandas.DataFrame) : data used to create table
         primary_key (str, default = None) : method of setting the table's primary key, see below for description of options
         insert_dataframe (bool, default=True) : insert the dataframe after creating the table

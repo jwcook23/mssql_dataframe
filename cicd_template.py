@@ -150,8 +150,12 @@ def build_package():
 
     # build package .gz and .whl files
     _ = run_cmd(["python", "-m", "build", f"--outdir={outdir}"])
-    print(f"built source archive {glob.glob(os.path.join(outdir,'*.tar.gz'))}")
-    print(f"built distribution {glob.glob(os.path.join(outdir,'*.whl'))}")
+    print(
+        f"built source archives present in {outdir}: {glob.glob(os.path.join(outdir,'*.tar.gz'))}"
+    )
+    print(
+        f"built distributions present in {outdir}: {glob.glob(os.path.join(outdir,'*.whl'))}"
+    )
 
     # check build result
     _ = run_cmd(["twine", "check", os.path.join(outdir, "*")])

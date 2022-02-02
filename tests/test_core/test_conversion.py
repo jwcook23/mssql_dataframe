@@ -107,6 +107,12 @@ def test_sample(sql, data):
         connection=sql, table_name="##test_conversion"
     )
 
+    # only schema_name.table_name can be specified
+    with pytest.raises(ValueError):
+        conversion.get_schema(
+            connection=sql, table_name="ServerName.dbo.##test_conversion"
+        )
+
     # dynamic SQL object names
     table = dynamic.escape(cursor, "##test_conversion")
     columns = dynamic.escape(cursor, data.columns)
