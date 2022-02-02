@@ -16,7 +16,7 @@ jobs:
   - job: ContinuousDelivery
     steps:
       - task: PowerShell@2
-        displayName: Set Package Version
+        displayName: Git Tag Package Version
         inputs:
           targetType: FilePath
           filePath: package_version.ps1
@@ -28,4 +28,7 @@ jobs:
       - script: |
           $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
         displayName: Upload Artifact
-        condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
+        # condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
+      - script: |
+          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
+        displayName: PyPi Upload

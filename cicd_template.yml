@@ -3,9 +3,9 @@
 steps:
 
   - task: UsePythonVersion@0
+    displayName: 'Use Python 3.9'
     inputs:
       versionSpec: '3.9'
-    displayName: 'Use Python 3.9'
 
   - task: PowerShell@2
     displayName: 'Start SQL Server Express LocalDB'
@@ -25,24 +25,26 @@ steps:
         pip install -e .;
 
   - task: PythonScript@0
-    displayName: Output Debugging Info
+    displayName: Output Version Info
     inputs:
       scriptSource: filePath
       scriptPath: version_check.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
 
   - task: PythonScript@0
-    displayName: Continuous Integration
+    displayName: Continuous Integration Core
     inputs:
       scriptSource: filePath
       scriptPath: cicd_template.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
 
   - task: PublishTestResults@2
+    displayName: Publish Test Results
     inputs:
       testResultsFiles: $(Build.SourcesDirectory)\reports\test.xml
 
   - task: PublishCodeCoverageResults@1
+    displayName: Publish Coverage Results
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: $(Build.SourcesDirectory)\reports\coverage.xml

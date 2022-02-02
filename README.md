@@ -1,11 +1,11 @@
 # mssql_dataframe
 
-![Test Status](/reports/tests.svg)
-![Coverage Status](reports/coverage.svg)
-![Flake8 Status](/reports/flake8.svg)
+![Test Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/tests.svg?raw=true)
+![Coverage Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/coverage.svg?raw=true)
+![Flake8 Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/flake8.svg?raw=true)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
+[![Build Status](https://dev.azure.com/jasoncook1989/mssql_dataframe/_apis/build/status/continuous-delivery?branchName=main)](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build/latest?definitionId=2&branchName=main)
 [![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://open.vscode.dev/jwcook23/mssql_dataframe)
 
 A data engineering package for Python pandas dataframes and Microsoft SQL Server / Azure SQL Database.

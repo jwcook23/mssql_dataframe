@@ -37,7 +37,6 @@ def run_cmd(cmd, venv=True):
     # call command line process
     status = subprocess.run(cmd, capture_output=True)
     if status.returncode != 0:
-        # status = subprocess.call(cmd, shell=True)
         if len(status.stderr) > 0:
             msg = status.stderr.decode("utf-8")
         else:
@@ -47,29 +46,41 @@ def run_cmd(cmd, venv=True):
     return status.stdout.decode("utf-8")
 
 
-def run_black():
-    """Run black to auto-format code to standard."""
+def check_black():
+    """Check if black formatting passes. If not, suggest running."""
     print("running black for all Python files not excluded by .gitignore")
-    _ = run_cmd(["black", "."])
 
-
-def run_flake8(config):
-    """Run flake8 to lint and check code quality."""
     try:
-        print(
-            "running flake8 for all Python files excluding virtual environment directory named 'env'"
+        _ = run_cmd(["black", ".", "--check"])
+    except RuntimeError as err:
+        raise RuntimeError(
+            "black format check did not pass. Try running 'black . --diff' to see what needs formatted then 'black .' to automatically format.",
+            err.args[0],
         )
-        _ = run_cmd(
-            [
-                "flake8",
-                "--exclude=env",
-                f"--output-file={config['flake8']['output-file']}",
-            ]
-        )
-        print(f"generated flake8 statistics file: {config['flake8']['output-file']}")
-    except RuntimeError:
-        print(f"see file for flake8 errors: {config['flake8']['output-file']}")
-        raise
+
+
+def check_flake8(config):
+    """Run flake8 to lint and check code quality."""
+    print(
+        "running flake8 for all Python files excluding virtual environment directory named 'env'"
+    )
+    _ = run_cmd(
+        [
+            "flake8",
+            "--exclude=env",
+            f"--output-file={config['flake8']['output-file']}",
+            "--tee",
+        ]
+    )
+    print(f"generated flake8 statistics file: {config['flake8']['output-file']}")
+
+
+def check_precommit():
+    """Check if pre-commit hooks pass."""
+    print("installing pre-commit hooks")
+    _ = run_cmd(["pre-commit", "install"])
+    print("checking if pre-commit hooks pass")
+    _ = run_cmd(["pre-commit", "run", "--all-files"])
 
 
 def run_coverage_pytest(config, args):
@@ -161,9 +172,9 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
-# TODO: pre-commit install
-run_black()
-run_flake8(config)
+check_black()
+check_flake8(config)
+check_precommit()
 run_coverage_pytest(config, args)
 coverage_html(config)
 coverage_xml(config)

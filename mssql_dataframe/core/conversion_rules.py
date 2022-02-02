@@ -27,8 +27,8 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "smallint",
             "sql_category": "exact numeric",
-            "min_value": -(2 ** 15),
-            "max_value": 2 ** 15 - 1,
+            "min_value": -(2**15),
+            "max_value": 2**15 - 1,
             "pandas_type": "Int16",
             "odbc_type": pyodbc.SQL_SMALLINT,
             "odbc_size": 2,
@@ -37,8 +37,8 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "int",
             "sql_category": "exact numeric",
-            "min_value": -(2 ** 31),
-            "max_value": 2 ** 31 - 1,
+            "min_value": -(2**31),
+            "max_value": 2**31 - 1,
             "pandas_type": "Int32",
             "odbc_type": pyodbc.SQL_INTEGER,
             "odbc_size": 4,
@@ -47,8 +47,8 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "bigint",
             "sql_category": "exact numeric",
-            "min_value": -(2 ** 63),
-            "max_value": 2 ** 63 - 1,
+            "min_value": -(2**63),
+            "max_value": 2**63 - 1,
             "pandas_type": "Int64",
             "odbc_type": pyodbc.SQL_BIGINT,
             "odbc_size": 8,
@@ -57,8 +57,8 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "float",
             "sql_category": "approximate numeric",
-            "min_value": -(1.79 ** 308),
-            "max_value": 1.79 ** 308,
+            "min_value": -(1.79**308),
+            "max_value": 1.79**308,
             "pandas_type": "float64",
             "odbc_type": pyodbc.SQL_FLOAT,
             "odbc_size": 8,
