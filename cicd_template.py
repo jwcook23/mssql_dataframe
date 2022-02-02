@@ -54,7 +54,7 @@ def check_black():
         _ = run_cmd(["black", ".", "--check"])
     except RuntimeError as err:
         raise RuntimeError(
-            "black format check did not pass. Try running 'black .' to automatically format.",
+            "black format check did not pass. Try running 'black . --diff' to see what needs formatted then 'black .' to automatically format.",
             err.args[0],
         )
 

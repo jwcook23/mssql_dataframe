@@ -70,10 +70,10 @@ def test_insert_dataframe(sql):
         {
             "_bit": pd.Series([1, 0, None], dtype="boolean"),
             "_tinyint": pd.Series([0, 255, None], dtype="UInt8"),
-            "_smallint": pd.Series([-(2 ** 15), 2 ** 15 - 1, None], dtype="Int16"),
-            "_int": pd.Series([-(2 ** 31), 2 ** 31 - 1, None], dtype="Int32"),
-            "_bigint": pd.Series([-(2 ** 63), 2 ** 63 - 1, None], dtype="Int64"),
-            "_float": pd.Series([-(1.79 ** 308), 1.79 ** 308, None], dtype="float"),
+            "_smallint": pd.Series([-(2**15), 2**15 - 1, None], dtype="Int16"),
+            "_int": pd.Series([-(2**31), 2**31 - 1, None], dtype="Int32"),
+            "_bigint": pd.Series([-(2**63), 2**63 - 1, None], dtype="Int64"),
+            "_float": pd.Series([-(1.79**308), 1.79**308, None], dtype="float"),
             "_time": pd.Series(
                 ["00:00:00.0000000", "23:59:59.9999999", None], dtype="timedelta64[ns]"
             ),
