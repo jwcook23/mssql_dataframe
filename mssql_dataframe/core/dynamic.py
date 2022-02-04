@@ -60,7 +60,7 @@ def escape(cursor: pyodbc.connect, inputs: List[str]) -> List[str]:
     return safe
 
 
-def where(cursor: pyodbc.connect, where: str) -> Tuple[str, list[str]]:
+def where(cursor: pyodbc.connect, where: str) -> Tuple[str, List[str]]:
     """Format a raw string into a valid where statement with placeholder arguments.
 
     Parameters

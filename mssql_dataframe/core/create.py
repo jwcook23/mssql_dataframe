@@ -1,5 +1,5 @@
 """Class for creating SQL tables both explicitly and implicitly."""
-from typing import Literal, List
+from typing import Literal, List, Dict
 import warnings
 
 import pandas as pd
@@ -26,7 +26,7 @@ class create:
     def table(
         self,
         table_name: str,
-        columns: dict,
+        columns: Dict[str, str],
         not_nullable: List[str] = [],
         primary_key_column: str = None,
         sql_primary_key: bool = False,
@@ -36,7 +36,7 @@ class create:
         Parameters
         ----------
         table_name (str) : name of table to create, may also contain schema name in the form schema_name.table_name
-        columns (dict) : keys = column names, values = data types and optionally size/precision if applicable
+        columns (dict[str,str]) : keys = column names, values = data types and optionally size/precision if applicable
         not_nullable (list|str, default=[]) : columns to set as not null
         primary_key_column (str|list, default=None) : column(s) to set as the primary key, if a list a composite primary key is created
         sql_primary_key (bool, default=False) : create an SQL mananaged INT identity column as the primary key named _pk

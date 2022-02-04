@@ -74,7 +74,12 @@ def test_merge_upsert(sql):
     # update
     dataframe.loc[dataframe.index == 1, "ColumnA"] = 5
     # insert
-    dataframe = dataframe.append(pd.Series([6], index=["ColumnA"], name=2))
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame([6], columns=["ColumnA"], index=pd.Index([2], name="_index")),
+        ]
+    )
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
     dataframe = sql.merge.merge(table_name, dataframe, upsert=True)
@@ -106,7 +111,12 @@ def test_merge_one_match_column(sql):
     # update
     dataframe.loc[dataframe.index == 1, "ColumnA"] = 5
     # insert
-    dataframe = dataframe.append(pd.Series([6], index=["ColumnA"], name=2))
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame([6], columns=["ColumnA"], index=pd.Index([2], name="_index")),
+        ]
+    )
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
     with warnings.catch_warnings(record=True) as warn:
@@ -152,10 +162,15 @@ def test_merge_two_match_columns(sql):
     # update
     dataframe.loc[dataframe.index == 1, "ColumnA"] = 5
     # insert
-    dataframe = dataframe.append(
-        pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=[2])
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame(
+                {"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]},
+                index=pd.Index([2], name="_index"),
+            ),
+        ]
     )
-    dataframe.index.name = "_index"
 
     # merge values into table, using the primary key that came from the dataframe's index and ColumnA
     with warnings.catch_warnings(record=True) as warn:
@@ -204,8 +219,14 @@ def test_merge_non_pk_column(sql):
     # update
     dataframe.loc[dataframe.index == 1, "ColumnA"] = 5
     # insert
-    dataframe = dataframe.append(
-        pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=[1])
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame(
+                {"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]},
+                index=pd.Index([1], name="_index"),
+            ),
+        ]
     )
 
     # merge values into table, using a single column that is not the primary key
@@ -252,10 +273,13 @@ def test_merge_composite_pk(sql):
     # update
     dataframe.loc[dataframe.index == ("B", 4), "ColumnB"] = "c"
     # insert
-    dataframe = dataframe.append(
-        pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}).set_index(
-            keys=["State", "ColumnA"]
-        )
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}).set_index(
+                keys=["State", "ColumnA"]
+            ),
+        ]
     )
     dataframe = sql.merge.merge(table_name, dataframe)
 
@@ -289,8 +313,14 @@ def test_merge_one_delete_condition(sql):
     # update 1 record
     dataframe.loc[dataframe.index == 1, ["ColumnA", "ColumnB"]] = [5, "c"]
     # insert 1 record
-    dataframe = dataframe.append(
-        pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=[3])
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame(
+                {"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]},
+                index=pd.Index([3], name="_index"),
+            ),
+        ]
     )
 
     # merge values into table, using the primary key that came from the dataframe's index
@@ -352,13 +382,16 @@ def test_merge_two_delete_requires(sql):
     # update
     dataframe.loc[dataframe.index == 1, ["ColumnA", "ColumnB"]] = [5, "c"]
     # insert
-    dataframe = dataframe.append(
-        pd.DataFrame(
-            {"State1": ["C"], "State2": ["Z"], "ColumnA": [6], "ColumnB": ["d"]},
-            index=[3],
-        )
-    )
     dataframe.index.name = "_pk"
+    dataframe = pd.concat(
+        [
+            dataframe,
+            pd.DataFrame(
+                {"State1": ["C"], "State2": ["Z"], "ColumnA": [6], "ColumnB": ["d"]},
+                index=pd.Index([3], name="_pk"),
+            ),
+        ]
+    )
 
     # merge values into table, using the primary key that came from the dataframe's index
     # also require a match on State1 and State2 to prevent a record from being deleted

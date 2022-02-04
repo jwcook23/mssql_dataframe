@@ -1,24 +1,21 @@
-r""" Continuous integration by performing tests, coverage, formatting, and package building.
-
-1. if this script runs locally to success, the CI process should also run successfully
-2. continuous_integration.py executes automatically in an Azure DevOps Pipeline on push
-3. CI results can be viewed after a push at: #TODO add link
-4. if CI succeeds in the Azure DevOps pipeline, submit a pull request to complete the continuous deployment build and release
+r""" The core of continuous integration / continuous delivery by performing tests,
+coverage, formatting, and package building. If errors produced by this script are
+corrected, the remove CICD pipeline should complete successfully.
 
 Examples
 --------
 #### default CI process
-python continuous_integration.py
-#### using command line arguments specified in conftest.py options
-python continuous_integration.py --server=localhost\SQLEXPRESS
+python cicd_template.py
+#### using command line arguments for server specification
+python cicd_template.py --server=localhost\SQLEXPRESS
 
 See Also
 --------
 CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
-conftest.py options variable for command line arguments allowed
-setup.cfg for CICD associated settings
+conftest.py options variable for server specification parameters
+setup.cfg for tests, coverage, and build settings
 continuous_integration.yml for Azure DevOps Pipeline CI definition
-continuous_deployment.py and continuous_deployment.yml for continuous deployment
+continuous_deployment.yml for Azure DevOps Pipeline CD definition
 """
 import os
 import subprocess
