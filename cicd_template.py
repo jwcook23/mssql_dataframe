@@ -1,4 +1,4 @@
-r""" The core of continuous integration / continuous delivery by performing tests, 
+r""" The core of continuous integration / continuous delivery by performing tests,
 coverage, formatting, and package building. If errors produced by this script are
 corrected, the remove CICD pipeline should complete successfully.
 

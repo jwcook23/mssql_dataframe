@@ -296,7 +296,7 @@ def test_insert_alter_primary_key(sql):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result.equals(dataframe.append(new))
+    assert result.equals(pd.concat([dataframe, new]))
     _, dtypes = conversion.sql_spec(schema, new)
     assert dtypes == {
         "ColumnA": "smallint",
@@ -349,7 +349,7 @@ def test_insert_add_and_alter_column(sql):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[new.columns].equals(dataframe.append(new))
+    assert result[new.columns].equals(pd.concat([dataframe, new]))
     assert all(result["_time_insert"].notna())
 
     _, dtypes = conversion.sql_spec(schema, dataframe)

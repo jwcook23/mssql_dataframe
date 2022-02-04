@@ -155,7 +155,7 @@ class insert:
         match_columns: list = None,
         additional_columns: list = None,
         updating_table: bool = False,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, list[str], str]:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], str]:
         """Create a source table with data in SQL for update and merge operations.
 
         Parameters

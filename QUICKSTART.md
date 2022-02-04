@@ -75,16 +75,13 @@ Merging the dataframe into an SQL table will:
 sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
 
 # simulate new records
-sample = sample.append(
+sample = pd.concat([
+    sample,
     pd.DataFrame(
-        [
-            [9, 'x', True],
-            [9, 'y', True],
-        ], 
-        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
-        index = pd.Index([5,6], name='PrimaryKey')
+        {'ColumnA': [9,9], 'ColumnB': ['x','y'], 'ColumnC': [True,True]},
+        index=pd.Index([5,6], name='PrimaryKey')
     )
-)
+])
 
 # simulate updated records
 sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
@@ -109,17 +106,13 @@ Additional functionality allows data to be incrementally merged into an SQL tabl
 sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
 
 # simulate new records
-sample = sample.append(
+sample = pd.concat([
+    sample,
     pd.DataFrame(
-        [
-            [10, 'z', False],
-            [10, 'z', True],
-            [0, 'A', True]
-        ], 
-        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
-        index = pd.Index([7,8,9], name='PrimaryKey')
+        {'ColumnA': [10,10,0], 'ColumnB': ['z','z','A'], 'ColumnC': [False,True,True]},
+        index=pd.Index([7,8,9], name='PrimaryKey')
     )
-)
+])
 
 # simulate updated records
 sample.loc[sample['ColumnA']==1, 'ColumnC'] = True
@@ -143,15 +136,13 @@ Upsert functionality is accomplished by setting upsert=False. This results in re
 
 ``` python
 # simulate a new record
-sample = sample.append(
+sample = pd.concat([
+    sample,
     pd.DataFrame(
-        [
-            [11, 'z', False],
-        ], 
-        columns=['ColumnA', 'ColumnB', 'ColumnC'], 
-        index = pd.Index([10], name='PrimaryKey')
+        {'ColumnA': [11], 'ColumnB': ['z'], 'ColumnC': [False]},
+        index=pd.Index([10], name='PrimaryKey')
     )
-)
+])
 
 # simulate an updated record
 sample.at[3,'ColumnA'] = 12
