@@ -1,4 +1,4 @@
-# Azure Pipelines CICD template steps that apply to both local and remote agents.
+# Azure Pipelines CICD Template for use in continuous integration and continuous delivery.
 
 steps:
 
