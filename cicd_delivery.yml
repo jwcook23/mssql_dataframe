@@ -9,6 +9,7 @@
 parameters:
   - name: version_number
     type: string
+    default: 0.0.0
 
 
 pool: 
@@ -28,15 +29,14 @@ jobs:
                 targetType: FilePath
                 filePath: cicd_version.ps1
                 arguments: $(version_number)
-            # - template: cicd_template.yml
-            # - task: TwineAuthenticate@1
-            #   displayName: Twine Authenticate
-            #   inputs:
-            #     artifactFeed: mssql_dataframe/mssql_dataframe
-            # - script: |
-            #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-            #   displayName: Upload Artifact
-            #   # condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
-            # - script: |
-            #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-            #   displayName: PyPi Upload
+            - template: cicd_template.yml
+            - task: TwineAuthenticate@1
+              displayName: Twine Authenticate
+              inputs:
+                artifactFeed: mssql_dataframe/mssql_dataframe
+            - script: |
+                $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+              displayName: Upload Artifact
+            - script: |
+                $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
+              displayName: PyPi Upload
