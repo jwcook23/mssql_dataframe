@@ -6,8 +6,9 @@
 # continuous_integration.yml for the CI process
 # cicd_template.py for the core of the entire CICD process
 
-variables:
+parameters:
   - name: version_number
+    type: string
 
 
 pool: 
