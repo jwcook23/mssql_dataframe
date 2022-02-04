@@ -72,15 +72,13 @@ Run all terminal commands in the top level mssql_dataframe folder.
 
 ## CICD Build Pipelines
 
-Once a pull request is made, the Continuous Integration / Continuous Delievery process begins. An approved pull request review will set the build version, run the CICD pipeline, and uploaded a new package to PyPi.
+Once a pull request is made it is time for the Continuous Integration / Continuous Delievery process. After CICD is completed a new version is uploaded to PyPI.
 
-[CICD Build Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=2)
+1. A GitHub repository owner/contributor starts the CICD process by adding a comment of `/AzurePipelines run continuous-integration` on the pull request in GitHub. The continuous integration pipeline will run in Azure DevOps as an intial check.
 
-[PyPI mssql-dataframe](https://pypi.org/project/mssql-dataframe/)
+    [CICD Build Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=1)
 
-### Pull Request Review
-
-1. Reviewer specifies the version number by #TODO version number
+2. If the continuous integration pipeline succeeds, the continuous delivery pipeline will begin. The pipeline waits for an owner to make a comment in Azure DevOps. At this point the owner inputs the build version number as a pipeline parameter. It should be in the format `vA.B.C` where A.B.C are positive integers.
 
     ```txt
     Example Version: 
@@ -91,4 +89,4 @@ Once a pull request is made, the Continuous Integration / Continuous Delievery p
     C: patch version (bug fixes)
     ```
 
-2. Reviewer triggers the CICD pipeline by adding a comment of `/AzurePipelines run continuous-delivery`
+3. The CICD process completes with a new version uploaded to PyPI and the pull request is closed.
