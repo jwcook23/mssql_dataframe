@@ -6,27 +6,36 @@
 # continuous_integration.yml for the CI process
 # cicd_template.py for the core of the entire CICD process
 
+variables:
+  - name: version_number
+
+
 pool: 
       vmImage: windows-latest
 
 
 jobs:
-  - job: ContinuousDelivery
-    steps:
-      - task: PowerShell@2
-        displayName: Git Tag Package Version
-        inputs:
-          targetType: FilePath
-          filePath: package_version.ps1
-      - template: cicd_template.yml
-      - task: TwineAuthenticate@1
-        displayName: Twine Authenticate
-        inputs:
-          artifactFeed: mssql_dataframe/mssql_dataframe
-      - script: |
-          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-        displayName: Upload Artifact
-        # condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
-      - script: |
-          $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-        displayName: PyPi Upload
+  - deployment: ContinuousDelivery
+    environment: deploy
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - task: PowerShell@2
+              displayName: Set Package Version
+              inputs:
+                targetType: FilePath
+                filePath: cicd_version.ps1
+                arguments: $(version_number)
+            # - template: cicd_template.yml
+            # - task: TwineAuthenticate@1
+            #   displayName: Twine Authenticate
+            #   inputs:
+            #     artifactFeed: mssql_dataframe/mssql_dataframe
+            # - script: |
+            #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+            #   displayName: Upload Artifact
+            #   # condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/main'))
+            # - script: |
+            #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
+            #   displayName: PyPi Upload
