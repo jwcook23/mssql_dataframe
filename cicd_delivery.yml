@@ -16,12 +16,6 @@ pool:
       vmImage: windows-latest
 
 
-# jobs:
-#   - deployment: ContinuousDelivery
-#     environment: deploy
-#     strategy:
-#       runOnce:
-#         deploy:
 stages: 
   - stage: ContinousDelivery
     jobs:
