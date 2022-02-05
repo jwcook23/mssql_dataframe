@@ -8,8 +8,6 @@
 
 trigger: none
 
-pr: none
-
 parameters:
   - name: version_number
     type: string
