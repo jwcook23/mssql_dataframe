@@ -36,5 +36,5 @@ stages:
             inputs:
               targetType: FilePath
               filePath: cicd_version.ps1
-              arguments: -version $(version_number)
+              arguments: -version ${{ parameters.version_number }}
           - template: cicd_template.yml
