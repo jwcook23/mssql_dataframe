@@ -25,16 +25,23 @@ parameters:
 pool: 
       vmImage: windows-latest
 
+
 stages:
 
   - stage: ContinuousIntegration
     jobs:
       - job: ContinuousIntegration
+        strategy:
+          matrix:
+            Python37:
+              python.version: '3.7'
+            Python38:
+              python.version: '3.8'
         steps:
           - task: UsePythonVersion@0
-            displayName: 'Use Python 3.9'
+            displayName: 'Multiple Python Versions'
             inputs:
-              versionSpec: '3.9'
+              versionSpec: '$(python.version)'
           - task: PowerShell@2
             displayName: Set Package Version
             inputs:
