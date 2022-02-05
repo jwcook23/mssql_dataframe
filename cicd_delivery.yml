@@ -16,29 +16,33 @@ pool:
       vmImage: windows-latest
 
 
-jobs:
-  - deployment: ContinuousDelivery
-    environment: deploy
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-            - task: PowerShell@2
-              displayName: Set Package Version
-              inputs:
-                targetType: FilePath
-                filePath: cicd_version.ps1
-                arguments: -version ${{ parameters.version_number }}
-            - template: cicd_template.yml
-            - task: TwineAuthenticate@1
-              displayName: Twine Authenticate
-              inputs:
-                artifactFeed: mssql_dataframe/mssql_dataframe
-            - script: |
-                $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-              displayName: Upload Artifact
-              condition: ne('${{ parameters.version_number }}', '0.0.0')
-            - script: |
-                $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-              displayName: PyPi Upload
-              condition: ne('${{ parameters.version_number }}', '0.0.0')
+# jobs:
+#   - deployment: ContinuousDelivery
+#     environment: deploy
+#     strategy:
+#       runOnce:
+#         deploy:
+stages: 
+  - stage: ContinousDelivery
+    jobs:
+    - job: ContinuousDelivery
+      steps:
+        - task: PowerShell@2
+          displayName: Set Package Version
+          inputs:
+            targetType: FilePath
+            filePath: cicd_version.ps1
+            arguments: -version ${{ parameters.version_number }}
+        - template: cicd_template.yml
+        - task: TwineAuthenticate@1
+          displayName: Twine Authenticate
+          inputs:
+            artifactFeed: mssql_dataframe/mssql_dataframe
+        - script: |
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+          displayName: Upload Artifact
+          condition: ne('${{ parameters.version_number }}', '0.0.0')
+        - script: |
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
+          displayName: PyPi Upload
+          condition: ne('${{ parameters.version_number }}', '0.0.0')
