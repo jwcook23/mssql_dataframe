@@ -6,6 +6,8 @@ param(
     [string]$tag
 )
 
+Write-Output "Input version parameter:  $($tag)"
+
 if ($tag -match '(?<version>\d+\.\d+\.\d+).*')
 {
     Write-Output "Writing version to file named VERSION:  $($Matches.version)"
