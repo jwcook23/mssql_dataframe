@@ -28,7 +28,7 @@ jobs:
               inputs:
                 targetType: FilePath
                 filePath: cicd_version.ps1
-                arguments: $(version_number)
+                arguments: -version ${{ variables.version_number }}
             - template: cicd_template.yml
             - task: TwineAuthenticate@1
               displayName: Twine Authenticate
