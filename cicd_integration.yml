@@ -34,10 +34,7 @@ stages:
           - task: PowerShell@2
             displayName: Set Package Version
             inputs:
-              targetType: inline
-              script: ECHO ${{ parameters.version_number }}
-          #   inputs:
-          #     targetType: FilePath
-          #     filePath: cicd_version.ps1
-          #     arguments: -version ${{ parameters.version_number }}
+              targetType: FilePath
+              filePath: cicd_version.ps1
+              arguments: -version ${{ parameters.version_number }}
           # - template: cicd_template.yml
