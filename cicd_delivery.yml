@@ -41,8 +41,8 @@ jobs:
             - script: |
                 $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
               displayName: Upload Artifact
-              condition: ne(${{ variables.version_number }},'0.0.0')
+              condition: ne('${{ parameters.version_number }}', '0.0.0')
             - script: |
                 $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
               displayName: PyPi Upload
-              condition: ne(${{ variables.version_number }},'0.0.0')
+              condition: ne('${{ parameters.version_number }}', '0.0.0')
