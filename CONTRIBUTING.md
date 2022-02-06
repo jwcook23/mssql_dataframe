@@ -56,16 +56,16 @@ Run all terminal commands in the top level mssql_dataframe folder.
     pytest --server='localhost'
     ```
 
-5. Run `cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
+5. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
 
     ``` cmd
-    python cicd_template.py
+    python cicd/cicd_template.py
     ```
 
     Additional server parameters can also be supplied here.
 
     ``` cmd
-    python cicd_template.py --server='localhost'
+    python cicd/cicd_template.py --server='localhost'
     ```
 
 6. Create a Pull Request
