@@ -48,6 +48,6 @@ stages:
             displayName: Set Package Version
             inputs:
               targetType: FilePath
-              filePath: /cicd/cicd_version.ps1
+              filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
               arguments: -version ${{ parameters.version_number }}
-          - template: /cicd/cicd_template.yml
+          - template: $(Build.SourcesDirectory)\cicd\cicd_template.yml
