@@ -28,18 +28,6 @@ pandas.DataFrame.to_sql(name, con, if_exists='fail')
 
 See [QUICKSTART](QUICKSTART.md) for a full overview of functionality.
 
-## Initialization
-
-The package is initialized with a connection to a server.
-
-```python
-from mssql_dataframe import SQLServer
-# connect to local SQL Server
-mssql = SQLServer(database='master', server='localhost')
-# connect to Azure SQL
-mssql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>')
-```
-
 ## Update
 
 Records in an SQL table are updated by simply providing a dataframe. By default a match on the SQL table's primary key is required for a record to be updated.
