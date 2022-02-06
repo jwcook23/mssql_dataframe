@@ -25,11 +25,15 @@ stages:
     jobs:
     - job: ContinuousDelivery
       steps:
+        - task: UsePythonVersion@0
+          displayName: 'Use Python 3.10'
+          inputs:
+            versionSpec: '3.10'
         - task: PowerShell@2
           displayName: Set Package Version
           inputs:
             targetType: FilePath
-            filePath: cicd_version.ps1
+            filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
             arguments: -version ${{ parameters.version_number }}
         - template: cicd_template.yml
         - task: TwineAuthenticate@1

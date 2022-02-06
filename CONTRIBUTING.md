@@ -56,16 +56,16 @@ Run all terminal commands in the top level mssql_dataframe folder.
     pytest --server='localhost'
     ```
 
-5. Run `cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
+5. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
 
     ``` cmd
-    python cicd_template.py
+    python cicd/cicd_template.py
     ```
 
     Additional server parameters can also be supplied here.
 
     ``` cmd
-    python cicd_template.py --server='localhost'
+    python cicd/cicd_template.py --server='localhost'
     ```
 
 6. Create a Pull Request
@@ -74,19 +74,25 @@ Run all terminal commands in the top level mssql_dataframe folder.
 
 Once a pull request is made it is time for the Continuous Integration / Continuous Delievery process. After CICD is completed a new version is uploaded to PyPI.
 
-1. A GitHub repository owner/contributor starts the CICD process by adding a comment of `/AzurePipelines run continuous-integration` on the pull request in GitHub. The continuous integration pipeline will run in Azure DevOps as an intial check.
+### Continuous Integration
 
-    [CICD Build Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=1)
+A GitHub repository owner/contributor adds a comment of `/AzurePipelines run continuous-integration` on the pull request in GitHub. The continuous integration pipeline will run in Azure DevOps to ensure continous integration passes.
 
-2. If the continuous integration pipeline succeeds, the continuous delivery pipeline will begin. The pipeline waits for an owner to make a comment in Azure DevOps. At this point the owner inputs the build version number as a pipeline parameter. It should be in the format `vA.B.C` where A.B.C are positive integers.
+[Continuous Integration Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=1)
 
-    ```txt
-    Example Version: 
-    A.B.C
+### Continous Delivery
 
-    A: major version (backwards incompatiable changes)
-    B: minor version (added backwards-compatible functionality)
-    C: patch version (bug fixes)
-    ```
+If the continuous integration pipeline passes, the continuous delievery pipeline will need to be manually started with an input for the build version number. After CD completes, a new version is uploaded to PyPI.
 
-3. The CICD process completes with a new version uploaded to PyPI and the pull request is closed.
+[Continuous Delivery Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=2)
+
+### Build Versioning
+
+```txt
+Example Version: 
+A.B.C
+
+A: major version (backwards incompatiable changes)
+B: minor version (added backwards-compatible functionality)
+C: patch version (bug fixes)
+```

@@ -2,8 +2,6 @@
 requires = [
     # for building
     "setuptools>=45",
-    "wheel",
-    # package version number based on git tag
-    "setuptools_scm>=6.2"
+    "wheel"
 ]
 build-backend = "setuptools.build_meta"

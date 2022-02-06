@@ -25,16 +25,29 @@ parameters:
 pool: 
       vmImage: windows-latest
 
+
 stages:
 
   - stage: ContinuousIntegration
     jobs:
       - job: ContinuousIntegration
+        strategy:
+          matrix:
+            Python38:
+              python.version: '3.8'
+            Python39:
+              python.version: '3.9'
+            Python10:
+              python.version: '3.10'
         steps:
+          - task: UsePythonVersion@0
+            displayName: 'Multiple Python Versions'
+            inputs:
+              versionSpec: '$(python.version)'
           - task: PowerShell@2
             displayName: Set Package Version
             inputs:
               targetType: FilePath
-              filePath: cicd_version.ps1
+              filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
               arguments: -version ${{ parameters.version_number }}
           - template: cicd_template.yml
