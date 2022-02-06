@@ -30,7 +30,7 @@ steps:
     displayName: Continuous Integration Core
     inputs:
       scriptSource: filePath
-      scriptPath: cicd_template.py
+      scriptPath: $(Build.SourcesDirectory)\cicd_template.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
 
   - task: PublishTestResults@2
