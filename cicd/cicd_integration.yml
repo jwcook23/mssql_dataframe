@@ -50,4 +50,4 @@ stages:
               targetType: FilePath
               filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
               arguments: -version ${{ parameters.version_number }}
-          - template: $(Build.SourcesDirectory)\cicd\cicd_template.yml
+          - template: cicd_template.yml
