@@ -35,10 +35,10 @@ stages:
           matrix:
             Python38:
               python.version: '3.8'
-            # Python39:
-            #   python.version: '3.9'
-            # Python10:
-            #   python.version: '3.10'
+            Python39:
+              python.version: '3.9'
+            Python10:
+              python.version: '3.10'
         steps:
           - task: UsePythonVersion@0
             displayName: 'Multiple Python Versions'
