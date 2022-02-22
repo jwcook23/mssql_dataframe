@@ -1,0 +1,2 @@
+.\cicd\cicd_template.py:54:13: F541 f-string is missing placeholders
+.\cicd\cicd_template.py:57:11: F541 f-string is missing placeholders

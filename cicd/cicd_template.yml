@@ -20,13 +20,6 @@ steps:
         pip install -e .;
 
   - task: PythonScript@0
-    displayName: Output Version Info
-    inputs:
-      scriptSource: filePath
-      scriptPath: version_check.py
-      pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
-
-  - task: PythonScript@0
     displayName: Continuous Integration Core
     inputs:
       scriptSource: filePath

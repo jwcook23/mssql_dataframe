@@ -140,10 +140,11 @@ class merge(insert):
             delete_syntax = (
                 "' WHEN NOT MATCHED BY SOURCE '+{conditions_syntax}+' THEN DELETE'"
             )
+            # ignore hardcoded_sql_expressions since alias_conditions is used to pass delete_requires to args
             conditions_syntax = [
-                "'AND _target.'+QUOTENAME(@Subset_"
+                "'AND _target.'+QUOTENAME(@Subset_"  # nosec hardcoded_sql_expressions
                 + x
-                + ")+' IN (SELECT '+QUOTENAME(@Subset_"
+                + ")+' IN (SELECT '+QUOTENAME(@Subset_"  # nosec hardcoded_sql_expressions
                 + x
                 + ")+' FROM '+QUOTENAME(@TableTemp)+')'"
                 for x in alias_conditions

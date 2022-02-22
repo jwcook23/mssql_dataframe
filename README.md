@@ -3,6 +3,7 @@
 ![Test Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/tests.svg?raw=true)
 ![Coverage Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/coverage.svg?raw=true)
 ![Flake8 Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/flake8.svg?raw=true)
+[![Bandit Security](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Build Status](https://dev.azure.com/jasoncook1989/mssql_dataframe/_apis/build/status/continuous-delivery?branchName=main)](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build/latest?definitionId=2&branchName=main)

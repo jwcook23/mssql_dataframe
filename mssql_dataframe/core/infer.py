@@ -3,6 +3,7 @@ may be in objects/strings. Also contains functions for determining other SQL pro
 """
 from datetime import time
 from typing import Tuple, List
+import logging
 
 import pandas as pd
 
@@ -73,8 +74,10 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
             if converted.dtype.name.startswith("int"):
                 name = name.capitalize()
             dataframe[col] = dataframe[col].astype(name)
-        except Exception:
-            continue
+        except ValueError as error:
+            logging.debug(
+                f"Unable to perform numeric downcast of column '{col}'. Exception: {error}"
+            )
 
     # convert Int8 to nullable boolean if multiple values of only 0,1, or NA
     columns = [k for k, v in dataframe.dtypes.items() if v.name == "Int8"]

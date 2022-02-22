@@ -2,6 +2,7 @@
 import warnings
 from importlib.metadata import version
 import sys
+import logging
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import (
@@ -13,6 +14,9 @@ from mssql_dataframe.core import (
     read,
 )
 from mssql_dataframe.core.write.write import write
+
+# initialize logging
+logging.getLogger("mssql_dataframe").addHandler(logging.NullHandler())
 
 
 class SQLServer(connect):
@@ -48,6 +52,13 @@ class SQLServer(connect):
     #### connect to Azure SQL Server instance
     sql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>')
 
+    Logging
+    -------
+    import logging
+    logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+    logger = logging.getLogger('mssql_dataframe')
+    sql = SQLServer()
+
     Debugging
     ---------
     self._conn (dict) : values actually used in the connection, possibly derived by the connection
@@ -66,6 +77,7 @@ class SQLServer(connect):
     ):
 
         connect.__init__(self, database, server, driver, username, password)
+        self.log_init()
 
         # initialize mssql_dataframe functionality with shared connection
         self.exceptions = custom_errors
@@ -89,8 +101,8 @@ class SQLServer(connect):
                 custom_warnings.SQLObjectAdjustment,
             )
 
-    def output_debug(self):
-        """Generate useful debugging info to stdout. Includes connection info along with versions for Python, SQL, and required packages."""
+    def log_init(self):
+        """Log connection info and versions for Python, SQL, and required packages."""
 
         # determine versions for debugging
         self._versions = {}
@@ -106,9 +118,9 @@ class SQLServer(connect):
             self._versions[name] = version(name)
 
         # output actual connection info (possibly derived within connection object)
-        sys.stdout.write("Connection: \n" + str(self._conn) + "\n")
+        logging.debug(f"Connection Info: {self._conn}")
         # output Python/SQL/package versions
-        sys.stdout.write("Versions: \n" + str(self._versions) + "\n")
+        logging.debug(f"Version Numbers: {self._versions}")
 
     def get_schema(self, table_name: str):
         """Get schema of an SQL table and the defined conversion rules between data types.

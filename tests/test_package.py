@@ -1,5 +1,6 @@
 import env
 import warnings
+import logging
 
 import pandas as pd
 
@@ -8,24 +9,25 @@ from mssql_dataframe.package import SQLServer
 from mssql_dataframe.core import custom_warnings
 
 
+attributes = [
+    "_conn",
+    "connection",
+    "_versions",
+    "exceptions",
+    "create",
+    "modify",
+    "read",
+    "write",
+]
+
+
 def test_version():
     assert isinstance(mssql_dataframe.__version__, str)
     assert len(mssql_dataframe.__version__) > 0
 
 
-def test_SQLServer():
+def test_SQLServer_basic():
 
-    attributes = [
-        "_conn",
-        "connection",
-        "exceptions",
-        "create",
-        "modify",
-        "read",
-        "write",
-    ]
-
-    # autoadjust_sql_objects==False
     with warnings.catch_warnings(record=True) as warn:
         assert len(warn) == 0
         sql = SQLServer(
@@ -39,9 +41,11 @@ def test_SQLServer():
         assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
-    # include_metadata_timestamps==True
+
+def test_SQLServer_timestamps():
+
     with warnings.catch_warnings(record=True) as warn:
-        adjustable = SQLServer(
+        sql = SQLServer(
             env.database,
             env.server,
             env.driver,
@@ -55,12 +59,14 @@ def test_SQLServer():
             str(warn[0].message)
             == "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True"
         )
-        assert isinstance(adjustable, SQLServer)
+        assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
-    # autoadjust_sql_objects==True
+
+def test_SQLServer_autoadjust():
+
     with warnings.catch_warnings(record=True) as warn:
-        adjustable = SQLServer(
+        sql = SQLServer(
             env.database,
             env.server,
             env.driver,
@@ -74,13 +80,33 @@ def test_SQLServer():
             str(warn[0].message)
             == "SQL objects will be created/modified as needed as autoadjust_sql_objects=True"
         )
-        assert isinstance(adjustable, SQLServer)
+        assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
 
-    # output debug info
-    sql.output_debug()
-    assert isinstance(sql._conn, dict)
-    assert isinstance(sql._versions, dict)
+
+def test_SQLServer_log_init(caplog):
+
+    with caplog.at_level(logging.DEBUG):
+
+        sql = SQLServer(
+            env.database,
+            env.server,
+            env.driver,
+            env.username,
+            env.password,
+            autoadjust_sql_objects=False,
+        )
+        assert len(caplog.record_tuples) == 2
+
+        assert caplog.record_tuples[0][0] == "root"
+        assert caplog.record_tuples[0][1] == logging.DEBUG
+        assert caplog.record_tuples[0][2].startswith("Connection Info:")
+        assert caplog.record_tuples[1][0] == "root"
+        assert caplog.record_tuples[1][1] == logging.DEBUG
+        assert caplog.record_tuples[1][2].startswith("Version Numbers:")
+
+        assert isinstance(sql._conn, dict)
+        assert isinstance(sql._versions, dict)
 
 
 def test_SQLServer_schema():

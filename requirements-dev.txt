@@ -1,8 +1,8 @@
-pre-commit
-pytest
-coverage
-flake8
 black
+flake8
+bandit
+coverage
+pytest
 genbadge[all]
 build
 twine
