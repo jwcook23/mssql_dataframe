@@ -43,15 +43,15 @@ def test_merge_create_table(sql):
         assert all(
             [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
         )
-        assert str(warn[0].message) == f"Creating table {table_name}"
+        assert str(warn[0].message) == f"Creating table '{table_name}'."
         assert f"Created table: {table_name}" in str(warn[1].message)
         assert (
             str(warn[2].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[3].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -86,15 +86,15 @@ def test_merge_add_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[2].message)
-            == f"Creating column NewColumn in table {table_name} with data type tinyint."
+            == f"Creating column 'NewColumn' in table '{table_name}' with data type 'tinyint'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -131,19 +131,19 @@ def test_merge_alter_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[2].message)
-            == f"Altering column ColumnA in table {table_name} to data type smallint with is_nullable=False."
+            == f"Altering column 'ColumnA' in table '{table_name}' to data type 'smallint' with 'is_nullable=False'."
         )
         assert (
             str(warn[3].message)
-            == f"Altering column ColumnB in table {table_name} to data type varchar(5) with is_nullable=False."
+            == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(5)' with 'is_nullable=False'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -178,19 +178,19 @@ def test_merge_add_and_alter_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[2].message)
-            == f"Creating column NewColumn in table {table_name} with data type tinyint."
+            == f"Creating column 'NewColumn' in table '{table_name}' with data type 'tinyint'."
         )
         assert (
             str(warn[3].message)
-            == f"Altering column ColumnB in table {table_name} to data type varchar(5) with is_nullable=False."
+            == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(5)' with 'is_nullable=False'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)

@@ -1,4 +1,4 @@
-"""Class for merging a dataframe into an SQL table."""
+"""Methods for merging a dataframe into an SQL table."""
 from typing import List, Tuple
 
 import pandas as pd
@@ -8,6 +8,8 @@ from mssql_dataframe.core.write.insert import insert
 
 
 class merge(insert):
+    """Class for merging a dataframe into an SQL table."""
+
     def merge(
         self,
         table_name: str,
@@ -17,13 +19,13 @@ class merge(insert):
         delete_requires: List[str] = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
+
         With upsert=True, an update if exists otherwise insert action is performed without deleting anything. The
         delete_requires parameter allows for incremental merging by preventing records from being deleted if at least
         one record doesn't match in the column.
 
         Parameters
         ----------
-
         table_name (str) : name of the SQL table
         dataframe (pandas.DataFrame): tabular data to merge into SQL table
         match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used

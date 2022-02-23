@@ -1,7 +1,8 @@
-""" Functions for data movement between Python pandas dataframes and SQL."""
+"""Functions for data movement between Python pandas dataframes and SQL."""
 import warnings
 import struct
 from typing import Tuple, List
+import logging
 
 import pyodbc
 import numpy as np
@@ -38,9 +39,7 @@ def get_schema(
     -------
     schema (pandas.DataFrame) : table column specifications and conversion rules
     dataframe (pandas.DataFrame) : dataframe with contents converted to conform to SQL data type
-
     """
-
     cursor = connection.cursor()
 
     # add cataglog for temporary tables
@@ -146,8 +145,9 @@ def get_schema(
 
 
 def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.DataFrame:
-    """Checks the contents of the dataframe for the ability to write to the SQL table
-    and raises approriate exceptions if needed. Additionally converts the data types of the
+    """Check the contents of the dataframe for the ability to write to the SQL table.
+
+    Raises approriate exceptions if needed. Additionally converts the data types of the
     dataframe according to the conversion rules.
 
     Parameters
@@ -158,9 +158,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     Returns
     -------
     dataframe (pandas.DataFrame) : converted according to SQL data type
-
     """
-
     # temporarily set dataframe index (primary key) as a column
     index = dataframe.index.names
     if any(index):
@@ -244,8 +242,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
 def prepare_cursor(
     schema: pd.DataFrame, dataframe: pd.DataFrame, cursor: pyodbc.connect
 ) -> pyodbc.connect:
-    """
-    Prepare cursor data types and size for writting values to SQL.
+    """Prepare cursor data types and size for writting values to SQL.
 
     Parameters
     ----------
@@ -257,7 +254,6 @@ def prepare_cursor(
     -------
     cursor (pyodbc.connect.cursor) : cursor with SQL data type and size parameters set
     """
-
     schema = schema[
         [
             "column_size",
@@ -291,8 +287,9 @@ def prepare_cursor(
 def sql_spec(
     schema: pd.DataFrame, dataframe: pd.DataFrame
 ) -> Tuple[pd.DataFrame, dict]:
-    """Provides dictionary mapping of column name to SQL data type. Data type includes the size of
-    VARCHAR and NVARCHAR columns using dataframe contents.
+    """Generate dictionary mapping of column name to SQL data type.
+
+    Data type includes the size of VARCHAR and NVARCHAR columns using dataframe contents.
 
     Parameters
     ----------
@@ -304,7 +301,6 @@ def sql_spec(
     schema (pandas.DataFrame) : column 'odbc_size' set according to size of contents for string columns
     dtypes (dict) : dictionary mapping of each column SQL data type
     """
-
     if any(dataframe.index.names):
         dataframe = dataframe.reset_index()
 
@@ -345,7 +341,6 @@ def prepare_values(
     values (list) : values to pass to pyodbc.connect.cursor.executemany
 
     """
-
     # create a copy to preserve values in return
     prepped = dataframe.copy()
 
@@ -375,10 +370,9 @@ def prepare_values(
         truncation = []
     if any(truncation):
         truncation = list(truncation[truncation].index)
-        warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type TIME allows 7 max decimal places.",
-            custom_warnings.SQLDataTypeTIMERounding,
-        )
+        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'time' allows 7 max decimal places."
+        warnings.warn(msg, custom_warnings.SQLDataTypeTIMERounding)
+        logging.warning(msg)
     # round nanosecond to the 7th decimal place ...123456789 -> ...123456800
     for col in dtype:
         rounded = dataframe[col].apply(
@@ -409,10 +403,9 @@ def prepare_values(
         truncation = []
     if any(truncation):
         truncation = list(truncation[truncation].index)
-        warnings.warn(
-            f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type DATETIME2 allows 7 max decimal places.",
-            custom_warnings.SQLDataTypeDATETIME2Rounding,
-        )
+        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
+        warnings.warn(msg, custom_warnings.SQLDataTypeDATETIME2Rounding)
+        logging.warning(msg)
         # round nanosecond to the 7th decimal place ...145224193 -> ...145224200
         for col in dtype:
             rounded = dataframe[col].apply(
@@ -475,7 +468,6 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
     -------
     connection (pyodbc.connect) : connection with added output converters
     """
-
     # TIME (pyodbc.SQL_SS_TIME2, SQL TIME)
     # python datetime.time has 6 decimal places of precision and isn't nullable
     # pandas Timedelta supports 9 decimal places and is nullable
@@ -537,7 +529,6 @@ def insert_values(
     -------
     dataframe (pandas.DataFrame) : values that may be altered to conform to SQL precision limitations
     """
-
     # column names from dataframe contents
     if any(dataframe.index.names):
         # named index columns will also have values returned from conversion.prepare_values
@@ -593,7 +584,6 @@ def read_values(
     -------
     result (pandas.DataFrame) : resulting data from performing statement
     """
-
     # add output converters
     connection = prepare_connection(connection)
 

@@ -1,4 +1,4 @@
-"""Class for updaing an SQL table using a dataframe."""
+"""Methods for updaing an SQL table using a dataframe."""
 from typing import List, Tuple
 
 import pandas as pd
@@ -8,6 +8,8 @@ from mssql_dataframe.core.write.insert import insert
 
 
 class update(insert):
+    """Methods for updaing an SQL table using a dataframe."""
+
     def update(
         self, table_name: str, dataframe: pd.DataFrame, match_columns: List[str] = None
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -30,9 +32,7 @@ class update(insert):
 
         #### update Column A based on ColumnB and ColumnC, that do not have to be the SQL primary key
         write.update('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnB','ColumnC'])
-
         """
-
         # prevent setwithcopy errors incase a subset of columns from an original dataframe are being updated
         dataframe = dataframe.copy()
 

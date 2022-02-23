@@ -1,4 +1,4 @@
-"""Class for inserting data into SQL."""
+"""Methods for inserting data into SQL."""
 from typing import Tuple, List
 
 import pandas as pd
@@ -9,6 +9,8 @@ from mssql_dataframe.core.write import _exceptions
 
 
 class insert:
+    """Class for inserting data into SQL."""
+
     def __init__(
         self,
         connection: pyodbc.connect,
@@ -22,9 +24,7 @@ class insert:
         connection (pyodbc.Connection) : connection for executing statement
         include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update for write operations
         autoadjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
-
         """
-
         self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
         self.autoadjust_sql_objects = autoadjust_sql_objects
@@ -59,9 +59,7 @@ class insert:
         --------
         #### insert a dataframe into a table
         write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
-
         """
-
         # create cursor to perform operations
         cursor = self._connection.cursor()
         cursor.fast_executemany = True
@@ -109,7 +107,6 @@ class insert:
         schema (pandas.DataFrame) : table column specifications and conversion rules
         dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
         """
-
         for _ in range(0, self._adjust_sql_attempts + 1):
             try:
                 # dataframe values converted according to SQL data type

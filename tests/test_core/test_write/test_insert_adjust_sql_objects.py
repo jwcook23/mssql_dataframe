@@ -93,10 +93,11 @@ def test_insert_create_table(sql):
         assert all(
             [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
         )
-        assert "Creating table " + table_name in str(warn[0].message)
+        assert str(warn[0].message) == f"Creating table '{table_name}'."
         assert "Created table: " + table_name in str(warn[1].message)
-        assert "Creating column _time_insert in table " + table_name in str(
-            warn[2].message
+        assert (
+            str(warn[2].message)
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -131,7 +132,7 @@ def test_insert_create_table_indexpk(sql):
         assert all(
             [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
         )
-        assert "Creating table " + table_name in str(warn[0].message)
+        assert str(warn[0].message) == f"Creating table '{table_name}'."
         assert "Created table: " + table_name in str(warn[1].message)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -155,15 +156,15 @@ def test_insert_add_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column ColumnB in table {table_name} with data type tinyint."
+            == f"Creating column 'ColumnB' in table '{table_name}' with data type 'tinyint'."
         )
         assert (
             str(warn[2].message)
-            == f"Creating column ColumnC in table {table_name} with data type varchar(3)."
+            == f"Creating column 'ColumnC' in table '{table_name}' with data type 'varchar(3)'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -216,15 +217,15 @@ def test_insert_alter_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=True."
+            == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(3)' with 'is_nullable=True'."
         )
         assert (
             str(warn[2].message)
-            == f"Altering column ColumnC in table {table_name} to data type int with is_nullable=True."
+            == f"Altering column 'ColumnC' in table '{table_name}' to data type 'int' with 'is_nullable=True'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -289,7 +290,7 @@ def test_insert_alter_primary_key(sql):
         )
         assert (
             str(warn[0].message)
-            == "Altering column ColumnA in table ##test_insert_alter_primary_key to data type smallint with is_nullable=False."
+            == f"Altering column 'ColumnA' in table '{table_name}' to data type 'smallint' with 'is_nullable=False'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -338,11 +339,11 @@ def test_insert_add_and_alter_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column ColumnC in table {table_name} with data type tinyint."
+            == f"Creating column 'ColumnC' in table '{table_name}' with data type 'tinyint'."
         )
         assert (
             str(warn[1].message)
-            == f"Altering column ColumnB in table {table_name} to data type smallint with is_nullable=False."
+            == f"Altering column 'ColumnB' in table '{table_name}' to data type 'smallint' with 'is_nullable=False'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)

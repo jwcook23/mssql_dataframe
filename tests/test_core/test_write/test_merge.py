@@ -127,11 +127,11 @@ def test_merge_one_match_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -183,11 +183,11 @@ def test_merge_two_match_columns(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -238,11 +238,11 @@ def test_merge_non_pk_column(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -336,11 +336,11 @@ def test_merge_one_delete_condition(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -408,11 +408,11 @@ def test_merge_two_delete_requires(sql):
         )
         assert (
             str(warn[0].message)
-            == f"Creating column _time_update in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
         assert (
             str(warn[1].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)

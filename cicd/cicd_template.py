@@ -57,7 +57,7 @@ def check_black():
         _ = run_cmd(cmd)
     except RuntimeError as err:
         raise RuntimeError(
-            "black format check failed. Try running 'black . --diff' to see what needs formatted then 'black .' to automatically apply those format changes.",
+            "black format check failed. Run 'black . --diff' to see what needs formatted then 'black .' to automatically apply those format changes.",
             err.args[0],
         )
     print("black check succeeded.")
@@ -84,6 +84,14 @@ def check_bandit(config):
     print(f"Running '{' '.join(cmd)}' to check security.")
     _ = run_cmd(cmd)
     print("bandit check succeeded.")
+
+
+def check_docstrings(config):
+
+    cmd = ["pydocstyle", config["options"]["packages"], "--convention=numpy"]
+    print(f"Running '{' '.join(cmd)}' to check docstring format.")
+    _ = run_cmd(cmd)
+    print("pydocstyle check succeeded.")
 
 
 def run_coverage_pytest(config, args):
@@ -183,6 +191,7 @@ args = {k: v for k, v in args.items() if v is not None}
 check_black()
 check_flake8(config)
 check_bandit(config)
+check_docstrings(config)
 run_coverage_pytest(config, args)
 coverage_html(config)
 coverage_xml(config)

@@ -1,4 +1,4 @@
-"""Class for reading from SQL into a dataframe."""
+"""Methods for reading from SQL into a dataframe."""
 from typing import Literal
 
 import pandas as pd
@@ -8,6 +8,8 @@ from mssql_dataframe.core import custom_errors, dynamic, conversion
 
 
 class read:
+    """Class for reading from SQL into a dataframe."""
+
     def __init__(self, connection: pyodbc.connect):
         """Class for reading from SQL tables.
 
@@ -15,7 +17,6 @@ class read:
         ----------
         connection (pyodbc.Connection) : connection for executing statement
         """
-
         self._connection = connection
 
     def table(
@@ -52,9 +53,7 @@ class read:
 
         #### specify select criteria
         read.table('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='DESC')
-
         """
-
         # get table schema for conversion to pandas
         schema, _ = conversion.get_schema(self._connection, table_name)
 

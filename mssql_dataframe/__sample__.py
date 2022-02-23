@@ -1,4 +1,4 @@
-""" Sample dataframe for testing.
+"""Sample dataframe for testing.
 
 key:  SQL data type
 ---

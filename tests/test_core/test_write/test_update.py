@@ -162,7 +162,7 @@ def test_update_two_match_columns(sql):
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
-            == "Creating column _time_update in table ##test_update_two_match_columns with data type DATETIME2."
+            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
         )
 
     # test result

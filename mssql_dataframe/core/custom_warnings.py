@@ -2,7 +2,7 @@
 
 
 class SQLObjectAdjustment(Warning):
-    """Warning for creating of modifying an SQL object"""
+    """Warning for creating of modifying an SQL object."""
 
     pass
 

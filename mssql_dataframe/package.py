@@ -1,4 +1,4 @@
-"""Classes for all functionality within mssql_dataframe in a convenient package."""
+"""Methods for creating, modifying, reading, and writing between dataframes and SQL."""
 import warnings
 from importlib.metadata import version
 import sys
@@ -90,20 +90,17 @@ class SQLServer(connect):
 
         # issue warnings for automated functionality
         if include_metadata_timestamps:
-            warnings.warn(
-                "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True",
-                custom_warnings.SQLObjectAdjustment,
-            )
+            msg = "SQL write operations will include metadata '_time_insert' & '_time_update' columns as 'include_metadata_timestamps=True'."
+            warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
+            logging.warning(msg)
 
         if autoadjust_sql_objects:
-            warnings.warn(
-                "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
-                custom_warnings.SQLObjectAdjustment,
-            )
+            msg = "SQL objects will be created/modified as needed as 'autoadjust_sql_objects=True'."
+            warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
+            logging.warning(msg)
 
     def log_init(self):
         """Log connection info and versions for Python, SQL, and required packages."""
-
         # determine versions for debugging
         self._versions = {}
         # Python
@@ -133,7 +130,6 @@ class SQLServer(connect):
         -------
         schema (pandas.DataFrame) : table column specifications and conversion rules
         """
-
         schema, _ = conversion.get_schema(self.connection, table_name)
 
         return schema

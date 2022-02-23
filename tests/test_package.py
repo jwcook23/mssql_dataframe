@@ -57,7 +57,7 @@ def test_SQLServer_timestamps():
         assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
-            == "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True"
+            == "SQL write operations will include metadata '_time_insert' & '_time_update' columns as 'include_metadata_timestamps=True'."
         )
         assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes
@@ -78,7 +78,7 @@ def test_SQLServer_autoadjust():
         assert isinstance(warn[-1].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
-            == "SQL objects will be created/modified as needed as autoadjust_sql_objects=True"
+            == "SQL objects will be created/modified as needed as 'autoadjust_sql_objects=True'."
         )
         assert isinstance(sql, SQLServer)
         assert list(vars(sql).keys()) == attributes

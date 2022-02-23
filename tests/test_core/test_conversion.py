@@ -124,12 +124,12 @@ def test_sample(sql, data):
         assert isinstance(warn[0].message, custom_warnings.SQLDataTypeTIMERounding)
         assert (
             str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type TIME allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type 'time' allows 7 max decimal places."
         )
         assert isinstance(warn[1].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
         assert (
             str(warn[1].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type DATETIME2 allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
         )
 
     # prepare cursor for input data types and sizes

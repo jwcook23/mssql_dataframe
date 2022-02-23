@@ -26,7 +26,7 @@ class SQLColumnDoesNotExist(Exception):
 
 
 class SQLInvalidSyntax(Exception):
-    """Exception for invalid syntax"""
+    """Exception for invalid syntax."""
 
     pass
 

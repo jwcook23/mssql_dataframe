@@ -1,4 +1,4 @@
-"""Class for modifying SQL columns or primary keys."""
+"""Methods for modifying SQL columns or primary keys."""
 from typing import Literal, List
 import pyodbc
 
@@ -6,6 +6,8 @@ from mssql_dataframe.core import dynamic
 
 
 class modify:
+    """Class for modifying SQL columns or primary keys."""
+
     def __init__(self, connection: pyodbc.connect):
         """Class for modifying SQL table columns.
 
@@ -13,7 +15,6 @@ class modify:
         ----------
         connection (pyodbc.Connection) : connection for executing statement
         """
-
         self._connection = connection
 
     def column(
@@ -40,12 +41,10 @@ class modify:
 
         Returns
         -------
-
         None
 
         Example
         -------
-
         #### add a column
         modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
 
@@ -54,9 +53,7 @@ class modify:
 
         #### drop a column
         modify.column('SomeTable', modify='drop', column_name='B')
-
         """
-
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
             DECLARE @TableName SYSNAME = ?;
@@ -153,20 +150,16 @@ class modify:
 
         Returns
         -------
-
         None
 
         Examples
         --------
-
         #### add a primary key
         modify.primary_key('SomeTable', modify='add', columns='A', primary_key_name = '_pk_1')
 
         #### drop a primary key
         sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
-
         """
-
         if isinstance(columns, str):
             columns = [columns]
 

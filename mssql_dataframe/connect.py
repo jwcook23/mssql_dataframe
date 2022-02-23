@@ -6,12 +6,10 @@ from mssql_dataframe.core import custom_errors
 
 
 class connect:
-    r"""
-    Connect to local, remote, or cloud SQL Server using ODBC connection.
+    r"""Connect to local, remote, or cloud SQL Server using ODBC connection.
 
     Parameters
     ----------
-
     database (str, default='master') : name of database to connect to
     server (str, default='localhost') : name of server to connect to
     driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
@@ -20,12 +18,10 @@ class connect:
 
     Properties
     ----------
-
     connection (pyodbc.Connection) : manage operations to database connection and database transactions
 
     Examples
     --------
-
     #### local host connection using Windows account credentials and inferring the ODBC driver
     db = connect()
 
@@ -40,7 +36,6 @@ class connect:
 
     #### using a specific driver
     db = connect(driver_name='ODBC Driver 17 for SQL Server')
-
     """
 
     def __init__(
@@ -84,17 +79,14 @@ class connect:
 
     @staticmethod
     def _get_driver(driver_search):
-        """
-        Automatically determine ODBC driver if needed.
+        """Automatically determine ODBC driver if needed.
 
         Parameters
         ----------
-
         driver_search (str) : name of ODBC driver, if None, automatically determine
 
         Returns
         -------
-
         driver (str) : name of ODBC driver
         drivers_installed (list) : drivers install for SQL Server
         """

@@ -1,6 +1,4 @@
-"""Functions for inferring best SQL and datarame data types based on dataframe contents that
-may be in objects/strings. Also contains functions for determining other SQL properties.
-"""
+"""Functions for inferring SQL/dataframe datatypes and other SQL properties."""
 from datetime import time
 from typing import Tuple, List
 import logging
@@ -11,8 +9,9 @@ from mssql_dataframe.core import custom_errors, conversion_rules
 
 
 def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], str]:
-    """Infer best fit data types using dataframe values. May be an object converted to a better type,
-    or numeric values downcasted to a smallter data type.
+    """Infer best fit data types using dataframe values.
+
+    May be an object converted to a better type, or numeric values downcasted to a smallter data type.
 
     Parameters
     ----------
@@ -25,7 +24,6 @@ def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, List[str],
     not_nullable (list[str]) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
     """
-
     # numeric like: bit, tinyint, smallint, int, bigint, float
     dataframe = convert_numeric(dataframe)
 
@@ -53,7 +51,6 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
     -------
     dataframe (pandas.DataFrame) : contains possibly converted or downcasted columns
     """
-
     # attempt conversion of strings/numeric to a downcasted numeric
     columns = dataframe.select_dtypes(
         include=["object", "number"], exclude="timedelta"
@@ -122,7 +119,6 @@ def convert_date(dataframe: pd.DataFrame) -> pd.DataFrame:
     -------
     dataframe (pandas.DataFrame) : contains possibly converted columns
     """
-
     # attempt conversion of object columns to timedelta
     columns = dataframe.columns[dataframe.dtypes == "object"]
     for col in columns:
@@ -154,7 +150,6 @@ def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
     -------
     dataframe (pandas.DataFrame) : contains columns possibly converted to nullable string
     """
-
     columns = dataframe.columns[
         (dataframe.dtypes == "object") | (dataframe.isna().all())
     ]
@@ -175,9 +170,7 @@ def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[List[str]
     -------
     not_nullable (list[str]) : columns that should not be null
     pk (str) : name of column that best fits as the primary key
-
     """
-
     # determine columns not nullable
     not_nullable = dataframe.notna().all()
     not_nullable = list(not_nullable[not_nullable].index)
@@ -224,9 +217,7 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     schema (pandas.DataFrame) : derived SQL schema
-
     """
-
     # determine data type based on conversion rules
     schema = pd.DataFrame(dataframe.dtypes.copy(), columns=["pandas_type"])
     schema.index.name = "column_name"
@@ -277,7 +268,6 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
     ------
     schema (pandas.DataFrame) : resolved data types
     """
-
     deduplicate = schema[schema["pandas_type"] == "string"]
     columns = deduplicate.index.unique()
     for col in columns:
@@ -315,7 +305,6 @@ def _deduplicate_datetime(
     ------
     schema (pandas.DataFrame) : resolved data types
     """
-
     deduplicate = schema[schema["pandas_type"] == "datetime64[ns]"]
     columns = deduplicate.index.unique()
     for col in columns:

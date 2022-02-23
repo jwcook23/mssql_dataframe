@@ -126,7 +126,7 @@ def test_insert_dataframe(sql):
         assert isinstance(warn[0].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
         assert (
             str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type DATETIME2 allows 7 max decimal places."
+            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
         )
 
     # test result
@@ -223,7 +223,7 @@ def test_insert_include_metadata_timestamps(sql):
         assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
         assert (
             str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
+            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
         )
 
     # test result
