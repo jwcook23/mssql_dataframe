@@ -8,9 +8,9 @@ from mssql_dataframe.package import SQLServer
 
 
 attributes = [
-    "_conn",
+    "connection_spec",
     "connection",
-    "_versions",
+    "version_spec",
     "exceptions",
     "create",
     "modify",
@@ -101,8 +101,8 @@ def test_SQLServer_log_init(caplog):
             env.password,
             autoadjust_sql_objects=False,
         )
-        assert isinstance(sql._conn, dict)
-        assert isinstance(sql._versions, dict)
+        assert isinstance(sql.connection_spec, dict)
+        assert isinstance(sql.version_spec, dict)
 
         # assert warnings raised by logging after all other tasks
         assert len(caplog.record_tuples) == 2

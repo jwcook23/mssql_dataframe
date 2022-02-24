@@ -22,20 +22,25 @@ class connect:
 
     Examples
     --------
-    #### local host connection using Windows account credentials and inferring the ODBC driver
-    db = connect()
+    Connect to local host server master database using Windows account credentials and inferring the ODBC driver.
 
-    #### remote server using username and password
-    db = connect(database='master', server='<remote>', username='<username>', password='<password>')
+    >>> db = connect()
+    >>> db.connection_spec['server'] == 'localhost'
+    True
 
-    #### Azure SQL Server instance
-    db = connect(server='<server>.database.windows.net', username='<username>', password='<password>')
+    Connect to a remote server.
 
-    #### SQL Express Local DB
-    db = connect(server=r"(localdb)\mssqllocaldb")
+    >>> db = connect(server='SomeServerName', database='tempdb') # doctest: +SKIP
 
-    #### using a specific driver
-    db = connect(driver_name='ODBC Driver 17 for SQL Server')
+    Connect to Azure SQL Server instance using a username and password.
+
+    >>> db = connect(server='<server>.database.windows.net', username='<username>', password='<password>') # doctest: +SKIP
+
+    Connect to SQL Express Local DB
+    >>> db = connect(server=r"(localdb)\mssqllocaldb") # doctest: +SKIP
+
+    Connect using a specific driver.
+    >>> db = connect(driver_name='ODBC Driver 17 for SQL Server') # doctest: +SKIP
     """
 
     def __init__(
@@ -48,30 +53,30 @@ class connect:
     ):
 
         driver, drivers_installed = self._get_driver(driver)
-        self._conn = {
+        self.connection_spec = {
             "database": database,
             "server": server,
             "driver": driver,
             "drivers_installed": drivers_installed,
         }
         if username is None:
-            self._conn["trusted_connection"] = True
+            self.connection_spec["trusted_connection"] = True
         else:
-            self._conn["trusted_connection"] = False
+            self.connection_spec["trusted_connection"] = False
 
-        if self._conn["trusted_connection"]:
+        if self.connection_spec["trusted_connection"]:
             self.connection = pyodbc.connect(
-                driver=self._conn["driver"],
-                server=self._conn["server"],
-                database=self._conn["database"],
+                driver=self.connection_spec["driver"],
+                server=self.connection_spec["server"],
+                database=self.connection_spec["database"],
                 autocommit=False,
                 trusted_connection="yes",
             )
         else:
             self.connection = pyodbc.connect(
-                driver=self._conn["driver"],
-                server=self._conn["server"],
-                database=self._conn["database"],
+                driver=self.connection_spec["driver"],
+                server=self.connection_spec["server"],
+                database=self.connection_spec["database"],
                 autocommit=False,
                 UID=username,
                 PWD=password,

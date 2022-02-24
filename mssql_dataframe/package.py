@@ -45,30 +45,29 @@ class SQLServer(connect):
     Connect to localhost server master database.
 
     >>> sql = SQLServer()
-    >>> sql._conn['server'] == 'localhost'
+    >>> sql.connection_spec['server'] == 'localhost'
     True
 
-    Connect to a localhost server master database, with the ability to automatically adjust SQL objects.
+    Connect with the ability to automatically adjust SQL objects.
 
     >>> sql = SQLServer(autoadjust_sql_objects=True)
     >>> sql.write.autoadjust_sql_objects
     True
 
-    Connect to a remote server.
-
-    >>> sql = SQLServer(server='SomeServerName', database='tempdb') # doctest: +SKIP
-
-    Connect to Azure SQL Server instance.
-
-    >>> sql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>') # doctest: +SKIP
-
     Enable logging from mssql_dataframe.
 
     >>> import logging
-    >>> logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(name)s %(filename)s %(levelname)s: %(message)s')
+    >>> logging.basicConfig(
+    ... filename='example.log', encoding='utf-8', level=logging.DEBUG, 
+    ... format='%(asctime)s %(name)s %(filename)s %(levelname)s: %(message)s'
+    ... )
     >>> logger = logging.getLogger('mssql_dataframe')
     >>> sql = SQLServer()
     >>> logger.warning('test')
+
+    See Also
+    --------
+    connect : Additional options for connecting to a server including remote, Azure, and username/password.
     """
 
     def __init__(
@@ -108,22 +107,22 @@ class SQLServer(connect):
     def log_init(self):
         """Log connection info and versions for Python, SQL, and required packages."""
         # determine versions for debugging
-        self._versions = {}
+        self.version_spec = {}
         # Python
-        self._versions["python"] = sys.version_info
+        self.version_spec["python"] = sys.version_info
         # SQL
         cur = self.connection.cursor()
         name = cur.execute("SELECT @@VERSION").fetchone()
-        self._versions["sql"] = name[0]
+        self.version_spec["sql"] = name[0]
         # packages
         names = ["mssql-dataframe", "pyodbc", "pandas"]
         for name in names:
-            self._versions[name] = version(name)
+            self.version_spec[name] = version(name)
 
         # output actual connection info (possibly derived within connection object)
-        logger.debug(f"Connection Info: {self._conn}")
+        logger.debug(f"Connection Info: {self.connection_spec}")
         # output Python/SQL/package versions
-        logger.debug(f"Version Numbers: {self._versions}")
+        logger.debug(f"Version Numbers: {self.version_spec}")
 
     def get_schema(self, table_name: str):
         """Get schema of an SQL table and the defined conversion rules between data types.

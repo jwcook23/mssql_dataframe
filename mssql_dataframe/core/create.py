@@ -50,14 +50,16 @@ class create:
 
         Examples
         --------
-        #### simple table without primary key
-        create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
+        Simple table without primary key.
+        >>> create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
 
-        #### table with a primary key and another non-nullable column
-        create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", primary_key_column="A")
+        Table with a primary key and another non-nullable column.
 
-        #### table with an SQL identity primary key
-        create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", sql_primary_key=True)
+        >>> create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", primary_key_column="A")
+
+        Table with an SQL identity primary key.
+
+        >>> create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", sql_primary_key=True)
         """
         statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
@@ -240,8 +242,8 @@ class create:
 
         Examples
         --------
-        #### create table without a primary key
-        df = create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
+        Table without a primary key.
+        >>> df = create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
 
         #### create table with the dataframe's index as the primary key
         df = create.table_from_dataframe('##DFIndexPK', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
