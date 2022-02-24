@@ -1,18 +1,18 @@
 """Functions for handling exceptions when attempting to write to SQL."""
-import warnings
 from typing import List
 import logging
 
 import pandas as pd
 
 from mssql_dataframe.core import (
-    custom_warnings,
     custom_errors,
     infer,
     conversion,
     modify,
     create,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def handle(
@@ -54,8 +54,7 @@ def handle(
     ):
         for col in columns:
             msg = f"Creating column '{col}' in table '{table_name}' with data type 'datetime2'."
-            warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
-            logging.warning(msg)
+            logger.warning(msg)
             modifier.column(
                 table_name, modify="add", column_name=col, data_type="datetime2"
             )
@@ -98,8 +97,7 @@ def create_table(
 
     """
     msg = f"Creating table '{table_name}'."
-    warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
-    logging.warning(msg)
+    logger.warning(msg)
 
     if any(dataframe.index.names):
         primary_key = "index"
@@ -138,8 +136,7 @@ def add_columns(
         msg = (
             f"Creating column '{col}' in table '{table_name}' with data type '{spec}'."
         )
-        warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
-        logging.warning(msg)
+        logger.warning(msg)
         modifier.column(
             table_name, modify="add", column_name=col, data_type=spec, is_nullable=True
         )
@@ -215,8 +212,7 @@ def alter_columns(
     for col, spec in dtypes.items():
         is_nullable = previous.at[col, "is_nullable"]
         msg = f"Altering column '{col}' in table '{table_name}' to data type '{spec}' with 'is_nullable={is_nullable}'."
-        warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
-        logging.warning(msg)
+        logger.warning(msg)
         modifier.column(
             table_name,
             modify="alter",

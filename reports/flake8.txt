@@ -1,2 +1,9 @@
 .\cicd\cicd_template.py:54:13: F541 f-string is missing placeholders
 .\cicd\cicd_template.py:57:11: F541 f-string is missing placeholders
+.\tests\test_core\test_conversion.py:10:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_insert.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_insert_adjust_sql_objects.py:9:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_merge.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_merge_adjust_sql_objects.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_update.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\tests\test_core\test_write\test_update_adjust_sql_objects.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused

@@ -1,14 +1,14 @@
 import env
+import logging
 
 from datetime import datetime
-import warnings
 
 import pytest
 import pandas as pd
 import pyodbc
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, conversion, create
+from mssql_dataframe.core import conversion, create
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -189,15 +189,12 @@ def test_table_sqlpk(sql):
     assert all(schema["odbc_precision"] == [0, 0])
 
 
-def test_table_from_dataframe_simple(sql):
+def test_table_from_dataframe_simple(sql, caplog):
 
     table_name = "##test_table_from_dataframe_simple"
     dataframe = pd.DataFrame({"ColumnA": [1]})
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(table_name, dataframe)
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe)
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert len(schema) == 1
@@ -217,15 +214,18 @@ def test_table_from_dataframe_simple(sql):
     )
     assert result.equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_datestr(sql):
+
+def test_table_from_dataframe_datestr(sql, caplog):
     table_name = "##test_table_from_dataframe_datestr"
     dataframe = pd.DataFrame({"ColumnA": ["06/22/2021"]})
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create_meta.table_from_dataframe(table_name, dataframe)
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create_meta.table_from_dataframe(table_name, dataframe)
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
@@ -253,6 +253,12 @@ def test_table_from_dataframe_datestr(sql):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
+
 
 def test_table_from_dataframe_errorpk(sql, sample):
 
@@ -261,16 +267,13 @@ def test_table_from_dataframe_errorpk(sql, sample):
         sql.create.table_from_dataframe(table_name, sample, primary_key="ColumnName")
 
 
-def test_table_from_dataframe_nopk(sql, sample):
+def test_table_from_dataframe_nopk(sql, sample, caplog):
 
     table_name = "##test_table_from_dataframe_nopk"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, sample.copy(), primary_key=None
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, sample.copy(), primary_key=None
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
@@ -348,17 +351,20 @@ def test_table_from_dataframe_nopk(sql, sample):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_sqlpk(sql, sample):
+
+def test_table_from_dataframe_sqlpk(sql, sample, caplog):
 
     table_name = "##test_table_from_dataframe_sqlpk"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, sample.copy(), primary_key="sql"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, sample.copy(), primary_key="sql"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
@@ -444,17 +450,20 @@ def test_table_from_dataframe_sqlpk(sql, sample):
     result = result.reset_index(drop=True)
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_indexpk_unnamed(sql, sample):
+
+def test_table_from_dataframe_indexpk_unnamed(sql, sample, caplog):
 
     table_name = "##test_table_from_dataframe_indexpk_unnamed"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, sample.copy(), primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, sample.copy(), primary_key="index"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
@@ -539,18 +548,21 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_indexpk_named(sql, sample):
+
+def test_table_from_dataframe_indexpk_named(sql, sample, caplog):
 
     table_name = "##test_table_from_dataframe_indexpk_named"
     sample.index.name = "NamedIndex"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, sample.copy(), primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, sample.copy(), primary_key="index"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     expected = pd.DataFrame(
@@ -635,8 +647,14 @@ def test_table_from_dataframe_indexpk_named(sql, sample):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_inferpk_integer(sql):
+
+def test_table_from_dataframe_inferpk_integer(sql, caplog):
 
     table_name = "##test_table_from_dataframe_inferpk_integer"
     dataframe = pd.DataFrame(
@@ -650,13 +668,10 @@ def test_table_from_dataframe_inferpk_integer(sql):
             "_float2": [1.1111, 2, 3, 4, 6],
         }
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="infer"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="infer"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["_smallint", "pk_seq"] == 1
@@ -667,8 +682,14 @@ def test_table_from_dataframe_inferpk_integer(sql):
     )
     assert result[dataframe.columns].equals(dataframe.sort_index())
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_inferpk_string(sql):
+
+def test_table_from_dataframe_inferpk_string(sql, caplog):
 
     table_name = "##test_table_from_dataframe_inferpk_string"
     dataframe = pd.DataFrame(
@@ -677,13 +698,10 @@ def test_table_from_dataframe_inferpk_string(sql):
             "_varchar2": ["aa", "b", "c", "d", "e"],
         }
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="infer"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="infer"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["_varchar1", "pk_seq"] == 1
@@ -694,8 +712,14 @@ def test_table_from_dataframe_inferpk_string(sql):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_inferpk_none(sql):
+
+def test_table_from_dataframe_inferpk_none(sql, caplog):
 
     table_name = "##test_table_from_dataframe_inferpk_none"
     dataframe = pd.DataFrame(
@@ -705,13 +729,10 @@ def test_table_from_dataframe_inferpk_none(sql):
         }
     )
 
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="infer"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="infer"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert all(schema["pk_seq"].isna())
@@ -721,21 +742,24 @@ def test_table_from_dataframe_inferpk_none(sql):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]
 
-def test_table_from_dataframe_composite_pk(sql):
+
+def test_table_from_dataframe_composite_pk(sql, caplog):
 
     table_name = "##test_table_from_dataframe_composite_pk"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
     dataframe = dataframe.set_index(keys=["ColumnA", "ColumnB"])
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
+
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     assert schema.at["ColumnA", "pk_seq"] == 1
@@ -745,3 +769,9 @@ def test_table_from_dataframe_composite_pk(sql):
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert result[dataframe.columns].equals(dataframe)
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert "Created table" in caplog.record_tuples[0][2]

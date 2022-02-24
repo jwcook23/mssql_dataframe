@@ -1,11 +1,11 @@
 import env
-import warnings
+import logging
 
 import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
+from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import insert
 
 pd.options.mode.chained_assignment = "raise"
@@ -61,7 +61,7 @@ def test_insert_errors(sql):
         )
 
 
-def test_insert_dataframe(sql):
+def test_insert_dataframe(sql, caplog):
 
     table_name = "##test_insert_dataframe"
 
@@ -120,14 +120,7 @@ def test_insert_dataframe(sql):
     sql.create.table(table_name, columns)
 
     # insert data
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert_meta.insert(table_name, dataframe)
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
-        assert (
-            str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
-        )
+    dataframe = sql.insert_meta.insert(table_name, dataframe)
 
     # test result
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -136,6 +129,15 @@ def test_insert_dataframe(sql):
     )
     assert all(result["_time_insert"].notna())
     assert dataframe.equals(result[result.columns.drop("_time_insert")])
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[0][2]
+        == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
+    )
 
 
 def test_insert_singles(sql):
@@ -206,7 +208,7 @@ def test_insert_composite_pk(sql):
     assert all(result["ColumnC"] == 1)
 
 
-def test_insert_include_metadata_timestamps(sql):
+def test_insert_include_metadata_timestamps(sql, caplog):
 
     table_name = "##test_insert_include_metadata_timestamps"
 
@@ -217,14 +219,7 @@ def test_insert_include_metadata_timestamps(sql):
     sql.create.table(table_name, columns={"_bit": "BIT"})
 
     # insert data
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert_meta.insert(table_name, dataframe)
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    dataframe = sql.insert_meta.insert(table_name, dataframe)
 
     # test result
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -233,3 +228,12 @@ def test_insert_include_metadata_timestamps(sql):
     )
     assert all(result["_time_insert"].notna())
     assert result["_bit"].equals(dataframe["_bit"])
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[0][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )

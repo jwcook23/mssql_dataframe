@@ -1,11 +1,11 @@
 import env
-import warnings
+import logging
 
 import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
+from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import update
 
 pd.options.mode.chained_assignment = "raise"
@@ -74,19 +74,15 @@ def test_update_errors(sql):
         )
 
 
-def test_update_primary_key(sql):
+def test_update_primary_key(sql, caplog):
 
     table_name = "##test_update_primary_key"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
@@ -102,20 +98,22 @@ def test_update_primary_key(sql):
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
 
-def test_update_nonpk_column(sql):
+
+def test_update_nonpk_column(sql, caplog):
 
     table_name = "##test_update_nonpk_column"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     ).set_index(keys="ColumnA")
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
@@ -133,20 +131,22 @@ def test_update_nonpk_column(sql):
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
 
-def test_update_two_match_columns(sql):
+
+def test_update_two_match_columns(sql, caplog):
 
     table_name = "##test_update_two_match_columns"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="sql"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="sql"
+    )
 
     # update values in table, using the primary key created in SQL and ColumnA
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -154,16 +154,9 @@ def test_update_two_match_columns(sql):
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
     dataframe["ColumnC"] = [5, 6]
-    with warnings.catch_warnings(record=True) as warn:
-        updated = sql.update_meta.update(
-            table_name, dataframe, match_columns=["_pk", "ColumnA"]
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
+    updated = sql.update_meta.update(
+        table_name, dataframe, match_columns=["_pk", "ColumnA"]
+    )
 
     # test result
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -173,21 +166,29 @@ def test_update_two_match_columns(sql):
     assert updated.equals(result[updated.columns])
     assert result["_time_update"].notna().all()
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 2
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_update_composite_pk(sql):
+
+def test_update_composite_pk(sql, caplog):
 
     table_name = "##test_update_composite_pk"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
     dataframe = dataframe.set_index(keys=["ColumnA", "ColumnB"])
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]
@@ -199,3 +200,9 @@ def test_update_composite_pk(sql):
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert result.equals(updated)
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]

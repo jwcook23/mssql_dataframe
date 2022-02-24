@@ -1,5 +1,5 @@
 import env
-import warnings
+import logging
 
 import pandas as pd
 
@@ -7,7 +7,7 @@ import pytest
 import pyodbc
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, conversion, conversion_rules, dynamic
+from mssql_dataframe.core import conversion, conversion_rules, dynamic
 from mssql_dataframe import __sample__
 
 pd.options.mode.chained_assignment = "raise"
@@ -96,7 +96,7 @@ def test_rules(data):
         error.args += missing
 
 
-def test_sample(sql, data):
+def test_sample(sql, data, caplog):
 
     # create cursor to perform operations
     cursor = sql.cursor()
@@ -118,19 +118,7 @@ def test_sample(sql, data):
     columns = dynamic.escape(cursor, data.columns)
 
     # prepare values of dataframe for insert
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe, values = conversion.prepare_values(schema, data)
-        assert len(warn) == 2
-        assert isinstance(warn[0].message, custom_warnings.SQLDataTypeTIMERounding)
-        assert (
-            str(warn[0].message)
-            == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type 'time' allows 7 max decimal places."
-        )
-        assert isinstance(warn[1].message, custom_warnings.SQLDataTypeDATETIME2Rounding)
-        assert (
-            str(warn[1].message)
-            == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
-        )
+    dataframe, values = conversion.prepare_values(schema, data)
 
     # prepare cursor for input data types and sizes
     cursor = conversion.prepare_cursor(schema, dataframe, cursor)
@@ -155,6 +143,21 @@ def test_sample(sql, data):
 
     # compare result to insert, comparing to dataframe as values may have changed during insert preparation
     assert result.equals(dataframe.set_index(keys="id"))
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 2
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[0][2]
+        == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type 'time' allows 7 max decimal places."
+    )
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
+    )
 
 
 def test_prepare_values_errors():

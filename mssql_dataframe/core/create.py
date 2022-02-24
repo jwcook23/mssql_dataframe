@@ -1,12 +1,13 @@
 """Methods for creating SQL tables both explicitly and implicitly."""
 from typing import Literal, List, Dict
-import warnings
 import logging
 
 import pandas as pd
 import pyodbc
 
-from mssql_dataframe.core import custom_warnings, dynamic, conversion, infer
+from mssql_dataframe.core import dynamic, conversion, infer
+
+logger = logging.getLogger(__name__)
 
 
 class create:
@@ -308,8 +309,7 @@ class create:
         Non-null columns: {not_nullable}
         Data types: {dtypes}
         """
-        warnings.warn(msg, custom_warnings.SQLObjectAdjustment)
-        logging.warning(msg)
+        logger.warning(msg)
 
         # set primary key column as dataframe index
         if primary_key_column is not None:

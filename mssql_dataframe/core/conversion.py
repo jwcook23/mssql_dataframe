@@ -1,5 +1,4 @@
 """Functions for data movement between Python pandas dataframes and SQL."""
-import warnings
 import struct
 from typing import Tuple, List
 import logging
@@ -9,11 +8,12 @@ import numpy as np
 import pandas as pd
 
 from mssql_dataframe.core import (
-    custom_warnings,
     custom_errors,
     conversion_rules,
     dynamic,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_schema(
@@ -371,8 +371,7 @@ def prepare_values(
     if any(truncation):
         truncation = list(truncation[truncation].index)
         msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'time' allows 7 max decimal places."
-        warnings.warn(msg, custom_warnings.SQLDataTypeTIMERounding)
-        logging.warning(msg)
+        logger.warning(msg)
     # round nanosecond to the 7th decimal place ...123456789 -> ...123456800
     for col in dtype:
         rounded = dataframe[col].apply(
@@ -404,8 +403,7 @@ def prepare_values(
     if any(truncation):
         truncation = list(truncation[truncation].index)
         msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
-        warnings.warn(msg, custom_warnings.SQLDataTypeDATETIME2Rounding)
-        logging.warning(msg)
+        logger.warning(msg)
         # round nanosecond to the 7th decimal place ...145224193 -> ...145224200
         for col in dtype:
             rounded = dataframe[col].apply(

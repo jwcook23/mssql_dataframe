@@ -1,11 +1,11 @@
 import env
-import warnings
+import logging
 
 import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_warnings, custom_errors, create, conversion
+from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import merge
 
 pd.options.mode.chained_assignment = "raise"
@@ -59,15 +59,11 @@ def test_merge_errors(sql):
         )
 
 
-def test_merge_upsert(sql):
+def test_merge_upsert(sql, caplog):
 
     table_name = "##test_merge_upsert"
     dataframe = pd.DataFrame({"ColumnA": [3, 4]})
-    with warnings.catch_warnings(record=True) as warn:
-        sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    sql.create.table_from_dataframe(table_name, dataframe, primary_key="index")
 
     # delete, but keep in SQL since upserting
     dataframe = dataframe[dataframe.index != 0].copy()
@@ -93,18 +89,20 @@ def test_merge_upsert(sql):
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
 
-def test_merge_one_match_column(sql):
+
+def test_merge_one_match_column(sql, caplog):
 
     table_name = "##test_merge_one_match_column"
     dataframe = pd.DataFrame({"ColumnA": [3, 4]})
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -119,20 +117,7 @@ def test_merge_one_match_column(sql):
     )
 
     # merge values into table, using the SQL primary key that came from the dataframe's index
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(table_name, dataframe)
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    dataframe = sql.merge_meta.merge(table_name, dataframe)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -142,20 +127,34 @@ def test_merge_one_match_column(sql):
     assert all(result["_time_update"].notna() == [True, False])
     assert all(result["_time_insert"].notna() == [False, True])
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_merge_two_match_columns(sql):
+
+def test_merge_two_match_columns(sql, caplog):
 
     table_name = "##test_merge_two_match_columns"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -173,22 +172,9 @@ def test_merge_two_match_columns(sql):
     )
 
     # merge values into table, using the primary key that came from the dataframe's index and ColumnA
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(
-            table_name, dataframe, match_columns=["_index", "State"]
-        )
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    dataframe = sql.merge_meta.merge(
+        table_name, dataframe, match_columns=["_index", "State"]
+    )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -198,20 +184,32 @@ def test_merge_two_match_columns(sql):
     assert all(result["_time_update"].notna() == [True, False])
     assert all(result["_time_insert"].notna() == [False, True])
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_merge_non_pk_column(sql):
+
+def test_merge_non_pk_column(sql, caplog):
 
     table_name = "##test_merge_non_pk_column"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
     )
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key=None
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(table_name, dataframe, primary_key=None)
 
     # delete
     dataframe = dataframe[dataframe.index != 0]
@@ -229,21 +227,8 @@ def test_merge_non_pk_column(sql):
         ]
     )
 
-    # merge values into table, using a single column that is not the primary key
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(table_name, dataframe, match_columns=["State"])
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    # merge values into table, using a single column that is not the primary key:
+    dataframe = sql.merge_meta.merge(table_name, dataframe, match_columns=["State"])
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -253,20 +238,34 @@ def test_merge_non_pk_column(sql):
     )
     assert result[dataframe.columns].equals(dataframe)
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_merge_composite_pk(sql):
+
+def test_merge_composite_pk(sql, caplog):
 
     table_name = "##test_merge_composite_pk"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
     ).set_index(keys=["State", "ColumnA"])
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # delete
     dataframe = dataframe[dataframe.index != ("A", 3)].copy()
@@ -291,8 +290,14 @@ def test_merge_composite_pk(sql):
     assert "_time_update" not in result
     assert "_time_insert" not in result
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
 
-def test_merge_one_delete_condition(sql):
+
+def test_merge_one_delete_condition(sql, caplog):
 
     table_name = "##test_merge_one_delete_condition"
     dataframe = pd.DataFrame(
@@ -300,13 +305,9 @@ def test_merge_one_delete_condition(sql):
         index=[0, 1, 2],
     )
     dataframe.index.name = "_pk"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # delete 2 records
     dataframe = dataframe[dataframe.index == 1].copy()
@@ -326,22 +327,9 @@ def test_merge_one_delete_condition(sql):
     # merge values into table, using the primary key that came from the dataframe's index
     # prevent _pk 0 from being deleted as source dataframe must contain a match for state
     dataframe.index.name = "_pk"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(
-            table_name, dataframe, match_columns=["_pk"], delete_requires=["State"]
-        )
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    dataframe = sql.merge_meta.merge(
+        table_name, dataframe, match_columns=["_pk"], delete_requires=["State"]
+    )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -355,8 +343,26 @@ def test_merge_one_delete_condition(sql):
     assert all(result["_time_update"].notna() == [False, True, False])
     assert all(result["_time_insert"].notna() == [False, False, True])
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_merge_two_delete_requires(sql):
+
+def test_merge_two_delete_requires(sql, caplog):
 
     table_name = "##test_merge_two_delete_requires"
     dataframe = pd.DataFrame(
@@ -369,13 +375,9 @@ def test_merge_two_delete_requires(sql):
         index=[0, 1, 2],
     )
     dataframe.index.name = "_pk"
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     # delete 2 records
     dataframe = dataframe[dataframe.index == 1].copy()
@@ -395,25 +397,12 @@ def test_merge_two_delete_requires(sql):
 
     # merge values into table, using the primary key that came from the dataframe's index
     # also require a match on State1 and State2 to prevent a record from being deleted
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.merge_meta.merge(
-            table_name,
-            dataframe,
-            match_columns=["_pk"],
-            delete_requires=["State1", "State2"],
-        )
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
-        )
+    dataframe = sql.merge_meta.merge(
+        table_name,
+        dataframe,
+        match_columns=["_pk"],
+        delete_requires=["State1", "State2"],
+    )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -430,3 +419,21 @@ def test_merge_two_delete_requires(sql):
     )
     assert all(result["_time_update"].notna() == [False, True, False])
     assert all(result["_time_insert"].notna() == [False, False, True])
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
