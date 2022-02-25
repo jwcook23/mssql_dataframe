@@ -49,7 +49,7 @@ class insert:
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_insert column
 
         Returns
         -------
@@ -57,14 +57,17 @@ class insert:
 
         Examples
         --------
-        #### insert a dataframe into a table
-        write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
+        A sample table to insert a dataframe into.
+        >>> create.table('##ExampleInsertDF', columns={'ColumnA': 'tinyint'}, not_nullable=['ColumnA'])
+
+        Insert into the table. Include the column _time_insert (automatically created) to reflect in server time when the record was insert.
+        >>> df = insert('##ExampleInsertDF', pd.DataFrame({'ColumnA': [1, 2, 3]}), include_metadata_timestamps=True)
         """
         # create cursor to perform operations
         cursor = self._connection.cursor()
         cursor.fast_executemany = True
 
-        # override self.include_metadata_timestamps, for the update class to insert into a source temp table
+        # override self.include_metadata_timestamps
         if include_metadata_timestamps is None:
             include_metadata_timestamps = self.include_metadata_timestamps
 

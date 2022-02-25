@@ -51,15 +51,15 @@ class create:
         Examples
         --------
         Simple table without primary key.
-        >>> create.table(table_name='##CreateSimpleTable', columns={"A": "VARCHAR(100)"})
+        >>> create.table(table_name='##ExampleCreateTable', columns={"A": "VARCHAR(100)"})
 
         Table with a primary key and another non-nullable column.
 
-        >>> create.table(table_name='##CreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", primary_key_column="A")
+        >>> create.table(table_name='##ExampleCreatePKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", primary_key_column="A")
 
         Table with an SQL identity primary key.
 
-        >>> create.table(table_name='##CreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", sql_primary_key=True)
+        >>> create.table(table_name='##ExampleCreateIdentityPKTable', columns={"A": "VARCHAR(100)", "B": "INT"}, not_nullable="B", sql_primary_key=True)
         """
         statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
@@ -243,16 +243,16 @@ class create:
         Examples
         --------
         Table without a primary key.
-        >>> df = create.table_from_dataframe('##DFNoPK', pd.DataFrame({"ColumnA": [1]}))
+        >>> df = create.table_from_dataframe('##ExampleCreateDFNoPKTable', pd.DataFrame({"ColumnA": [1]}))
 
-        #### create table with the dataframe's index as the primary key
-        df = create.table_from_dataframe('##DFIndexPK', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
+        Table with the dataframe's index as the primary key.
+        >>> df = create.table_from_dataframe('##ExampleCreateDFIndexPKTable', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
 
-        #### create an SQL identity primary key
-        df = create.table_from_dataframe('##DFIdentityPK', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
+        Table with SQL identity primary key.
+        >>> df = create.table_from_dataframe('##ExampleCreateDFIdentityPKTable', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
 
-        #### create table using ColumnA as the primary key, after it was inferred to be the primary key
-        df = create.table_from_dataframe('##DFInferPK', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
+        Table using ColumnA as the primary key, after it was inferred to be the primary key.
+        >>> df = create.table_from_dataframe('##ExampleCreateDFInferPKTable', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
         """
         # determine primary key
         if primary_key is None:

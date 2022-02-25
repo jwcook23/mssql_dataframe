@@ -11,7 +11,11 @@ class update(insert):
     """Methods for updaing an SQL table using a dataframe."""
 
     def update(
-        self, table_name: str, dataframe: pd.DataFrame, match_columns: List[str] = None
+        self,
+        table_name: str,
+        dataframe: pd.DataFrame,
+        match_columns: List[str] = None,
+        include_metadata_timestamps: bool = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Update column(s) in an SQL table using a dataframe.
 
@@ -19,7 +23,8 @@ class update(insert):
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
-        match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key is used
+        match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key and dataframe index is used
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_update column
 
         Returns
         -------
@@ -27,11 +32,25 @@ class update(insert):
 
         Examples
         --------
-        #### update ColumnA only using the dataframe index & SQL primary key
-        write.update('SomeTable', dataframe[['ColumnA']])
+        A sample table to update, created from a dataframe.
+        >>> df = pd.DataFrame(
+        ...    {
+        ...    "ColumnA": [5, 6, 7],
+        ...    "ColumnB": [5, 6, 7],
+        ...    "ColumnC": [8, 9, 10],
+        ...    "ColumnD": ["06-22-2021", "06-22-2021", pd.NaT],
+        ...    "ColumnE": ["a", "b", None],
+        ...    }, index = ["xxx", "yyy", "zzz"]
+        ... )
+        >>> df = create.table_from_dataframe('##ExampleUpdateDF', df, primary_key='index')
 
-        #### update Column A based on ColumnB and ColumnC, that do not have to be the SQL primary key
-        write.update('SomeTable', dataframe[['ColumnA','ColumnB','ColumnC']], match_columns=['ColumnB','ColumnC'])
+        Update ColumnA only using the dataframe index & SQL primary key.
+        >>> df['ColumnA'] = [8,9,10]
+        >>> df_updated = update('##ExampleUpdateDF', df[['ColumnA']])
+
+        Update ColumnB based on ColumnC, which isn't the SQL primary key. Include the column _time_update (automatically created) to reflect in server time when the record was updated.
+        >>> df['ColumnB'] += 1
+        >>> df_updated = update('##ExampleUpdateDF', df[['ColumnB','ColumnC']], match_columns=['ColumnC'], include_metadata_timestamps=True)
         """
         # prevent setwithcopy errors incase a subset of columns from an original dataframe are being updated
         dataframe = dataframe.copy()
@@ -39,8 +58,12 @@ class update(insert):
         # create cursor to perform operations
         cursor = self._connection.cursor()
 
+        # override self.include_metadata_timestamps
+        if include_metadata_timestamps is None:
+            include_metadata_timestamps = self.include_metadata_timestamps
+
         # get target table schema, while checking for errors and adjusting data for inserting
-        if self.include_metadata_timestamps:
+        if include_metadata_timestamps:
             additional_columns = ["_time_update"]
         else:
             additional_columns = None
@@ -97,7 +120,7 @@ class update(insert):
         # form update syntax
         update_syntax = ["QUOTENAME(@Update_" + x + ")" for x in alias_update]
         update_syntax = "+','+".join([x + "+'=_source.'+" + x for x in update_syntax])
-        if self.include_metadata_timestamps:
+        if include_metadata_timestamps:
             update_syntax = "'_time_update=GETDATE(),'+" + update_syntax
 
         # parameters for sp_executesql

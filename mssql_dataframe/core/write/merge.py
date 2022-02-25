@@ -17,6 +17,7 @@ class merge(insert):
         match_columns: List[str] = None,
         upsert: bool = False,
         delete_requires: List[str] = None,
+        include_metadata_timestamps: bool = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Merge a dataframe into an SQL table by updating, inserting, and/or deleting rows using Transact-SQL MERGE.
 
@@ -28,9 +29,10 @@ class merge(insert):
         ----------
         table_name (str) : name of the SQL table
         dataframe (pandas.DataFrame): tabular data to merge into SQL table
-        match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key is used
+        match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key and dataframe index is used
         upsert (bool, default=False) : delete records if they do not match
         delete_requires (list, default=None) : column(s) that need to have a matching row for records to be deleted
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_insert and _time_update columns
 
         Returns
         -------
@@ -38,15 +40,41 @@ class merge(insert):
 
         Examples
         --------
-        #### merge ColumnA and ColumnB values based on the SQL primary key / index of the dataframe
-        write.merge('SomeTable', dataframe[['ColumnA','ColumnB']])
+        A sample table to merge, created from a dataframe.
+        >>> df = create.table_from_dataframe(
+        ...    "##ExampleMergeDF", pd.DataFrame({"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}), primary_key="index"
+        ... )
 
-        #### for incrementally merging from a dataframe, require ColumnC also matches to prevent a record from being deleted
-        write.merge('SomeTable', dataframe[['ColumnA','ColumnB', 'ColumnC']], delete_requires=['ColumnC'])
+        Merge using the dataframe's index and SQL primary key. Include the column _time_insert and _time_update (automatically created).
+        >>> # delete first row
+        >>> df = df[df.index != 0]
+        >>> # update second row
+        >>> df.loc[df.index == 1, "ColumnA"] = 5
+        >>> # insert new row
+        >>> new = pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=pd.Index([2], name="_index"))
+        >>> df = pd.concat([df, new])
+        >>> # perform the merge.
+        >>> df_merged = merge("##ExampleMergeDF", df, include_metadata_timestamps=True)
 
-        #### perform an UPSERT (if exists update, otherwise update) workflow
-        write.merge('SomeTable', dataframe[['ColumnA']], upsert=True)
+        Incremntally merge a dataframe. Index=2 will remain unchanged since State=C is not part of the increment.
+        >>> df_increment = pd.DataFrame.from_records([
+        ...    # updated record
+        ...    {"State": "B", "ColumnA": 6, "ColumnB": "d"},
+        ...    # new record
+        ...    {"State": "D", "ColumnA": 6, "ColumnB": "d"},
+        ...    ],index=pd.Index([1, 3], name="_index"),
+        ... )
+        >>> df_increment = merge("##ExampleMergeDF", df_increment, delete_requires=['State'], include_metadata_timestamps=True)
 
+        Perform an UPSERT action (if exists update, otherwise insert). Records will never be deleted.
+        >>> df_upsert = pd.DataFrame.from_records([
+        ...    # updated record
+        ...    {"State": "B", "ColumnA": 10, "ColumnB": "x"},
+        ...    # new record
+        ...    {"State": "E", "ColumnA": 0, "ColumnB": "y"},
+        ...    ],index=pd.Index([1, 4], name="_index"),
+        ... )
+        >>> df_merge = merge('##ExampleMergeDF', df_upsert, upsert=True, include_metadata_timestamps=True)
         """
         # check inputs
         if delete_requires is not None and upsert:
@@ -58,8 +86,12 @@ class merge(insert):
         # create cursor to perform operations
         cursor = self._connection.cursor()
 
+        # override self.include_metadata_timestamps
+        if include_metadata_timestamps is None:
+            include_metadata_timestamps = self.include_metadata_timestamps
+
         # get target table schema, while checking for errors and adjusting data for inserting
-        if self.include_metadata_timestamps:
+        if include_metadata_timestamps:
             additional_columns = ["_time_update", "_time_insert"]
         else:
             additional_columns = None
@@ -123,7 +155,7 @@ class merge(insert):
         # form when matched then update syntax
         update_syntax = ["QUOTENAME(@Update_" + x + ")" for x in alias_update]
         update_syntax = "+','+".join([x + "+'=_source.'+" + x for x in update_syntax])
-        if self.include_metadata_timestamps:
+        if include_metadata_timestamps:
             update_syntax = "+'_time_update=GETDATE(), '+" + update_syntax
 
         # form when not matched then insert
@@ -133,7 +165,7 @@ class merge(insert):
         insert_values = "+','+".join(
             ["'_source.'+QUOTENAME(@Insert_" + x + ")" for x in alias_insert]
         )
-        if self.include_metadata_timestamps:
+        if include_metadata_timestamps:
             insert_syntax = "+'_time_insert, '+" + insert_syntax
             insert_values = "+'GETDATE(), '+" + insert_values
 

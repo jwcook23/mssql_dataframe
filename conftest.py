@@ -9,9 +9,9 @@ pytest --server=localhost
 import env
 
 import pytest
+import pandas
 
-from mssql_dataframe import connect
-from mssql_dataframe.core import create
+from mssql_dataframe import SQLServer
 
 # define options for both pytest conftest.py and argparse
 options = {
@@ -65,5 +65,13 @@ def pytest_configure(config):
 # create namespace functions for testing docstrings
 @pytest.fixture(autouse=True)
 def add_docstring_namespace(doctest_namespace):
-    connection = connect.connect(env.database, env.server, env.driver, env.username, env.password)
-    doctest_namespace["create"] = create.create(connection.connection)
+
+    doctest_namespace["pd"] = pandas
+
+    sql = SQLServer(env.database, env.server, env.driver, env.username, env.password)
+    doctest_namespace["create"] = sql.create
+    doctest_namespace["modify"] = sql.modify
+    doctest_namespace["read"] = sql.read
+    doctest_namespace["insert"] = sql.write.insert
+    doctest_namespace["update"] = sql.write.update
+    doctest_namespace["merge"] = sql.write.merge

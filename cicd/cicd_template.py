@@ -49,10 +49,10 @@ def run_cmd(cmd, venv=True):
     return status.stdout.decode("utf-8")
 
 
-def check_black():
+def check_black_formatting():
 
     cmd = ["black", ".", "--check"]
-    print(f"Running '{' '.join(cmd)}' to check file formatting.")
+    print(f"Running '{' '.join(cmd)}' to check code formatting.")
     try:
         _ = run_cmd(cmd)
     except RuntimeError as err:
@@ -63,7 +63,7 @@ def check_black():
     print("black check succeeded.")
 
 
-def check_flake8(config):
+def check_flake8_style(config):
 
     cmd = [
         "flake8",
@@ -78,7 +78,7 @@ def check_flake8(config):
     )
 
 
-def check_bandit(config):
+def check_bandit_security(config):
 
     cmd = ["bandit", "-r", config["options"]["packages"]]
     print(f"Running '{' '.join(cmd)}' to check security.")
@@ -86,12 +86,27 @@ def check_bandit(config):
     print("bandit check succeeded.")
 
 
-def check_docstrings(config):
+def check_docstring_formatting(config):
 
     cmd = ["pydocstyle", config["options"]["packages"], "--convention=numpy"]
     print(f"Running '{' '.join(cmd)}' to check docstring format.")
     _ = run_cmd(cmd)
     print("pydocstyle check succeeded.")
+
+
+def run_doctest_pytest(config):
+
+    # cmd = ["pytest", config["metadata"]["name"], "--doctest-modules"]
+    # print(
+    #     f"Running '{' '.join(cmd)}' doctest for module '{config['metadata']['name']}'."
+    # )
+    # _ = run_cmd(cmd)
+    # print(f"doctest for module {config['metadata']['name']} succeeded.")
+
+    cmd = ["pytest", "QUICKSTART.md", "--doctest-glob='*.md'"]
+    print(f"Running '{' '.join(cmd)}' doctest for 'QUICKSTART.md'.")
+    _ = run_cmd(cmd)
+    print("doctest for 'QUICKSTART.md' succeeded.")
 
 
 def run_coverage_pytest(config, args):
@@ -120,7 +135,7 @@ def run_coverage_pytest(config, args):
     print(f"Generated test xml file '{config['user:pytest']['junitxml']}'.")
 
 
-def coverage_html(config):
+def report_coverage_html(config):
 
     _ = run_cmd(["coverage", "html"])
 
@@ -129,13 +144,13 @@ def coverage_html(config):
     )
 
 
-def coverage_xml(config):
+def report_coverage_xml(config):
 
     _ = run_cmd(["coverage", "xml"])
     print(f"Generated coverage xml file '{config['coverage:xml']['output']}'.")
 
 
-def generage_badges(config):
+def generage_package_badges(config):
 
     badges = {
         "tests": config["user:pytest"]["junitxml"],
@@ -148,7 +163,7 @@ def generage_badges(config):
         print(f"generating badge for '{b}' at '{fp}'.")
 
 
-def check_version():
+def check_package_version():
 
     with open("VERSION", "r") as fh:
         version = fh.read()
@@ -188,13 +203,14 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
-check_black()
-check_flake8(config)
-check_bandit(config)
-check_docstrings(config)
+# check_black_formatting()
+# check_flake8_style(config)
+# check_bandit_security(config)
+# check_docstring_formatting(config)
+run_doctest_pytest(config)
 # run_coverage_pytest(config, args)
-# coverage_html(config)
-# coverage_xml(config)
-# generage_badges(config)
-# check_version()
+# report_coverage_html(config)
+# report_coverage_xml(config)
+# generage_package_badges(config)
+# check_package_version()
 # build_package()

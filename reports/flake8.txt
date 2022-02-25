@@ -7,3 +7,4 @@
 .\tests\test_core\test_write\test_merge_adjust_sql_objects.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
 .\tests\test_core\test_write\test_update.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
 .\tests\test_core\test_write\test_update_adjust_sql_objects.py:8:1: F401 'mssql_dataframe.core.custom_warnings' imported but unused
+.\cicd\cicd_template.py:109:11: F541 f-string is missing placeholders

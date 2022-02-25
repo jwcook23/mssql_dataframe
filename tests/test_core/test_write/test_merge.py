@@ -146,6 +146,46 @@ def test_merge_one_match_column(sql, caplog):
     )
 
 
+def test_merge_override_timestamps(sql, caplog):
+
+    table_name = "##test_merge_override_timestamps"
+    dataframe = pd.DataFrame({"ColumnA": [3, 4]})
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
+    # update
+    dataframe.loc[dataframe.index == 1, "ColumnA"] = 5
+
+    # merge values into table, using the SQL primary key that came from the dataframe's index
+    dataframe = sql.merge.merge(table_name, dataframe, include_metadata_timestamps=True)
+
+    schema, _ = conversion.get_schema(sql.connection, table_name)
+    result = conversion.read_values(
+        f"SELECT * FROM {table_name}", schema, sql.connection
+    )
+    assert result[dataframe.columns].equals(dataframe)
+    assert all(result["_time_update"].notna() == [True, True])
+    assert all(result["_time_insert"].notna() == [False, False])
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
+
+
 def test_merge_two_match_columns(sql, caplog):
 
     table_name = "##test_merge_two_match_columns"

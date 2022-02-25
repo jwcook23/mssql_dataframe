@@ -45,25 +45,20 @@ class SQLServer(connect):
     Connect to localhost server master database.
 
     >>> sql = SQLServer()
-    >>> sql.connection_spec['server'] == 'localhost'
-    True
 
     Connect with the ability to automatically adjust SQL objects.
 
     >>> sql = SQLServer(autoadjust_sql_objects=True)
-    >>> sql.write.autoadjust_sql_objects
-    True
 
     Enable logging from mssql_dataframe.
 
     >>> import logging
     >>> logging.basicConfig(
-    ... filename='example.log', encoding='utf-8', level=logging.DEBUG, 
+    ... filename='example.log', encoding='utf-8', level=logging.DEBUG,
     ... format='%(asctime)s %(name)s %(filename)s %(levelname)s: %(message)s'
     ... )
     >>> logger = logging.getLogger('mssql_dataframe')
     >>> sql = SQLServer()
-    >>> logger.warning('test')
 
     See Also
     --------

@@ -45,14 +45,26 @@ class read:
 
         Examples
         --------
-        #### select entire table
-        read.table('SomeTable')
+        A sample table to read, created from a dataframe.
+        >>> df = pd.DataFrame(
+        ...    {
+        ...        "ColumnA": [5, 6, 7],
+        ...        "ColumnB": [5, 6, None],
+        ...        "ColumnC": [pd.NA, 6, 7],
+        ...        "ColumnD": ["06-22-2021", "06-22-2021", pd.NaT],
+        ...        "ColumnE": ["a", "b", None],
+        ...    }, index = ["xxx", "yyy", "zzz"]
+        ... )
+        >>> df = create.table_from_dataframe('##ExampleRead', df, primary_key='index')
 
-        #### specific columns
-        read.table('SomeTable', column_names=['ColumnA','ColumnB']
+        Select the entire table. The primary key is set as the dataframe's index.
+        >>> query = read.table('##ExampleRead')
 
-        #### specify select criteria
-        read.table('SomeTable', column_names='ColumnD', where="ColumnB>4 AND ColumnC IS NOT NULL", limit=1, order_column='ColumnB', order_direction='DESC')
+        Select specific columns.
+        >>> query = read.table('##ExampleRead', column_names=['ColumnA','ColumnB'])
+
+        Select using conditions grouped by parentheses while applying a limit and order.
+        >>> query = read.table('##ExampleRead', where="(ColumnB>4 AND ColumnC IS NOT NULL) OR ColumnE IS NULL", limit=5, order_column='ColumnB', order_direction='DESC')
         """
         # get table schema for conversion to pandas
         schema, _ = conversion.get_schema(self._connection, table_name)

@@ -45,14 +45,17 @@ class modify:
 
         Example
         -------
-        #### add a column
-        modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
+        A sample table to modify.
+        >>> create.table('##ExampleModifyTableColumn', columns={'ColumnA': 'varchar(1)'})
 
-        #### alter a column
-        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', is_nullable=False)
+        Add a column to a table.
+        >>> modify.column('##ExampleModifyTableColumn', modify='add', column_name='B', data_type='bigint')
 
-        #### drop a column
-        modify.column('SomeTable', modify='drop', column_name='B')
+        Alter an existing column.
+        >>> modify.column('##ExampleModifyTableColumn', modify='alter', column_name='B', data_type='tinyint', is_nullable=False)
+
+        Drop a column.
+        >>> modify.column('##ExampleModifyTableColumn', modify='drop', column_name='B')
         """
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
@@ -154,11 +157,14 @@ class modify:
 
         Examples
         --------
-        #### add a primary key
-        modify.primary_key('SomeTable', modify='add', columns='A', primary_key_name = '_pk_1')
+        A sample table to modify.
+        >>> create.table('##ExampleModifyTablePK', columns={'ColumnA': 'varchar(1)'}, not_nullable=['ColumnA'])
 
-        #### drop a primary key
-        sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
+        Add a primary key.
+        >>> modify.primary_key('##ExampleModifyTablePK', modify='add', columns='ColumnA', primary_key_name = '_pk_1')
+
+        Drop a primary key.
+        >>> modify.primary_key('##ExampleModifyTablePK', modify='drop', columns='ColumnA',  primary_key_name = '_pk_1')
         """
         if isinstance(columns, str):
             columns = [columns]
