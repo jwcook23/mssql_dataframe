@@ -1,35 +1,30 @@
 # Quick Start
 
-## Initialization
-
-``` python
->>> import pandas as pd
->>> from mssql_dataframe import SQLServer
-
->>> # connect to database using pyodbc
->>> sql = SQLServer(database='master', server='localhost')
-
-```
-
-## Create Sample Table
+## Initialization and Sample SQL Table
 
 Create a global temporary table for demonstration purposes. Notice a dataframe is returned with better data types assigned, and the dataframe's index corresponds to the primary key.
 
+<!--phmdoctest-setup-->
 ``` python
->>> # create a demonstration dataframe
->>> df = pd.DataFrame({
-...    'ColumnA': ['1','2','3','4','5'],
-...    'ColumnB': ['a  .','b!','  c','d','e'],
-...    'ColumnC': [False, True, True, False, False]
-... }, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+import pandas as pd
+from mssql_dataframe import SQLServer
 
->>> # create the table using a dataframe
->>> df = sql.create.table_from_dataframe(
-...    table_name='##mssql_dataframe',
-...    dataframe = df,
-...    primary_key = 'index'
-... )
+# connect to database using pyodbc
+sql = SQLServer(database='master', server='localhost')
 
+# create a demonstration dataframe
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+    'ColumnB': ['a  .','b!','  c','d','e'],
+    'ColumnC': [False, True, True, False, False]
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+
+# create the table using a dataframe
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_dataframe_quickstart',
+    dataframe = df,
+    primary_key = 'index'
+)
 ```
 
 ## Updating SQL Table
@@ -37,33 +32,31 @@ Create a global temporary table for demonstration purposes. Notice a dataframe i
 Update an SQL table using the primary key. Without match column details provided, the primary key / dataframe index is automatically used.
 
 ``` python
->>> # peform a basic text cleaning task
->>> df['ColumnB'] = df['ColumnB'].str.replace(r'[^\w\s]','', regex=True)
->>> df['ColumnB'] = df['ColumnB'].str.strip()
+# peform a basic text cleaning task
+df['ColumnB'] = df['ColumnB'].str.replace(r'[^\w\s]','', regex=True)
+df['ColumnB'] = df['ColumnB'].str.strip()
 
->>> # perform the update in SQL
->>> updated = sql.write.update('##mssql_dataframe', df[['ColumnB']])
+# perform the update in SQL
+updated = sql.write.update('##mssql_dataframe_quickstart', df[['ColumnB']])
 
->>> # read the result from SQL after the update
->>> result = sql.read.table('##mssql_dataframe')
-
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe_quickstart', column_names=['ColumnB'])
 ```
 
 Update an SQL table using other columns that are not the primary key by specifying match columns.
 
 ``` python
->>> # update ColumnA to 0 where ColumnC is False
->>> sample = pd.DataFrame({
-...    'ColumnA': [0],
-...    'ColumnC': [False]
-... })
+# update ColumnA to 0 where ColumnC is False
+sample = pd.DataFrame({
+    'ColumnA': [0],
+    'ColumnC': [False]
+})
 
->>> # peform the update in SQL
->>> updated = sql.write.update('##mssql_dataframe', sample, match_columns='ColumnC')
+# peform the update in SQL
+updated = sql.write.update('##mssql_dataframe_quickstart', sample, match_columns='ColumnC')
 
->>> # read the result from SQL after the update
->>> result = sql.read.table('##mssql_dataframe')
-
+# read the result from SQL after the update
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 ## Merging/Upsert SQL Table
@@ -75,93 +68,93 @@ Merging the dataframe into an SQL table will:
 3. Delete records in the SQL table not in the dataframe (if upsert=False).
 
 ```python
->>> # read what is currenly in the table
->>> sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
 
->>> # simulate new records
->>> sample = pd.concat([
-...    sample,
-...    pd.DataFrame(
-...        {'ColumnA': [9,9], 'ColumnB': ['x','y'], 'ColumnC': [True,True]},
-...        index=pd.Index([5,6], name='PrimaryKey')
-...    )
-... ])
+# simulate new records
+sample = pd.concat([
+    sample,
+    pd.DataFrame(
+        {'ColumnA': [9,9], 'ColumnB': ['x','y'], 'ColumnC': [True,True]},
+        index=pd.Index([5,6], name='PrimaryKey')
+    )
+])
 
->>> # simulate updated records
->>> sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
+# simulate updated records
+sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
 
->>> # simulate deleted records
->>> sample = sample[~sample['ColumnA'].isin([2,3])]
+# simulate deleted records
+sample = sample[~sample['ColumnA'].isin([2,3])]
 
->>> # perform the merge
->>> merged = sql.write.merge('##mssql_dataframe', sample)
+# perform the merge
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample)
 
->>> # read the result from SQL after the merge
->>> # records for PrimaryKey 5 & 6 have been inserted
->>> # records for PrimaryKey 0, 3, & 4 have been updated
->>> # records for PrimaryKey 2 & 3 have been deleted
->>> result = sql.read.table('##mssql_dataframe')
-
+# read the result from SQL after the merge
+# records for PrimaryKey 5 & 6 have been inserted
+# records for PrimaryKey 0, 3, & 4 have been updated
+# records for PrimaryKey 2 & 3 have been deleted
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 Additional functionality allows data to be incrementally merged into an SQL table. This can be useful for file processing, web scraping multiple pages, or other batch processing situations.
 
 ``` python
->>> # read what is currenly in the table
->>> sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
 
->>> # simulate new records
->>> sample = pd.concat([
-...    sample,
-...    pd.DataFrame(
-...        {'ColumnA': [10,10,0], 'ColumnB': ['z','z','A'], 'ColumnC': [False,True,True]},
-...        index=pd.Index([7,8,9], name='PrimaryKey')
-...    )
-... ])
+# simulate new records
+sample = pd.concat([
+    sample,
+    pd.DataFrame(
+        {'ColumnA': [10,10,0], 'ColumnB': ['z','z','A'], 'ColumnC': [False,True,True]},
+        index=pd.Index([7,8,9], name='PrimaryKey')
+    )
+])
 
->>> # simulate updated records
->>> sample.loc[sample['ColumnA']==1, 'ColumnC'] = True
+# simulate updated records
+sample.loc[sample['ColumnA']==1, 'ColumnC'] = True
 
->>> # simulate deleted records
->>> sample = sample[sample['ColumnB']!='a']
->>> sample = sample[sample['ColumnA']!=9]
+# simulate deleted records
+sample = sample[sample['ColumnB']!='a']
+sample = sample[sample['ColumnA']!=9]
 
->>> # perform the merge
->>> merged = sql.write.merge('##mssql_dataframe', sample, delete_requires=['ColumnA'])
+# perform the merge
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample, delete_requires=['ColumnA'])
 
->>> # read the result from SQL after the merge
->>> # records for PrimaryKey 5 & 6 were not deleted (value 9 not in dataframe ColumnA)
->>> # record for PrimaryKey 0 was deleted (value 0 in dataframe ColumnA)
->>> # records for PrimaryKey 7 & 8 have been inserted
->>> # records for PrimaryKey 0, 3, & 4 have been updated
->>> result = sql.read.table('##mssql_dataframe')
-
+# read the result from SQL after the merge
+# records for PrimaryKey 5 & 6 were not deleted (value 9 not in dataframe ColumnA)
+# record for PrimaryKey 0 was deleted (value 0 in dataframe ColumnA)
+# records for PrimaryKey 7 & 8 have been inserted
+# records for PrimaryKey 0, 3, & 4 have been updated
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 Upsert functionality is accomplished by setting upsert=False. This results in records only being inserted or updated.
 
 ``` python
->>> # simulate a new record
->>> sample = pd.concat([
-...    sample,
-...    pd.DataFrame(
-...        {'ColumnA': [11], 'ColumnB': ['z'], 'ColumnC': [False]},
-...        index=pd.Index([10], name='PrimaryKey')
-...    )
-... ])
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
 
->>> # simulate an updated record
->>> sample.at[3,'ColumnA'] = 12
+# simulate a new record
+sample = pd.concat([
+     sample,
+    pd.DataFrame(
+        {'ColumnA': [11], 'ColumnB': ['z'], 'ColumnC': [False]},
+        index=pd.Index([10], name='PrimaryKey')
+    )
+])
 
->>> # perform the upsert
->>> merged = sql.write.merge('##mssql_dataframe', sample, upsert=True)
+# simulate an updated record
+sample.at[3,'ColumnA'] = 12
 
->>> # read the result from SQL after the upsert
->>> # record for PrimaryKey 3 was updated
->>> # record for PrimaryKey 10 was inserted
->>> # all other records remain unchanged
->>> result = sql.read.table('##mssql_dataframe')
+# perform the upsert
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample, upsert=True)
 
+# read the result from SQL after the upsert
+# record for PrimaryKey 3 was updated
+# record for PrimaryKey 10 was inserted
+# all other records remain unchanged
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 ## Additional Functionality
@@ -171,31 +164,30 @@ Upsert functionality is accomplished by setting upsert=False. This results in re
 If mssql_dataframe is initialized with include_metadata_timestamps=True insert, update, and merge operations will include columns detailing when records are inserted or updated. These are timestamps in server time.
 
 ``` python
->>> # intialized with flag to include metadata timestamps
->>> sql = SQLServer(include_metadata_timestamps=True)
+# intialized with flag to include metadata timestamps
+sql = SQLServer(include_metadata_timestamps=True)
 
->>> # create sample table
->>> df = pd.DataFrame({
-...    'ColumnA': ['1','2','3','4','5'],
-... }, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+# create sample table
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
->>> df = sql.create.table_from_dataframe(
-...    table_name='##mssql_metadata',
-...    dataframe = df,
-...    primary_key = 'index'
-... )
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_metadata',
+    dataframe = df,
+    primary_key = 'index'
+)
 
->>> # all records have a _time_insert value
->>> result = sql.read.table('##mssql_metadata')
+# all records have a _time_insert value
+result = sql.read.table('##mssql_metadata')
 
->>> # simulate an updated record
->>> result.at[0,'ColumnA'] = 9
->>> updated = sql.write.update('##mssql_metadata', result.loc[[0]])
+# simulate an updated record
+result.at[0,'ColumnA'] = 9
+updated = sql.write.update('##mssql_metadata', result.loc[[0]])
 
->>> # record 0 now has a _time_update value
->>> # the _time_update column was automatically created
->>> result = sql.read.table('##mssql_metadata')
-
+# record 0 now has a _time_update value
+# the _time_update column was automatically created
+result = sql.read.table('##mssql_metadata')
 ```
 
 ### Manual SQL Column Modification
@@ -203,28 +195,27 @@ If mssql_dataframe is initialized with include_metadata_timestamps=True insert, 
 mssql_dataframe contains methods to adjust SQL columns.
 
 ``` python
->>> import pandas as pd
->>> from mssql_dataframe import SQLServer
+import pandas as pd
+from mssql_dataframe import SQLServer
 
->>> sql = SQLServer()
+sql = SQLServer()
 
->>> # create sample table
->>> df = pd.DataFrame({
-...    'ColumnA': ['1','2','3','4','5'],
-... }, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+# create sample table
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
->>> df = sql.create.table_from_dataframe(
-...    table_name='##mssql_modify',
-...    dataframe = df,
-...    primary_key = 'index'
-... )
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_modify',
+    dataframe = df,
+    primary_key = 'index'
+)
 
->>> # modify ColumnA
->>> sql.modify.column('##mssql_modify', 'alter', 'ColumnA', 'BIGINT', is_nullable=True)
+# modify ColumnA
+sql.modify.column('##mssql_modify', 'alter', 'ColumnA', 'BIGINT', is_nullable=True)
 
->>> # notice ColumnA is now BIGINT and nullable
->>> schema = sql.get_schema('##mssql_modify')
-
+# notice ColumnA is now BIGINT and nullable
+schema = sql.get_schema('##mssql_modify')
 ```
 
 ### Automatic SQL Object Creation and Modification
@@ -235,41 +226,39 @@ SQL objects will be created/modified as needed if the class is initialized with 
 2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
 
 ``` python
->>> import pandas as pd
->>> from mssql_dataframe import SQLServer
+import pandas as pd
+from mssql_dataframe import SQLServer
 
->>> sql = SQLServer(autoadjust_sql_objects=True)
+sql = SQLServer(autoadjust_sql_objects=True)
 
->>> # sample dataframe
->>> df = pd.DataFrame({
-...    'ColumnA': [1,2,3,4,5],
-... }, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
+# sample dataframe
+df = pd.DataFrame({
+    'ColumnA': [1,2,3,4,5],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
->>> # create table by inserting into a table that doesn't exist
->>> df = sql.write.insert('##mssql_auto', df)
+# create table by inserting into a table that doesn't exist
+df = sql.write.insert('##mssql_auto', df)
 
->>> # automatically add a column
->>> new = pd.DataFrame({
-...    'ColumnA': [6],
-...    'ColumnB' : ['z']
-... }, index=pd.Index([5], name='PrimaryKey'))
->>> new = sql.write.insert('##mssql_auto', new)
+# automatically add a column
+new = pd.DataFrame({
+    'ColumnA': [6],
+    'ColumnB' : ['z']
+}, index=pd.Index([5], name='PrimaryKey'))
+new = sql.write.insert('##mssql_auto', new)
 
->>> # automatically modify columns
->>> alter = pd.DataFrame({
-...     'ColumnA': [1000],
-...     'ColumnB' : ['zzz']
-... }, index=pd.Index([6], name='PrimaryKey'))
->>> alter = sql.write.insert('##mssql_auto', alter)
+# automatically modify columns
+alter = pd.DataFrame({
+    'ColumnA': [1000],
+    'ColumnB' : ['zzz']
+}, index=pd.Index([6], name='PrimaryKey'))
+alter = sql.write.insert('##mssql_auto', alter)
 
 # prevent  automatically modifying to different category
->>> error = pd.DataFrame({
-...    'ColumnA': ['z'],
-... }, index=pd.Index([7], name='PrimaryKey'))
->>> try:
-...    error = sql.write.insert('##mssql_auto', error)
-... except sql.exceptions.DataframeColumnInvalidValue:
-...    print('ColumnA not changed to string like column.')
-ColumnA not changed to string like column.
-
+error = pd.DataFrame({
+    'ColumnA': ['z'],
+}, index=pd.Index([7], name='PrimaryKey'))
+try:
+    error = sql.write.insert('##mssql_auto', error)
+except sql.exceptions.DataframeColumnInvalidValue:
+    print('ColumnA not changed to string like column.')
 ```

@@ -3,6 +3,7 @@ flake8
 bandit
 coverage
 pytest
+phmdoctest
 pydocstyle
 genbadge[all]
 build

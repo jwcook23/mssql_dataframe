@@ -18,6 +18,7 @@ continuous_integration.yml for Azure DevOps Pipeline CI definition
 continuous_deployment.yml for Azure DevOps Pipeline CD definition
 """
 import os
+import shutil
 import subprocess
 import configparser
 import argparse
@@ -49,27 +50,47 @@ def run_cmd(cmd, venv=True):
     return status.stdout.decode("utf-8")
 
 
-def check_black_formatting():
+def find_markdown_files(config):
+    """Find markdown files in current directory. Creates new output directory for markdown tests."""
 
-    cmd = ["black", ".", "--check"]
+    markdown_test_directory = f"{config['tool:pytest']['testpaths']}test_markdown/"
+    shutil.rmtree(markdown_test_directory)
+    os.mkdir(markdown_test_directory)
+
+    markdown_test_files = {}
+    dir = os.getcwd()
+    for file_in in os.listdir(dir):
+        if file_in.endswith(".md"):
+            file_out = file_in.replace(".md", "")
+            markdown_test_files[
+                file_in
+            ] = f"{markdown_test_directory}test_{file_out}.py"
+
+    return markdown_test_files, markdown_test_directory
+
+
+def check_black_formatting(markdown_test_directory):
+
+    cmd = ["black", ".", "--check", f"--extend-exclude={markdown_test_directory}"]
     print(f"Running '{' '.join(cmd)}' to check code formatting.")
     try:
         _ = run_cmd(cmd)
     except RuntimeError as err:
         raise RuntimeError(
-            "black format check failed. Run 'black . --diff' to see what needs formatted then 'black .' to automatically apply those format changes.",
+            "black format check failed. Run 'black .' to automatically apply format changes.",
             err.args[0],
         )
     print("black check succeeded.")
 
 
-def check_flake8_style(config):
+def check_flake8_style(config, markdown_test_directory):
 
     cmd = [
         "flake8",
         "--exclude=env",
         f"--output-file={config['flake8']['output-file']}",
         "--tee",
+        f"--extend-exclude={markdown_test_directory}",
     ]
     print(f"Running '{' '.join(cmd)}' to check code style.")
     _ = run_cmd(cmd)
@@ -94,19 +115,25 @@ def check_docstring_formatting(config):
     print("pydocstyle check succeeded.")
 
 
-def run_doctest_pytest(config):
+def run_docstring_pytest(config):
 
-    # cmd = ["pytest", config["metadata"]["name"], "--doctest-modules"]
-    # print(
-    #     f"Running '{' '.join(cmd)}' doctest for module '{config['metadata']['name']}'."
-    # )
-    # _ = run_cmd(cmd)
-    # print(f"doctest for module {config['metadata']['name']} succeeded.")
-
-    cmd = ["pytest", "QUICKSTART.md", "--doctest-glob='*.md'"]
-    print(f"Running '{' '.join(cmd)}' doctest for 'QUICKSTART.md'.")
+    cmd = ["pytest", config["metadata"]["name"], "--doctest-modules"]
+    print(f"Running docstring tests using '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
-    print("doctest for 'QUICKSTART.md' succeeded.")
+    print("docstring tests succeeded.")
+
+
+def generate_markdown_pytest(markdown_test_files):
+
+    for file_in, file_out in markdown_test_files.items():
+        cmd = [
+            "phmdoctest",
+            file_in,
+            "--outfile",
+            file_out,
+        ]
+        print(f"Generating markdown test '{' '.join(cmd)}'")
+        _ = run_cmd(cmd)
 
 
 def run_coverage_pytest(config, args):
@@ -203,14 +230,16 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
-# check_black_formatting()
-# check_flake8_style(config)
-# check_bandit_security(config)
-# check_docstring_formatting(config)
-run_doctest_pytest(config)
-# run_coverage_pytest(config, args)
-# report_coverage_html(config)
-# report_coverage_xml(config)
-# generage_package_badges(config)
-# check_package_version()
-# build_package()
+markdown_test_files, markdown_test_directory = find_markdown_files(config)
+check_black_formatting(markdown_test_directory)
+check_flake8_style(config, markdown_test_directory)
+check_bandit_security(config)
+check_docstring_formatting(config)
+run_docstring_pytest(config)
+generate_markdown_pytest(markdown_test_files)
+run_coverage_pytest(config, args)
+report_coverage_html(config)
+report_coverage_xml(config)
+generage_package_badges(config)
+check_package_version()
+build_package()

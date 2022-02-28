@@ -2,7 +2,7 @@
 
 Development and running tests requires a local SQL Server. [SQL Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) can be downloaded for free. The LocalDB package should be selected as LocalDB is readily avialable in Azure DevOps pipelines for the continuous integration and continuous delivery process. To install LocalDB, select Download Media during the installation process, download, and then run SqlLocalDB.msi.
 
-Run all terminal commands in the top level mssql_dataframe folder.
+Run all terminal commands in the root mssql_dataframe folder.
 
 ## Development
 
