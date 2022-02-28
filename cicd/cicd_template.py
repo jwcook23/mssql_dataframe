@@ -54,7 +54,9 @@ def find_markdown_files(config):
     """Find markdown files in current directory. Creates new output directory for markdown tests."""
 
     markdown_test_directory = f"{config['tool:pytest']['testpaths']}test_markdown/"
-    shutil.rmtree(markdown_test_directory)
+    
+    if os.path.isdir(markdown_test_directory):
+        shutil.rmtree(markdown_test_directory)
     os.mkdir(markdown_test_directory)
 
     markdown_test_files = {}
@@ -231,15 +233,15 @@ args = vars(args)
 args = {k: v for k, v in args.items() if v is not None}
 
 markdown_test_files, markdown_test_directory = find_markdown_files(config)
-check_black_formatting(markdown_test_directory)
-check_flake8_style(config, markdown_test_directory)
-check_bandit_security(config)
-check_docstring_formatting(config)
-run_docstring_pytest(config)
-generate_markdown_pytest(markdown_test_files)
-run_coverage_pytest(config, args)
-report_coverage_html(config)
-report_coverage_xml(config)
-generage_package_badges(config)
-check_package_version()
-build_package()
+# check_black_formatting(markdown_test_directory)
+# check_flake8_style(config, markdown_test_directory)
+# check_bandit_security(config)
+# check_docstring_formatting(config)
+# run_docstring_pytest(config)
+# generate_markdown_pytest(markdown_test_files)
+# run_coverage_pytest(config, args)
+# report_coverage_html(config)
+# report_coverage_xml(config)
+# generage_package_badges(config)
+# check_package_version()
+# build_package()
