@@ -22,11 +22,10 @@ class connect:
 
     Examples
     --------
-    Connect to local host server master database using Windows account credentials and inferring the ODBC driver.
+    Connect using Windows account credentials and inferring the ODBC driver.
 
-    >>> db = connect()
-    >>> db.connection_spec['server'] == 'localhost'
-    True
+    >>> import env
+    >>> db = connect(server=env.server, database=env.database)
 
     Connect to a remote server.
 
