@@ -54,7 +54,7 @@ def find_markdown_files(config):
     """Find markdown files in current directory. Creates new output directory for markdown tests."""
 
     markdown_test_directory = f"{config['tool:pytest']['testpaths']}test_markdown/"
-    
+
     if os.path.isdir(markdown_test_directory):
         shutil.rmtree(markdown_test_directory)
     os.mkdir(markdown_test_directory)
