@@ -6,11 +6,12 @@ Create a global temporary table for demonstration purposes. Notice a dataframe i
 
 <!--phmdoctest-setup-->
 ``` python
+import env
 import pandas as pd
 from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
-sql = SQLServer(database='master', server='localhost')
+sql = SQLServer(database=env.database, server=env.server)
 
 # create a demonstration dataframe
 df = pd.DataFrame({
@@ -165,7 +166,7 @@ If mssql_dataframe is initialized with include_metadata_timestamps=True insert, 
 
 ``` python
 # intialized with flag to include metadata timestamps
-sql = SQLServer(include_metadata_timestamps=True)
+sql = SQLServer(database=env.database, server=env.server, include_metadata_timestamps=True)
 
 # create sample table
 df = pd.DataFrame({
@@ -198,7 +199,7 @@ mssql_dataframe contains methods to adjust SQL columns.
 import pandas as pd
 from mssql_dataframe import SQLServer
 
-sql = SQLServer()
+sql = SQLServer(database=env.database, server=env.server)
 
 # create sample table
 df = pd.DataFrame({
@@ -229,7 +230,7 @@ SQL objects will be created/modified as needed if the class is initialized with 
 import pandas as pd
 from mssql_dataframe import SQLServer
 
-sql = SQLServer(autoadjust_sql_objects=True)
+sql = SQLServer(database=env.database, server=env.server, autoadjust_sql_objects=True)
 
 # sample dataframe
 df = pd.DataFrame({

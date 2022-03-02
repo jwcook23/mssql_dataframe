@@ -23,11 +23,12 @@ See [QUICKSTART](QUICKSTART.md) for a full overview of functionality.
 
 <!--phmdoctest-setup-->
 ``` python
+import env
 import pandas as pd
 from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
-sql = SQLServer(database='master', server='localhost')
+sql = SQLServer(database=env.database, server=env.server)
 
 # create a demonstration dataframe
 df = pd.DataFrame({
