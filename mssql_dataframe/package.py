@@ -1,11 +1,10 @@
-"""Classes for all functionality within mssql_dataframe in a convenient package."""
-import warnings
+"""Methods for creating, modifying, reading, and writing between dataframes and SQL."""
 from importlib.metadata import version
 import sys
+import logging
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import (
-    custom_warnings,
     custom_errors,
     conversion,
     create,
@@ -14,13 +13,15 @@ from mssql_dataframe.core import (
 )
 from mssql_dataframe.core.write.write import write
 
+logger = logging.getLogger(__name__)
+
 
 class SQLServer(connect):
     """Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
     If autoadjust_sql_objects is True SQL objects may be modified such as creating a table, adding a column,
     or increasing the size of a column. The exception is internal tracking metadata columns _time_insert and
-     _time_update which will always be created if include_metadata_timestamps=True.
+    _time_update which will always be created if include_metadata_timestamps=True.
 
     Parameters
     ----------
@@ -39,19 +40,30 @@ class SQLServer(connect):
     read : methods for reading from SQL tables
     write : methods for inserting, updating, and merging records
 
-    Example
-    -------
+    Examples
+    --------
+    Connect to localhost server master database.
 
-    #### connect to a local host database, with the ability to automatically adjust SQL objects
-    sql = SQLServer(autoadjust_sql_objects=True)
+    >>> import env
+    >>> sql = SQLServer(database=env.database, server=env.server)
 
-    #### connect to Azure SQL Server instance
-    sql = SQLServer(server='<server>.database.windows.net', username='<username>', password='<password>')
+    Connect with the ability to automatically adjust SQL objects.
 
-    Debugging
-    ---------
-    self._conn (dict) : values actually used in the connection, possibly derived by the connection
-    self._versions (dict) : version numbers of required packages and the SQL server
+    >>> sql = SQLServer(database=env.database, server=env.server, autoadjust_sql_objects=True)
+
+    Enable logging from mssql_dataframe.
+
+    >>> import logging
+    >>> logging.basicConfig(
+    ... filename='example.log', encoding='utf-8', level=logging.DEBUG,
+    ... format='%(asctime)s %(name)s %(filename)s %(levelname)s: %(message)s'
+    ... )
+    >>> logger = logging.getLogger('mssql_dataframe')
+    >>> sql = SQLServer(database=env.database, server=env.server)
+
+    See Also
+    --------
+    connect : Additional options for connecting to a server including remote, Azure, and username/password.
     """
 
     def __init__(
@@ -67,6 +79,9 @@ class SQLServer(connect):
 
         connect.__init__(self, database, server, driver, username, password)
 
+        # log initialization details
+        self.log_init()
+
         # initialize mssql_dataframe functionality with shared connection
         self.exceptions = custom_errors
         self.create = create.create(self.connection, include_metadata_timestamps)
@@ -78,37 +93,32 @@ class SQLServer(connect):
 
         # issue warnings for automated functionality
         if include_metadata_timestamps:
-            warnings.warn(
-                "SQL write operations will include metadata _time_insert & time_update columns as include_metadata_timestamps=True",
-                custom_warnings.SQLObjectAdjustment,
-            )
+            msg = "SQL write operations will include metadata '_time_insert' & '_time_update' columns as 'include_metadata_timestamps=True'."
+            logger.warning(msg)
 
         if autoadjust_sql_objects:
-            warnings.warn(
-                "SQL objects will be created/modified as needed as autoadjust_sql_objects=True",
-                custom_warnings.SQLObjectAdjustment,
-            )
+            msg = "SQL objects will be created/modified as needed as 'autoadjust_sql_objects=True'."
+            logger.warning(msg)
 
-    def output_debug(self):
-        """Generate useful debugging info to stdout. Includes connection info along with versions for Python, SQL, and required packages."""
-
+    def log_init(self):
+        """Log connection info and versions for Python, SQL, and required packages."""
         # determine versions for debugging
-        self._versions = {}
+        self.version_spec = {}
         # Python
-        self._versions["python"] = sys.version_info
+        self.version_spec["python"] = sys.version_info
         # SQL
         cur = self.connection.cursor()
         name = cur.execute("SELECT @@VERSION").fetchone()
-        self._versions["sql"] = name[0]
+        self.version_spec["sql"] = name[0]
         # packages
         names = ["mssql-dataframe", "pyodbc", "pandas"]
         for name in names:
-            self._versions[name] = version(name)
+            self.version_spec[name] = version(name)
 
         # output actual connection info (possibly derived within connection object)
-        sys.stdout.write("Connection: \n" + str(self._conn) + "\n")
+        logger.debug(f"Connection Info: {self.connection_spec}")
         # output Python/SQL/package versions
-        sys.stdout.write("Versions: \n" + str(self._versions) + "\n")
+        logger.debug(f"Version Numbers: {self.version_spec}")
 
     def get_schema(self, table_name: str):
         """Get schema of an SQL table and the defined conversion rules between data types.
@@ -121,7 +131,6 @@ class SQLServer(connect):
         -------
         schema (pandas.DataFrame) : table column specifications and conversion rules
         """
-
         schema, _ = conversion.get_schema(self.connection, table_name)
 
         return schema

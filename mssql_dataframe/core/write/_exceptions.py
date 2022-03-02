@@ -1,17 +1,18 @@
 """Functions for handling exceptions when attempting to write to SQL."""
-import warnings
 from typing import List
+import logging
 
 import pandas as pd
 
 from mssql_dataframe.core import (
-    custom_warnings,
     custom_errors,
     infer,
     conversion,
     modify,
     create,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def handle(
@@ -52,12 +53,10 @@ def handle(
         columns.isin(include_metadata_timestamps)
     ):
         for col in columns:
-            warnings.warn(
-                f"Creating column {col} in table {table_name} with data type DATETIME2.",
-                custom_warnings.SQLObjectAdjustment,
-            )
+            msg = f"Creating column '{col}' in table '{table_name}' with data type 'datetime2'."
+            logger.warning(msg)
             modifier.column(
-                table_name, modify="add", column_name=col, data_type="DATETIME2"
+                table_name, modify="add", column_name=col, data_type="datetime2"
             )
 
     elif not autoadjust_sql_objects:
@@ -97,9 +96,8 @@ def create_table(
     dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
 
     """
-    warnings.warn(
-        "Creating table {}".format(table_name), custom_warnings.SQLObjectAdjustment
-    )
+    msg = f"Creating table '{table_name}'."
+    logger.warning(msg)
 
     if any(dataframe.index.names):
         primary_key = "index"
@@ -129,17 +127,16 @@ def add_columns(
     -------
     dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
     """
-
     # infer the data types for new columns
     new, schema, _, _ = infer.sql(dataframe.loc[:, columns])
     # determine the SQL data type for each column
     _, dtypes = conversion.sql_spec(schema, new)
     # add each column
     for col, spec in dtypes.items():
-        warnings.warn(
-            f"Creating column {col} in table {table_name} with data type {spec}.",
-            custom_warnings.SQLObjectAdjustment,
+        msg = (
+            f"Creating column '{col}' in table '{table_name}' with data type '{spec}'."
         )
+        logger.warning(msg)
         modifier.column(
             table_name, modify="add", column_name=col, data_type=spec, is_nullable=True
         )
@@ -165,7 +162,6 @@ def alter_columns(
     -------
     dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
     """
-
     # temporarily set named index (primary key) as columns
     index = dataframe.index.names
     if any(index):
@@ -215,10 +211,8 @@ def alter_columns(
     # alter each column
     for col, spec in dtypes.items():
         is_nullable = previous.at[col, "is_nullable"]
-        warnings.warn(
-            f"Altering column {col} in table {table_name} to data type {spec} with is_nullable={is_nullable}.",
-            custom_warnings.SQLObjectAdjustment,
-        )
+        msg = f"Altering column '{col}' in table '{table_name}' to data type '{spec}' with 'is_nullable={is_nullable}'."
+        logger.warning(msg)
         modifier.column(
             table_name,
             modify="alter",

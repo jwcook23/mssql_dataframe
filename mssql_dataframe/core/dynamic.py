@@ -19,9 +19,7 @@ def escape(cursor: pyodbc.connect, inputs: List[str]) -> List[str]:
     Returns
     -------
     safe (list|str) : strings wrapped in SQL QUOTENAME
-
     """
-
     # handle both flat strings collection like inputs
     flatten = False
     if isinstance(inputs, str):
@@ -73,7 +71,6 @@ def where(cursor: pyodbc.connect, where: str) -> Tuple[str, List[str]]:
     statement (str) : where statement containing parameters such as "...WHERE [username] = ?"
     args (list) : parameter values for where statement
     """
-
     # regular expressions to parse where statement
     combine = r"\bAND\b|\bOR\b"
     comparison = [
@@ -151,9 +148,7 @@ def column_spec(columns: List[str]) -> List[str]:
     -------
     size (list) : size of the SQL column
     dtypes_sql (list) : data type of the SQL column
-
     """
-
     flatten = False
     if isinstance(columns, str):
         columns = [columns]

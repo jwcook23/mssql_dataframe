@@ -1,4 +1,4 @@
-"""Class for inserting data into SQL."""
+"""Methods for inserting data into SQL."""
 from typing import Tuple, List
 
 import pandas as pd
@@ -9,6 +9,8 @@ from mssql_dataframe.core.write import _exceptions
 
 
 class insert:
+    """Class for inserting data into SQL."""
+
     def __init__(
         self,
         connection: pyodbc.connect,
@@ -22,9 +24,7 @@ class insert:
         connection (pyodbc.Connection) : connection for executing statement
         include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update for write operations
         autoadjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
-
         """
-
         self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
         self.autoadjust_sql_objects = autoadjust_sql_objects
@@ -49,7 +49,7 @@ class insert:
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects
+        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_insert column
 
         Returns
         -------
@@ -57,16 +57,17 @@ class insert:
 
         Examples
         --------
-        #### insert a dataframe into a table
-        write.insert('SomeTable', pd.DataFrame({'ColumnA': [1, 2, 3]}))
+        A sample table to insert a dataframe into.
+        >>> create.table('##ExampleInsertDF', columns={'ColumnA': 'tinyint'}, not_nullable=['ColumnA'])
 
+        Insert into the table. Include the column _time_insert (automatically created) to reflect in server time when the record was insert.
+        >>> df = insert('##ExampleInsertDF', pd.DataFrame({'ColumnA': [1, 2, 3]}), include_metadata_timestamps=True)
         """
-
         # create cursor to perform operations
         cursor = self._connection.cursor()
         cursor.fast_executemany = True
 
-        # override self.include_metadata_timestamps, for the update class to insert into a source temp table
+        # override self.include_metadata_timestamps
         if include_metadata_timestamps is None:
             include_metadata_timestamps = self.include_metadata_timestamps
 
@@ -109,7 +110,6 @@ class insert:
         schema (pandas.DataFrame) : table column specifications and conversion rules
         dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
         """
-
         for _ in range(0, self._adjust_sql_attempts + 1):
             try:
                 # dataframe values converted according to SQL data type

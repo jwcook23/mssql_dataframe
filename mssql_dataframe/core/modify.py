@@ -1,4 +1,4 @@
-"""Class for modifying SQL columns or primary keys."""
+"""Methods for modifying SQL columns or primary keys."""
 from typing import Literal, List
 import pyodbc
 
@@ -6,6 +6,8 @@ from mssql_dataframe.core import dynamic
 
 
 class modify:
+    """Class for modifying SQL columns or primary keys."""
+
     def __init__(self, connection: pyodbc.connect):
         """Class for modifying SQL table columns.
 
@@ -13,7 +15,6 @@ class modify:
         ----------
         connection (pyodbc.Connection) : connection for executing statement
         """
-
         self._connection = connection
 
     def column(
@@ -40,23 +41,22 @@ class modify:
 
         Returns
         -------
-
         None
 
         Example
         -------
+        A sample table to modify.
+        >>> create.table('##ExampleModifyTableColumn', columns={'ColumnA': 'varchar(1)'})
 
-        #### add a column
-        modify.column('SomeTable', modify='add', column_name='B', data_type='VARCHAR(20)')
+        Add a column to a table.
+        >>> modify.column('##ExampleModifyTableColumn', modify='add', column_name='B', data_type='bigint')
 
-        #### alter a column
-        modify.column('SomeTable', 'alter', 'Column1', data_type='TINYINT', is_nullable=False)
+        Alter an existing column.
+        >>> modify.column('##ExampleModifyTableColumn', modify='alter', column_name='B', data_type='tinyint', is_nullable=False)
 
-        #### drop a column
-        modify.column('SomeTable', modify='drop', column_name='B')
-
+        Drop a column.
+        >>> modify.column('##ExampleModifyTableColumn', modify='drop', column_name='B')
         """
-
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
             DECLARE @TableName SYSNAME = ?;
@@ -153,20 +153,19 @@ class modify:
 
         Returns
         -------
-
         None
 
         Examples
         --------
+        A sample table to modify.
+        >>> create.table('##ExampleModifyTablePK', columns={'ColumnA': 'varchar(1)'}, not_nullable=['ColumnA'])
 
-        #### add a primary key
-        modify.primary_key('SomeTable', modify='add', columns='A', primary_key_name = '_pk_1')
+        Add a primary key.
+        >>> modify.primary_key('##ExampleModifyTablePK', modify='add', columns='ColumnA', primary_key_name = '_pk_1')
 
-        #### drop a primary key
-        sql.modify.primary_key('SomeTable', modify='drop', columns='A',  primary_key_name = '_pk_1')
-
+        Drop a primary key.
+        >>> modify.primary_key('##ExampleModifyTablePK', modify='drop', columns='ColumnA',  primary_key_name = '_pk_1')
         """
-
         if isinstance(columns, str):
             columns = [columns]
 

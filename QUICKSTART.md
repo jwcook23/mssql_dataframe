@@ -1,20 +1,18 @@
 # Quick Start
 
-## Initialization
+## Initialization and Sample SQL Table
 
+Create a global temporary table for demonstration purposes. Notice a dataframe is returned with better data types assigned, and the dataframe's index corresponds to the primary key.
+
+<!--phmdoctest-setup-->
 ``` python
+import env
 import pandas as pd
 from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
-sql = SQLServer(database='master', server='localhost')
-```
+sql = SQLServer(database=env.database, server=env.server)
 
-## Create Sample Table
-
-Create a global temporary table for demonstration purposes. Notice a dataframe is returned with better data types assigned, and the dataframe's index corresponds to the primary key.
-
-``` python
 # create a demonstration dataframe
 df = pd.DataFrame({
     'ColumnA': ['1','2','3','4','5'],
@@ -24,7 +22,7 @@ df = pd.DataFrame({
 
 # create the table using a dataframe
 df = sql.create.table_from_dataframe(
-    table_name='##mssql_dataframe',
+    table_name='##mssql_dataframe_quickstart',
     dataframe = df,
     primary_key = 'index'
 )
@@ -36,14 +34,14 @@ Update an SQL table using the primary key. Without match column details provided
 
 ``` python
 # peform a basic text cleaning task
-df['ColumnB'] = df['ColumnB'].str.replace('[^\w\s]','', regex=True)
+df['ColumnB'] = df['ColumnB'].str.replace(r'[^\w\s]','', regex=True)
 df['ColumnB'] = df['ColumnB'].str.strip()
 
 # perform the update in SQL
-updated = sql.write.update('##mssql_dataframe', df[['ColumnB']])
+updated = sql.write.update('##mssql_dataframe_quickstart', df[['ColumnB']])
 
 # read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe')
+result = sql.read.table('##mssql_dataframe_quickstart', column_names=['ColumnB'])
 ```
 
 Update an SQL table using other columns that are not the primary key by specifying match columns.
@@ -56,10 +54,10 @@ sample = pd.DataFrame({
 })
 
 # peform the update in SQL
-updated = sql.write.update('##mssql_dataframe', sample, match_columns='ColumnC')
+updated = sql.write.update('##mssql_dataframe_quickstart', sample, match_columns='ColumnC')
 
 # read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe')
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 ## Merging/Upsert SQL Table
@@ -72,7 +70,7 @@ Merging the dataframe into an SQL table will:
 
 ```python
 # read what is currenly in the table
-sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
 
 # simulate new records
 sample = pd.concat([
@@ -90,20 +88,20 @@ sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
 sample = sample[~sample['ColumnA'].isin([2,3])]
 
 # perform the merge
-merged = sql.write.merge('##mssql_dataframe', sample)
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample)
 
 # read the result from SQL after the merge
 # records for PrimaryKey 5 & 6 have been inserted
 # records for PrimaryKey 0, 3, & 4 have been updated
 # records for PrimaryKey 2 & 3 have been deleted
-result = sql.read.table('##mssql_dataframe')
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 Additional functionality allows data to be incrementally merged into an SQL table. This can be useful for file processing, web scraping multiple pages, or other batch processing situations.
 
 ``` python
 # read what is currenly in the table
-sample = sql.read.table('##mssql_dataframe', order_column='ColumnA', order_direction='ASC')
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
 
 # simulate new records
 sample = pd.concat([
@@ -122,22 +120,25 @@ sample = sample[sample['ColumnB']!='a']
 sample = sample[sample['ColumnA']!=9]
 
 # perform the merge
-merged = sql.write.merge('##mssql_dataframe', sample, delete_requires=['ColumnA'])
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample, delete_requires=['ColumnA'])
 
 # read the result from SQL after the merge
 # records for PrimaryKey 5 & 6 were not deleted (value 9 not in dataframe ColumnA)
 # record for PrimaryKey 0 was deleted (value 0 in dataframe ColumnA)
 # records for PrimaryKey 7 & 8 have been inserted
 # records for PrimaryKey 0, 3, & 4 have been updated
-result = sql.read.table('##mssql_dataframe')
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 Upsert functionality is accomplished by setting upsert=False. This results in records only being inserted or updated.
 
 ``` python
+# read what is currenly in the table
+sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
+
 # simulate a new record
 sample = pd.concat([
-    sample,
+     sample,
     pd.DataFrame(
         {'ColumnA': [11], 'ColumnB': ['z'], 'ColumnC': [False]},
         index=pd.Index([10], name='PrimaryKey')
@@ -148,13 +149,13 @@ sample = pd.concat([
 sample.at[3,'ColumnA'] = 12
 
 # perform the upsert
-merged = sql.write.merge('##mssql_dataframe', sample, upsert=True)
+merged = sql.write.merge('##mssql_dataframe_quickstart', sample, upsert=True)
 
 # read the result from SQL after the upsert
 # record for PrimaryKey 3 was updated
 # record for PrimaryKey 10 was inserted
 # all other records remain unchanged
-result = sql.read.table('##mssql_dataframe')
+result = sql.read.table('##mssql_dataframe_quickstart')
 ```
 
 ## Additional Functionality
@@ -165,7 +166,7 @@ If mssql_dataframe is initialized with include_metadata_timestamps=True insert, 
 
 ``` python
 # intialized with flag to include metadata timestamps
-sql = SQLServer(include_metadata_timestamps=True)
+sql = SQLServer(database=env.database, server=env.server, include_metadata_timestamps=True)
 
 # create sample table
 df = pd.DataFrame({
@@ -198,7 +199,7 @@ mssql_dataframe contains methods to adjust SQL columns.
 import pandas as pd
 from mssql_dataframe import SQLServer
 
-sql = SQLServer()
+sql = SQLServer(database=env.database, server=env.server)
 
 # create sample table
 df = pd.DataFrame({
@@ -229,7 +230,7 @@ SQL objects will be created/modified as needed if the class is initialized with 
 import pandas as pd
 from mssql_dataframe import SQLServer
 
-sql = SQLServer(autoadjust_sql_objects=True)
+sql = SQLServer(database=env.database, server=env.server, autoadjust_sql_objects=True)
 
 # sample dataframe
 df = pd.DataFrame({

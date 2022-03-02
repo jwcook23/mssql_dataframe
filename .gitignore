@@ -1,5 +1,5 @@
-# local Azure pipeline
-/azure-local-pipeline
+# pytest markdown files
+tests/test_markdown/
 
 # Visual Studio Code
 *.code-workspace

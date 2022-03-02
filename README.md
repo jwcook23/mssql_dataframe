@@ -3,6 +3,7 @@
 ![Test Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/tests.svg?raw=true)
 ![Coverage Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/coverage.svg?raw=true)
 ![Flake8 Status](https://github.com/jwcook23/mssql_dataframe/blob/main/reports/flake8.svg?raw=true)
+[![Bandit Security](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 ![PyPI](https://img.shields.io/pypi/v/mssql_dataframe)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Build Status](https://dev.azure.com/jasoncook1989/mssql_dataframe/_apis/build/status/continuous-delivery?branchName=main)](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build/latest?definitionId=2&branchName=main)
@@ -14,26 +15,47 @@ A data engineering package for Python pandas dataframes and Microsoft Transact-S
 2. Upsert: insert or update records in SQL table
 3. Merge: update, insert, or delete records in SQL table
 
-These more advanced methods are designed to provide more funcationality than is offered by the pandas.DataFrame.to_sql method.
-
-```python
-# pandas.DataFrame.to_sql method if the table already exists
-pandas.DataFrame.to_sql(name, con, if_exists='fail')
-
-# if_exists : {‘fail’, ‘replace’, ‘append’}, default ‘fail’
-# 'fail': Raise a ValueError.
-# 'replace': Drop the table before inserting new values.
-# 'append': Insert new values to the existing table.
-```
+These more advanced methods are designed to provide more funcationality than is offered by the pandas.DataFrame.to_sql method. pandas.DataFrame.to_sql offers 3 options if the SQL table already exists with the parameter `if_exists={'fail', 'replace', 'append'}`.
 
 See [QUICKSTART](QUICKSTART.md) for a full overview of functionality.
+
+## Initialization and Sample SQL Table
+
+<!--phmdoctest-setup-->
+``` python
+import env
+import pandas as pd
+from mssql_dataframe import SQLServer
+
+# connect to database using pyodbc
+sql = SQLServer(database=env.database, server=env.server)
+
+# create a demonstration dataframe
+df = pd.DataFrame({
+    'ColumnA': ['1','2','3','4','5'],
+    'ColumnB': ['a  .','b!','  c','d','e'],
+}, index=pd.Index([0, 1, 2, 3, 4], name='PK'))
+
+# create the table using a dataframe
+df = sql.create.table_from_dataframe(
+    table_name='##mssql_dataframe_readme',
+    dataframe = df,
+    primary_key = 'index'
+)
+```
 
 ## Update
 
 Records in an SQL table are updated by simply providing a dataframe. By default a match on the SQL table's primary key is required for a record to be updated.
 
 ```python
-mssql.write.update(table_name, dataframe)
+# update records for index 0 & 1
+update_df = pd.DataFrame({
+        'ColumnA': ['11','22'],
+        'ColumnB': ['A','B'],
+}, index=pd.Index([0, 1], name='PK'))
+# update data in the SQL table
+update_df = sql.write.update('##mssql_dataframe_readme', update_df)
 ```
 
 ## Merge
@@ -45,7 +67,15 @@ Records can be inserted/updated/deleted by providing a dataframe to the merge me
 3. SQL column value not in dataframe column -> delete record in SQL
 
 ```python
-sql.write.merge(table_name, dataframe)
+# update existing record for index 0
+# insert new record for index 5
+# delete missing records for index 1,2,3,4
+merge_df = pd.DataFrame({
+        'ColumnA': ['11','6'],
+        'ColumnB': ['aa','f'],
+}, index=pd.Index([0, 6], name='PK'))
+# merge data in the SQL table
+merged_df = sql.write.merge('##mssql_dataframe_readme', merge_df)
 ```
 
 ## Upsert
@@ -53,7 +83,14 @@ sql.write.merge(table_name, dataframe)
 The merge method can be restricted to not delete records in SQL by specifying the upsert flag. Records in SQL are then only inserted or updated.
 
 ```python
-sql.write.merge(table_name, dataframe, upsert=True)
+# update existing record for index 0
+# insert new record for index 7
+# records not in the dataframe but in SQL won't be deleted
+upsert_df = pd.DataFrame({
+        'ColumnA': ['11','7'],
+        'ColumnB': ['AA','g'],
+}, index=pd.Index([0, 7], name='PK'))
+sql.write.merge('##mssql_dataframe_readme', upsert_df, upsert=True)
 ```
 
 ## Installation

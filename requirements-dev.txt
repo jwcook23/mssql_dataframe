@@ -1,8 +1,10 @@
-pre-commit
-pytest
-coverage
-flake8
 black
+flake8
+bandit
+coverage
+pytest
+phmdoctest
+pydocstyle
 genbadge[all]
 build
 twine

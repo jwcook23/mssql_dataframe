@@ -1,5 +1,5 @@
 import env
-import warnings
+import logging
 from datetime import datetime
 
 import pytest
@@ -7,7 +7,6 @@ import pandas as pd
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import (
-    custom_warnings,
     custom_errors,
     create,
     conversion,
@@ -79,25 +78,14 @@ def test_insert_autoadjust_errors(sql):
                 sql.insert.insert(table_name, df.loc[[row]].infer_objects())
 
 
-def test_insert_create_table(sql):
+def test_insert_create_table(sql, caplog):
 
     table_name = "##test_insert_create_table"
 
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2, 3], "ColumnB": ["06/22/2021", "06-22-2021", "2021-06-22"]}
     )
-
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
-        assert len(warn) == 3
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert "Creating table " + table_name in str(warn[0].message)
-        assert "Created table: " + table_name in str(warn[1].message)
-        assert "Creating column _time_insert in table " + table_name in str(
-            warn[2].message
-        )
+    dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -115,8 +103,23 @@ def test_insert_create_table(sql):
     assert result[expected.columns].equals(expected)
     assert all(result["_time_insert"].notna())
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert caplog.record_tuples[0][2] == f"Creating table '{table_name}'."
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[1][2]
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
 
-def test_insert_create_table_indexpk(sql):
+
+def test_insert_create_table_indexpk(sql, caplog):
 
     table_name = "##test_insert_create_table_indexpk"
 
@@ -125,46 +128,30 @@ def test_insert_create_table_indexpk(sql):
         index=pd.Series([1, 2, 3], name="indexpk"),
     )
 
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert.insert(table_name, dataframe=dataframe)
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert "Creating table " + table_name in str(warn[0].message)
-        assert "Created table: " + table_name in str(warn[1].message)
+    dataframe = sql.insert.insert(table_name, dataframe=dataframe)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     assert schema.index[schema["pk_seq"].notna()].equals(
         pd.Index(["indexpk"], dtype="string")
     )
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 2
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert caplog.record_tuples[0][2] == f"Creating table '{table_name}'."
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[1][2]
 
-def test_insert_add_column(sql):
+
+def test_insert_add_column(sql, caplog):
 
     table_name = "##test_insert_add_column"
     sql.create.table(table_name, columns={"ColumnA": "TINYINT"})
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": [2], "ColumnC": ["zzz"]})
-
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
-        assert len(warn) == 3
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Creating column ColumnB in table {table_name} with data type tinyint."
-        )
-        assert (
-            str(warn[2].message)
-            == f"Creating column ColumnC in table {table_name} with data type varchar(3)."
-        )
+    dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -172,6 +159,27 @@ def test_insert_add_column(sql):
     )
     assert result[dataframe.columns].equals(dataframe)
     assert all(result["_time_insert"].notna())
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[0][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column 'ColumnB' in table '{table_name}' with data type 'tinyint'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Creating column 'ColumnC' in table '{table_name}' with data type 'varchar(3)'."
+    )
 
 
 def test_insert_alter_column_unchanged(sql):
@@ -198,7 +206,7 @@ def test_insert_alter_column_unchanged(sql):
         )
 
 
-def test_insert_alter_column(sql):
+def test_insert_alter_column(sql, caplog):
 
     table_name = "##test_insert_alter_column"
     sql.create.table(
@@ -207,25 +215,7 @@ def test_insert_alter_column(sql):
     )
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["aaa"], "ColumnC": [100000]})
-
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
-        assert len(warn) == 3
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column _time_insert in table {table_name} with data type DATETIME2."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Altering column ColumnB in table {table_name} to data type varchar(3) with is_nullable=True."
-        )
-        assert (
-            str(warn[2].message)
-            == f"Altering column ColumnC in table {table_name} to data type int with is_nullable=True."
-        )
+    dataframe = sql.insert_meta.insert(table_name, dataframe=dataframe)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -242,8 +232,29 @@ def test_insert_alter_column(sql):
         "_time_insert": "datetime2",
     }
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[0][2]
+        == f"Creating column '_time_insert' in table '{table_name}' with data type 'datetime2'."
+    )
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(3)' with 'is_nullable=True'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Altering column 'ColumnC' in table '{table_name}' to data type 'int' with 'is_nullable=True'."
+    )
 
-def test_insert_alter_primary_key(sql):
+
+def test_insert_alter_primary_key(sql, caplog):
 
     # inital insert
     table_name = "##test_insert_alter_primary_key"
@@ -254,13 +265,9 @@ def test_insert_alter_primary_key(sql):
             "ColumnC": ["a", "b", "c", "d"],
         }
     ).set_index(keys=["ColumnA", "ColumnB"])
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     _, dtypes = conversion.sql_spec(schema, dataframe)
@@ -281,16 +288,7 @@ def test_insert_alter_primary_key(sql):
             "ColumnC": ["e", "f", "g", "h"],
         }
     ).set_index(keys=["ColumnA", "ColumnB"])
-    with warnings.catch_warnings(record=True) as warn:
-        new = sql.insert.insert(table_name, new)
-        assert len(warn) == 1
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == "Altering column ColumnA in table ##test_insert_alter_primary_key to data type smallint with is_nullable=False."
-        )
+    new = sql.insert.insert(table_name, new)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -307,18 +305,26 @@ def test_insert_alter_primary_key(sql):
     assert schema.at["ColumnB", "pk_seq"] == 2
     assert pd.isna(schema.at["ColumnC", "pk_seq"])
 
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 2
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Altering column 'ColumnA' in table '{table_name}' to data type 'smallint' with 'is_nullable=False'."
+    )
 
-def test_insert_add_and_alter_column(sql):
+
+def test_insert_add_and_alter_column(sql, caplog):
 
     table_name = "##test_insert_add_and_alter_column"
     dataframe = pd.DataFrame({"ColumnA": [0, 1, 2, 3], "ColumnB": [0, 1, 2, 3]})
-    with warnings.catch_warnings(record=True) as warn:
-        dataframe = sql.create_meta.table_from_dataframe(
-            table_name, dataframe, primary_key="index"
-        )
-        assert len(warn) == 1
-        assert isinstance(warn[0].message, custom_warnings.SQLObjectAdjustment)
-        assert "Created table" in str(warn[0].message)
+    dataframe = sql.create_meta.table_from_dataframe(
+        table_name, dataframe, primary_key="index"
+    )
 
     new = pd.DataFrame(
         {
@@ -329,21 +335,7 @@ def test_insert_add_and_alter_column(sql):
         index=[4, 5, 6, 7],
     )
     new.index.name = "_index"
-
-    with warnings.catch_warnings(record=True) as warn:
-        new = sql.insert_meta.insert(table_name, new)
-        assert len(warn) == 2
-        assert all(
-            [isinstance(x.message, custom_warnings.SQLObjectAdjustment) for x in warn]
-        )
-        assert (
-            str(warn[0].message)
-            == f"Creating column ColumnC in table {table_name} with data type tinyint."
-        )
-        assert (
-            str(warn[1].message)
-            == f"Altering column ColumnB in table {table_name} to data type smallint with is_nullable=False."
-        )
+    new = sql.insert_meta.insert(table_name, new)
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
     result = conversion.read_values(
@@ -360,3 +352,21 @@ def test_insert_add_and_alter_column(sql):
         "_time_insert": "datetime2",
         "ColumnC": "tinyint",
     }
+
+    # assert warnings raised by logging after all other tasks
+    assert len(caplog.record_tuples) == 3
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert caplog.record_tuples[0][1] == logging.WARNING
+    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
+        == f"Creating column 'ColumnC' in table '{table_name}' with data type 'tinyint'."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'smallint' with 'is_nullable=False'."
+    )
