@@ -112,3 +112,4 @@
 .\tests\test_markdown_QUICKSTART.py:234:18: E203 whitespace before ':'
 .\tests\test_markdown_QUICKSTART.py:241:18: E203 whitespace before ':'
 .\cicd\cicd_template.py:115:11: F541 f-string is missing placeholders
+.\cicd\cicd_template.py:190:9: F541 f-string is missing placeholders
