@@ -20,11 +20,23 @@ continuous_deployment.yml for Azure DevOps Pipeline CD definition
 import os
 import shutil
 import subprocess
-import configparser
 import argparse
 import glob
 
 from conftest import options
+
+package_name = "mssql_dataframe"
+venv_dir = "env"
+build_dir = "dist"
+build_test_dir = "build"
+markdown_test_dir = "tests/test_markdown"
+pytest_file = "reports/test.xml"
+flake8_file = "reports/flake8.txt"
+coverage_dir = "reports/coverage"
+coverage_file = "reports/.coverage"
+coverage_xml = "reports/coverage.xml"
+coverage_fail_under = 100
+genbadge_dir = "reports"
 
 
 def run_cmd(cmd, venv=True):
@@ -50,82 +62,70 @@ def run_cmd(cmd, venv=True):
     return status.stdout.decode("utf-8")
 
 
-def find_markdown_files(config):
-    """Find markdown files in current directory. Creates new output directory for markdown tests."""
+def remove_output_dirs():
+    for dir in [build_dir, build_test_dir, markdown_test_dir, "reports"]:
+        if os.path.exists(dir):
+            shutil.rmtree(dir)
 
-    markdown_test_directory = f"{config['tool:pytest']['testpaths']}test_markdown/"
 
-    if os.path.isdir(markdown_test_directory):
-        shutil.rmtree(markdown_test_directory)
-    os.mkdir(markdown_test_directory)
+def check_black_formatting():
+
+    cmd = ["black", ".", "--check", f"--extend-exclude={markdown_test_dir}"]
+    print(f"Checking code format '{' '.join(cmd)}'.")
+    try:
+        _ = run_cmd(cmd)
+    except RuntimeError as err:
+        raise RuntimeError(
+            f"black format check failed. Run 'black . --extend-exclude={markdown_test_dir}' to automatically apply format changes.",
+            err.args[0],
+        )
+
+
+def check_flake8_style():
+
+    exclude = f"{venv_dir}, {markdown_test_dir}, {build_test_dir}"
+    cmd = [
+        "flake8",
+        f"--output-file={flake8_file}",
+        "--tee",
+        f"--extend-exclude={exclude}",
+    ]
+    print(f"Checking code style '{' '.join(cmd)}'.")
+    _ = run_cmd(cmd)
+    print(f"Generated flake8 statistics file '{flake8_file}'.")
+
+
+def check_bandit_security():
+
+    cmd = ["bandit", "-r", package_name]
+    print(f"Checking security '{' '.join(cmd)}'.")
+    _ = run_cmd(cmd)
+
+
+def check_docstring_formatting():
+
+    cmd = ["pydocstyle", package_name, "--convention=numpy"]
+    print(f"Checking docstring format '{' '.join(cmd)}'.")
+    _ = run_cmd(cmd)
+
+
+def run_docstring_pytest():
+
+    cmd = ["pytest", package_name, "--doctest-modules"]
+    print(f"Running docstring tests '{' '.join(cmd)}'.")
+    _ = run_cmd(cmd)
+
+
+def generate_markdown_pytest():
+
+    os.mkdir(markdown_test_dir)
 
     markdown_test_files = {}
     dir = os.getcwd()
     for file_in in os.listdir(dir):
         if file_in.endswith(".md"):
             file_out = file_in.replace(".md", "")
-            markdown_test_files[
-                file_in
-            ] = f"{markdown_test_directory}test_{file_out}.py"
-
-    return markdown_test_files, markdown_test_directory
-
-
-def check_black_formatting(markdown_test_directory):
-
-    cmd = ["black", ".", "--check", f"--extend-exclude={markdown_test_directory}"]
-    print(f"Running '{' '.join(cmd)}' to check code formatting.")
-    try:
-        _ = run_cmd(cmd)
-    except RuntimeError as err:
-        raise RuntimeError(
-            "black format check failed. Run 'black .' to automatically apply format changes.",
-            err.args[0],
-        )
-    print("black check succeeded.")
-
-
-def check_flake8_style(config, markdown_test_directory):
-
-    cmd = [
-        "flake8",
-        "--exclude=env",
-        f"--output-file={config['flake8']['output-file']}",
-        "--tee",
-        f"--extend-exclude={markdown_test_directory}",
-    ]
-    print(f"Running '{' '.join(cmd)}' to check code style.")
-    _ = run_cmd(cmd)
-    print(
-        f"flake8 check succeeded. Generated flake8 statistics file '{config['flake8']['output-file']}'."
-    )
-
-
-def check_bandit_security(config):
-
-    cmd = ["bandit", "-r", config["options"]["packages"]]
-    print(f"Running '{' '.join(cmd)}' to check security.")
-    _ = run_cmd(cmd)
-    print("bandit check succeeded.")
-
-
-def check_docstring_formatting(config):
-
-    cmd = ["pydocstyle", config["options"]["packages"], "--convention=numpy"]
-    print(f"Running '{' '.join(cmd)}' to check docstring format.")
-    _ = run_cmd(cmd)
-    print("pydocstyle check succeeded.")
-
-
-def run_docstring_pytest(config):
-
-    cmd = ["pytest", config["metadata"]["name"], "--doctest-modules"]
-    print(f"Running docstring tests using '{' '.join(cmd)}'.")
-    _ = run_cmd(cmd)
-    print("docstring tests succeeded.")
-
-
-def generate_markdown_pytest(markdown_test_files):
+            markdown_test_files[file_in] = f"{markdown_test_dir}/test_{file_out}.py"
 
     for file_in, file_out in markdown_test_files.items():
         cmd = [
@@ -138,58 +138,66 @@ def generate_markdown_pytest(markdown_test_files):
         _ = run_cmd(cmd)
 
 
-def run_coverage_pytest(config, args):
+def run_coverage_pytest(args):
 
     # required arguments
     cmd = [
         "coverage",
         "run",
         "--branch",
+        f"--data-file={coverage_file}",
         "-m",
-        f"--source={config['metadata']['name']}",
+        f"--source={package_name}",
         "pytest",
-        f"--junitxml={config['user:pytest']['junitxml']}",
-        "-v",
+        f"--junitxml={pytest_file}",
     ]
     # add optional arguments defined by conftest.py options
     cmd += ["--" + k + "=" + v for k, v in args.items()]
 
-    print(
-        f"Running coverage for module '{config['metadata']['name']}' and tests in directory '{config['tool:pytest']['testpaths']}'."
-    )
-
     # use coverage to call pytest
+    print(f"Running coverage and tests '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
-    print(f"Generated coverage sqlite file '{config['coverage:run']['data_file']}'.")
-    print(f"Generated test xml file '{config['user:pytest']['junitxml']}'.")
+    print(f"Generated coverage sqlite file '{coverage_file}'.")
+    print(f"Generated test xml file '{pytest_file}'.")
 
 
-def report_coverage_html(config):
+def report_coverage():
 
-    _ = run_cmd(["coverage", "html"])
-
-    print(
-        f"Generated coverage html file '{os.path.join(config['coverage:html']['directory'], 'index.html')}'."
+    _ = run_cmd(
+        [
+            "coverage",
+            "html",
+            f"--data-file={coverage_file}",
+            f"--directory={coverage_dir}",
+        ]
     )
 
+    print(f"Generated coverage html file '{os.path.join(coverage_dir, 'index.html')}'.")
 
-def report_coverage_xml(config):
+    _ = run_cmd(
+        [
+            "coverage",
+            "xml",
+            f"--data-file={coverage_file}",
+            "-o",
+            f"{coverage_xml}",
+            f"--fail-under={coverage_fail_under}",
+        ]
+    )
+    print(f"Generated coverage xml file '{coverage_xml}'.")
 
-    _ = run_cmd(["coverage", "xml"])
-    print(f"Generated coverage xml file '{config['coverage:xml']['output']}'.")
 
-
-def generage_package_badges(config):
+def generage_package_badges():
 
     badges = {
-        "tests": config["user:pytest"]["junitxml"],
-        "coverage": config["coverage:xml"]["output"],
-        "flake8": config["flake8"]["output-file"],
+        "tests": pytest_file,
+        "coverage": coverage_xml,
+        "flake8": flake8_file,
     }
     for b, i in badges.items():
-        fp = f"{config['genbadge']['output']}{b}.svg"
+        fp = f"{genbadge_dir}/{b}.svg"
         _ = run_cmd(["genbadge", b, "-i", i, "-o", fp])
-        print(f"generating badge for '{b}' at '{fp}'.")
+        print(f"Generated badge for '{b}' at '{fp}'.")
 
 
 def check_package_version():
@@ -201,25 +209,35 @@ def check_package_version():
 
 def build_package():
 
-    outdir = os.path.join(os.getcwd(), "dist")
-    print(f"Building package in directory '{outdir}'.")
-
     # build package .gz and .whl files
-    _ = run_cmd(["python", "-m", "build", f"--outdir={outdir}"])
-    print(
-        f"Built source archives present in {outdir} '{glob.glob(os.path.join(outdir,'*.tar.gz'))}'."
-    )
-    print(
-        f"Built distributions present in {outdir}' {glob.glob(os.path.join(outdir,'*.whl'))}'."
-    )
+    cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
+    print(f"Building package in directory '{build_dir}' using '{' '.join(cmd)}'.")
+    _ = run_cmd(cmd)
+
+
+def test_package():
+
+    # find build files
+    source = glob.glob(os.path.join(build_dir, "*.tar.gz"))[0]
+    wheel = glob.glob(os.path.join(build_dir, "*.whl"))[0]
+
+    print(f"Built source archive '{source}'.")
+    print(f"Built distributions '{wheel}'.")
 
     # check build result
-    _ = run_cmd(["twine", "check", os.path.join(outdir, "*")])
+    cmd = ["twine", "check", os.path.join(build_dir, "*")]
+    print(f"Testing built package '{' '.join(cmd)}'")
+    _ = run_cmd(cmd)
 
+    # test import of package
+    cmd = ["python", "-m", "venv", build_test_dir]
+    _ = run_cmd(cmd, venv=False)
+    cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
+    _ = run_cmd(cmd, venv=False)
+    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"from {package_name} import *"]
+    print(f"Testing built package import '{' '.join(cmd)}'")
+    _ = run_cmd(cmd, venv=False)
 
-# parameters from setup.cfg
-config = configparser.ConfigParser()
-config.read("setup.cfg")
 
 # command line arguments from confest options since both pytest and argparse use the same parameters
 parser = argparse.ArgumentParser()
@@ -232,16 +250,16 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
-markdown_test_files, markdown_test_directory = find_markdown_files(config)
-check_black_formatting(markdown_test_directory)
-check_flake8_style(config, markdown_test_directory)
-check_bandit_security(config)
-check_docstring_formatting(config)
-run_docstring_pytest(config)
-generate_markdown_pytest(markdown_test_files)
-run_coverage_pytest(config, args)
-report_coverage_html(config)
-report_coverage_xml(config)
-generage_package_badges(config)
+remove_output_dirs()
+check_black_formatting()
+check_flake8_style()
+check_bandit_security()
+check_docstring_formatting()
+run_docstring_pytest()
+generate_markdown_pytest()
+run_coverage_pytest(args)
+report_coverage()
+generage_package_badges()
 check_package_version()
 build_package()
+test_package()
