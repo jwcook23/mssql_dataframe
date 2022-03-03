@@ -62,6 +62,12 @@ def run_cmd(cmd, venv=True):
     return status.stdout.decode("utf-8")
 
 
+def remove_output_dirs():
+    for dir in [build_dir, build_test_dir, markdown_test_dir, "reports"]:
+        if os.path.exists(dir):
+            shutil.rmtree(dir)
+
+
 def check_black_formatting():
 
     cmd = ["black", ".", "--check", f"--extend-exclude={markdown_test_dir}"]
@@ -77,7 +83,7 @@ def check_black_formatting():
 
 def check_flake8_style():
 
-    exclude = f"{venv_dir}, {markdown_test_dir}"
+    exclude = f"{venv_dir}, {markdown_test_dir}, {build_test_dir}"
     cmd = [
         "flake8",
         f"--output-file={flake8_file}",
@@ -112,8 +118,6 @@ def run_docstring_pytest():
 
 def generate_markdown_pytest():
 
-    if os.path.isdir(markdown_test_dir):
-        shutil.rmtree(markdown_test_dir)
     os.mkdir(markdown_test_dir)
 
     markdown_test_files = {}
@@ -175,7 +179,8 @@ def report_coverage():
             "coverage",
             "xml",
             f"--data-file={coverage_file}",
-            f"-o={coverage_xml}",
+            "-o",
+            f"{coverage_xml}",
             f"--fail-under={coverage_fail_under}",
         ]
     )
@@ -204,10 +209,6 @@ def check_package_version():
 
 def build_package():
 
-    # create new build directory
-    if os.path.exists(build_dir):
-        shutil.rmtree(build_dir)
-
     # build package .gz and .whl files
     cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
     print(f"Building package in directory '{build_dir}' using '{' '.join(cmd)}'.")
@@ -229,9 +230,6 @@ def test_package():
     _ = run_cmd(cmd)
 
     # test import of package
-    if os.path.isdir(build_test_dir):
-        shutil.rmtree(build_test_dir)
-    os.mkdir(build_test_dir)
     cmd = ["python", "-m", "venv", build_test_dir]
     _ = run_cmd(cmd, venv=False)
     cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
@@ -252,6 +250,7 @@ args = vars(args)
 # ignore None as would be passed as "None"
 args = {k: v for k, v in args.items() if v is not None}
 
+remove_output_dirs()
 check_black_formatting()
 check_flake8_style()
 check_bandit_security()
