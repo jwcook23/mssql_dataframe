@@ -11,13 +11,8 @@ steps:
   - task: PowerShell@2
     displayName: 'Create Environment & Install Dependancies'
     inputs:
-      targetType: 'inline'
-      script:
-        python -m venv env;
-        .\env\Scripts\Activate.ps1;
-        python -m pip install --upgrade pip;
-        pip install -r requirements-dev.txt;
-        pip install -e .;
+      targetType: 'filePath'
+      filePath: $(Build.SourcesDirectory)\cicd\setup_env.ps1
 
   - task: PythonScript@0
     displayName: Continuous Integration Core
@@ -43,3 +38,9 @@ steps:
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: $(Build.SourcesDirectory)\reports\coverage.xml
+
+  - task: PowerShell@2
+    displayName: 'Test Package Import'
+    inputs:
+      targetType: 'filePath'
+      filePath: $(Build.SourcesDirectory)\cicd\test_import.ps1

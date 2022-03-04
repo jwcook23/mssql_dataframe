@@ -230,13 +230,14 @@ def test_python_package():
     _ = run_cmd(cmd)
 
     # test import of package
-    cmd = ["python", "-m", "venv", build_test_dir]
-    _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
-    _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"import {package_name}"]
-    print(f"Testing built package import '{' '.join(cmd)}'")
-    _ = run_cmd(cmd, venv=False)
+    # print(f"Creating virtual environment '{build_test_dir}' to test package import.")
+    # cmd = ["python", "-m", "venv", build_test_dir]
+    # _ = run_cmd(cmd, venv=False)
+    # cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
+    # _ = run_cmd(cmd, venv=False)
+    # cmd = [f"{build_test_dir}/Scripts/python", "-c", f"import {package_name}"]
+    # print(f"Testing built package import '{' '.join(cmd)}'")
+    # _ = run_cmd(cmd, venv=False)
 
 
 # command line arguments from confest options since both pytest and argparse use the same parameters

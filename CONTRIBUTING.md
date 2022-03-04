@@ -8,30 +8,10 @@ Run all terminal commands in the root mssql_dataframe folder.
 
 1. Create a fork/branch of mssql_dataframe/main.
 
-2. Use a python virtual environment for development.
+2. Setup the python environment using the provided PowerShell script.
 
-    Create an environment named "env". This environment name is required.
-
-    ``` cmd
-    python -m venv env
-    ```
-
-    Activate the virtual environment.
-
-    ``` cmd
-    .\env\Scripts\activate
-    ```
-
-    Install mssql_dataframe in editable mode.
-
-    ``` cmd
-    pip install -e .
-    ```
-
-    Install additional development requirements.
-
-    ``` cmd
-    pip install -r requirements-dev.txt
+    ```ps
+    cicd/setup_env.ps1
     ```
 
 3. Perform test driven development.
