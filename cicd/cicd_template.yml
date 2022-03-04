@@ -29,7 +29,7 @@ steps:
   - task: PowerShell@2
     displayName: 'Show pip Versions'
     inputs:
-      targetType: 'inline':
+      targetType: 'inline'
       script:
         $(Build.SourcesDirectory)\env\Scripts\pip.exe list
 
