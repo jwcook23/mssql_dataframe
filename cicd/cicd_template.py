@@ -161,7 +161,7 @@ def run_coverage_pytest(args):
     print(f"Generated test xml file '{pytest_file}'.")
 
 
-def report_coverage():
+def report_coverage_output():
 
     _ = run_cmd(
         [
@@ -207,7 +207,7 @@ def check_package_version():
     print(f"Package version in file 'VERSION' set at '{version}'.")
 
 
-def build_package():
+def build_python_package():
 
     # build package .gz and .whl files
     cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
@@ -215,7 +215,7 @@ def build_package():
     _ = run_cmd(cmd)
 
 
-def test_package():
+def test_python_package():
 
     # find build files
     source = glob.glob(os.path.join(build_dir, "*.tar.gz"))[0]
@@ -234,7 +234,7 @@ def test_package():
     _ = run_cmd(cmd, venv=False)
     cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
     _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"from {package_name} import core"]
+    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"import {package_name}"]
     print(f"Testing built package import '{' '.join(cmd)}'")
     _ = run_cmd(cmd, venv=False)
 
@@ -254,12 +254,12 @@ remove_output_dirs()
 check_black_formatting()
 check_flake8_style()
 check_bandit_security()
-# check_docstring_formatting()
+check_docstring_formatting()
 run_docstring_pytest()
 generate_markdown_pytest()
 run_coverage_pytest(args)
-report_coverage()
+report_coverage_output()
 generage_package_badges()
 check_package_version()
-build_package()
-test_package()
+build_python_package()
+test_python_package()
