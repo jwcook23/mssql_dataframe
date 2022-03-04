@@ -1,4 +1,4 @@
-$venv = "./env";
+$venv = ".\env";
 $required = "requirements-dev.txt"
 
 if (Test-Path $venv) {
@@ -10,7 +10,7 @@ Write-Output "Creating virtual environment '$venv'."
 python -m venv $venv;
 
 Write-Output "Activating virtual environment '$venv'."
-& $venv"\Scripts\Activate.ps1";
+& "$venv\Scripts\Activate.ps1";
 
 Write-Output "Updating pip to latest version."
 python -m pip install --upgrade pip;
