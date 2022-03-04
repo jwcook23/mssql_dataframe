@@ -1,5 +1,12 @@
 # Azure Pipelines Continuous Deployment
 #
+# Runs cicd_template.py using a single Python version and uploads to
+# Azure Artifacts and PyPI.
+#
+# Parameters
+# ----------
+# artifact_feed (str, default='mssql_dataframe') : Azure Artifacts feed, if test upload to PyPI is skipped.
+#
 # See Also
 # --------
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
@@ -11,10 +18,12 @@ pr: none
 
 
 parameters:
-  - name: version_number
+  - name: artifact_feed
     type: string
-    default: 0.0.0
-
+    default: mssql_dataframe
+    values:
+      - mssql_dataframe
+      - test
 
 pool: 
       vmImage: windows-latest
@@ -29,22 +38,15 @@ stages:
           displayName: 'Use Python 3.10'
           inputs:
             versionSpec: '3.10'
-        - task: PowerShell@2
-          displayName: Set Package Version
-          inputs:
-            targetType: FilePath
-            filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
-            arguments: -version ${{ parameters.version_number }}
         - template: cicd_template.yml
         - task: TwineAuthenticate@1
           displayName: Twine Authenticate
           inputs:
-            artifactFeed: mssql_dataframe/mssql_dataframe
+            artifactFeed: mssql_dataframe/${{ parameters.artifact_feed }}
         - script: |
-            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r ${{ parameters.artifact_feed }} --config-file $(PYPIRC_PATH) dist/*.whl
           displayName: Upload Artifact
-          condition: ne('${{ parameters.version_number }}', '0.0.0')
         - script: |
             $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-          displayName: PyPi Upload
-          condition: ne('${{ parameters.version_number }}', '0.0.0')
+          displayName: PyPI Upload
+          condition: eq('${{ parameters.artifact_feed }}', 'mssql_dataframe')

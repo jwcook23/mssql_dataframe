@@ -211,7 +211,7 @@ def build_package():
 
     # build package .gz and .whl files
     cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
-    print(f"Building package in directory '{build_dir}' using '{' '.join(cmd)}'.")
+    print(f"Building package '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 
 

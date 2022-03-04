@@ -56,7 +56,18 @@ Run all terminal commands in the root mssql_dataframe folder.
     pytest --server='localhost'
     ```
 
-5. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
+5. Set VERSION number in file `VERSION`.
+
+    ```txt
+    Example Version: 
+    A.B.C
+
+    A: major version (backwards incompatiable changes)
+    B: minor version (added backwards-compatible functionality)
+    C: patch version (bug fixes)
+    ```
+
+6. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
 
     ``` cmd
     python cicd/cicd_template.py
@@ -68,7 +79,7 @@ Run all terminal commands in the root mssql_dataframe folder.
     python cicd/cicd_template.py --server='localhost'
     ```
 
-6. Create a Pull Request
+7. Create a Pull Request
 
 ## CICD Build Pipelines
 
@@ -85,14 +96,3 @@ A GitHub repository owner/contributor adds a comment of `/AzurePipelines run con
 If the continuous integration pipeline passes, the continuous delievery pipeline will need to be manually started with an input for the build version number. After CD completes, a new version is uploaded to PyPI.
 
 [Continuous Delivery Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=2)
-
-### Build Versioning
-
-```txt
-Example Version: 
-A.B.C
-
-A: major version (backwards incompatiable changes)
-B: minor version (added backwards-compatible functionality)
-C: patch version (bug fixes)
-```
