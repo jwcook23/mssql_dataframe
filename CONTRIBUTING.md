@@ -59,13 +59,21 @@ Run all terminal commands in the root mssql_dataframe folder.
 5. Set VERSION number in file `VERSION`.
 
     ```txt
-    Example Version: 
-    A.B.C
-
-    A: major version (backwards incompatiable changes)
-    B: minor version (added backwards-compatible functionality)
-    C: patch version (bug fixes)
+    X.Y.Z
     ```
+
+    X: major version (backwards incompatiable changes)
+    Y: minor version (added backwards-compatible functionality)
+    Z: patch version (bug fixes)
+
+    Optionally a pre-release release candidate designation may be set in `VERSION`.
+
+    ```txt
+    X.Y.ZrcN
+    ```
+
+    rc: specifies this is a release candidate
+    N: release candidate number
 
 6. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
 
