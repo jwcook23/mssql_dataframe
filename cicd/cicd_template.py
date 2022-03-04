@@ -234,7 +234,7 @@ def test_package():
     _ = run_cmd(cmd, venv=False)
     cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
     _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"from {package_name} import *"]
+    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"from {package_name} import core"]
     print(f"Testing built package import '{' '.join(cmd)}'")
     _ = run_cmd(cmd, venv=False)
 
@@ -254,7 +254,7 @@ remove_output_dirs()
 check_black_formatting()
 check_flake8_style()
 check_bandit_security()
-check_docstring_formatting()
+# check_docstring_formatting()
 run_docstring_pytest()
 generate_markdown_pytest()
 run_coverage_pytest(args)

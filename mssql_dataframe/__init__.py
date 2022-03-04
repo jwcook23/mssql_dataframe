@@ -1,4 +1,3 @@
-"""Methods for creating, modifying, reading, and writing between dataframes and SQL."""
 import logging
 from importlib.metadata import version
 from mssql_dataframe.package import SQLServer  # noqa: F401
