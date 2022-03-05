@@ -22,8 +22,7 @@ import shutil
 import subprocess
 import argparse
 import glob
-
-from conftest import options
+import sys
 
 package_name = "mssql_dataframe"
 venv_dir = "env"
@@ -138,7 +137,7 @@ def generate_markdown_pytest():
         _ = run_cmd(cmd)
 
 
-def run_coverage_pytest(args):
+def run_coverage_pytest():
 
     # required arguments
     cmd = [
@@ -151,7 +150,17 @@ def run_coverage_pytest(args):
         "pytest",
         f"--junitxml={pytest_file}",
     ]
+
     # add optional arguments defined by conftest.py options
+    sys.path.insert(1, os.path.join(sys.path[0], ".."))
+    from conftest import options
+
+    parser = argparse.ArgumentParser()
+    for opt in options:
+        parser.add_argument(opt, **options[opt])
+    args = parser.parse_args()
+    args = vars(args)
+    args = {k: v for k, v in args.items() if v is not None}
     cmd += ["--" + k + "=" + v for k, v in args.items()]
 
     # use coverage to call pytest
@@ -240,17 +249,6 @@ def test_python_package():
     # _ = run_cmd(cmd, venv=False)
 
 
-# command line arguments from confest options since both pytest and argparse use the same parameters
-parser = argparse.ArgumentParser()
-for opt in options:
-    parser.add_argument(opt, **options[opt])
-args = parser.parse_args()
-
-# convert args to dictionary to allow to be used as command line args
-args = vars(args)
-# ignore None as would be passed as "None"
-args = {k: v for k, v in args.items() if v is not None}
-
 remove_output_dirs()
 check_black_formatting()
 check_flake8_style()
@@ -258,7 +256,7 @@ check_bandit_security()
 check_docstring_formatting()
 run_docstring_pytest()
 generate_markdown_pytest()
-run_coverage_pytest(args)
+run_coverage_pytest()
 report_coverage_output()
 generage_package_badges()
 check_package_version()
