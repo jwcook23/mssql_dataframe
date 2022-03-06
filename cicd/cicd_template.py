@@ -238,16 +238,6 @@ def test_python_package():
     print(f"Testing built package '{' '.join(cmd)}'")
     _ = run_cmd(cmd)
 
-    # test import of package
-    # print(f"Creating virtual environment '{build_test_dir}' to test package import.")
-    # cmd = ["python", "-m", "venv", build_test_dir]
-    # _ = run_cmd(cmd, venv=False)
-    # cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
-    # _ = run_cmd(cmd, venv=False)
-    # cmd = [f"{build_test_dir}/Scripts/python", "-c", f"import {package_name}"]
-    # print(f"Testing built package import '{' '.join(cmd)}'")
-    # _ = run_cmd(cmd, venv=False)
-
 
 remove_output_dirs()
 check_black_formatting()

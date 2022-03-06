@@ -46,7 +46,7 @@ Run all terminal commands in the root mssql_dataframe folder.
     Y: minor version (added backwards-compatible functionality)
     Z: patch version (bug fixes)
 
-    Optionally a pre-release release candidate designation may be set in `VERSION`.
+    Optionally a pre-release release candidate designation may be set in `VERSION`. This is useful for testing before final release.
 
     ```txt
     X.Y.ZrcN

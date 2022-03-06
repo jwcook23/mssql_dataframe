@@ -5,25 +5,18 @@
 #
 # Parameters
 # ----------
-# artifact_feed (str, default='mssql_dataframe') : Azure Artifacts feed, if test upload to PyPI is skipped.
+# None
 #
 # See Also
 # --------
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.yml for the CI process
 # cicd_template.py for the core of the entire CICD process
+# VERSION for package version number
 
 trigger: none
 pr: none
 
-
-parameters:
-  - name: artifact_feed
-    type: string
-    default: mssql_dataframe
-    values:
-      - mssql_dataframe
-      - test
 
 pool: 
       vmImage: windows-latest
@@ -42,11 +35,17 @@ stages:
         - task: TwineAuthenticate@1
           displayName: Twine Authenticate
           inputs:
-            artifactFeed: mssql_dataframe/${{ parameters.artifact_feed }}
+            artifactFeed: mssql_dataframe/mssql_dataframe
         - script: |
-            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r ${{ parameters.artifact_feed }} --config-file $(PYPIRC_PATH) dist/*.whl
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
           displayName: Upload Artifact
         - script: |
             $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
           displayName: PyPI Upload
-          condition: eq('${{ parameters.artifact_feed }}', 'mssql_dataframe')
+        # - task: GitHubRelease@0
+        #   inputs:
+        #     gitHubConnection: 
+        #     repositoryName: '$(Build.Repository.Name)' 
+        #     action: 'create' # Options: create, edit, delete
+        #     target: '$(Build.SourceVersion)' # Required when action == Create || Action == Edit
+        #     tagSource: 'auto' # Required when action == Create# Options: auto, manual
