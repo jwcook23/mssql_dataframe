@@ -21,13 +21,6 @@ steps:
       scriptPath: $(Build.SourcesDirectory)\cicd\cicd_template.py
       pythonInterpreter: $(Build.SourcesDirectory)\env\Scripts\python.exe
 
-  - task: PowerShell@2
-    displayName: 'Show pip Versions'
-    inputs:
-      targetType: 'inline'
-      script:
-        $(Build.SourcesDirectory)\env\Scripts\pip.exe list
-
   - task: PublishTestResults@2
     displayName: Publish Test Results
     inputs:
