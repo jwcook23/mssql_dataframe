@@ -1,19 +1,21 @@
 # Azure Pipelines Continuous Deployment
 #
+# Runs cicd_template.py using a single Python version and uploads to
+# Azure Artifacts and PyPI.
+#
+# Parameters
+# ----------
+# None
+#
 # See Also
 # --------
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
 # continuous_integration.yml for the CI process
 # cicd_template.py for the core of the entire CICD process
+# VERSION for package version number
 
 trigger: none
 pr: none
-
-
-parameters:
-  - name: version_number
-    type: string
-    default: 0.0.0
 
 
 pool: 
@@ -29,12 +31,6 @@ stages:
           displayName: 'Use Python 3.10'
           inputs:
             versionSpec: '3.10'
-        - task: PowerShell@2
-          displayName: Set Package Version
-          inputs:
-            targetType: FilePath
-            filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
-            arguments: -version ${{ parameters.version_number }}
         - template: cicd_template.yml
         - task: TwineAuthenticate@1
           displayName: Twine Authenticate
@@ -43,8 +39,21 @@ stages:
         - script: |
             $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
           displayName: Upload Artifact
-          condition: ne('${{ parameters.version_number }}', '0.0.0')
         - script: |
             $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-          displayName: PyPi Upload
-          condition: ne('${{ parameters.version_number }}', '0.0.0')
+          displayName: PyPI Upload
+        # - task: PowerShell@2
+        #   displayName: 'Read Package VERSION'
+        #   inputs:
+        #     targetType: 'inline'
+        #     script: |
+        #       $version = Get-Content .\VERSION
+        #       Write-Host "##vso[task.setvariable variable=tag;]$version"
+        # - task: PowerShell@2
+        #   displayName: 'Push Git Tag Using Version'
+        #   inputs:
+        #     targetType: 'inline'
+        #     script: | 
+        #         git tag $tag
+        #         git push origin $tag
+        #     workingDirectory: $(Build.SourcesDirectory)

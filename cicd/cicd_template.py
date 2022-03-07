@@ -22,8 +22,7 @@ import shutil
 import subprocess
 import argparse
 import glob
-
-from conftest import options
+import sys
 
 package_name = "mssql_dataframe"
 venv_dir = "env"
@@ -138,7 +137,7 @@ def generate_markdown_pytest():
         _ = run_cmd(cmd)
 
 
-def run_coverage_pytest(args):
+def run_coverage_pytest():
 
     # required arguments
     cmd = [
@@ -151,7 +150,17 @@ def run_coverage_pytest(args):
         "pytest",
         f"--junitxml={pytest_file}",
     ]
+
     # add optional arguments defined by conftest.py options
+    sys.path.insert(1, os.path.join(sys.path[0], ".."))
+    from conftest import options
+
+    parser = argparse.ArgumentParser()
+    for opt in options:
+        parser.add_argument(opt, **options[opt])
+    args = parser.parse_args()
+    args = vars(args)
+    args = {k: v for k, v in args.items() if v is not None}
     cmd += ["--" + k + "=" + v for k, v in args.items()]
 
     # use coverage to call pytest
@@ -161,7 +170,7 @@ def run_coverage_pytest(args):
     print(f"Generated test xml file '{pytest_file}'.")
 
 
-def report_coverage():
+def report_coverage_output():
 
     _ = run_cmd(
         [
@@ -207,15 +216,15 @@ def check_package_version():
     print(f"Package version in file 'VERSION' set at '{version}'.")
 
 
-def build_package():
+def build_python_package():
 
     # build package .gz and .whl files
     cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
-    print(f"Building package in directory '{build_dir}' using '{' '.join(cmd)}'.")
+    print(f"Building package '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 
 
-def test_package():
+def test_python_package():
 
     # find build files
     source = glob.glob(os.path.join(build_dir, "*.tar.gz"))[0]
@@ -229,26 +238,6 @@ def test_package():
     print(f"Testing built package '{' '.join(cmd)}'")
     _ = run_cmd(cmd)
 
-    # test import of package
-    cmd = ["python", "-m", "venv", build_test_dir]
-    _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/pip", "install", wheel]
-    _ = run_cmd(cmd, venv=False)
-    cmd = [f"{build_test_dir}/Scripts/python", "-c", f"from {package_name} import *"]
-    print(f"Testing built package import '{' '.join(cmd)}'")
-    _ = run_cmd(cmd, venv=False)
-
-
-# command line arguments from confest options since both pytest and argparse use the same parameters
-parser = argparse.ArgumentParser()
-for opt in options:
-    parser.add_argument(opt, **options[opt])
-args = parser.parse_args()
-
-# convert args to dictionary to allow to be used as command line args
-args = vars(args)
-# ignore None as would be passed as "None"
-args = {k: v for k, v in args.items() if v is not None}
 
 remove_output_dirs()
 check_black_formatting()
@@ -257,9 +246,9 @@ check_bandit_security()
 check_docstring_formatting()
 run_docstring_pytest()
 generate_markdown_pytest()
-run_coverage_pytest(args)
-report_coverage()
+run_coverage_pytest()
+report_coverage_output()
 generage_package_badges()
 check_package_version()
-build_package()
-test_package()
+build_python_package()
+test_python_package()

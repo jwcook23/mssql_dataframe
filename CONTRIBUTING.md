@@ -8,30 +8,10 @@ Run all terminal commands in the root mssql_dataframe folder.
 
 1. Create a fork/branch of mssql_dataframe/main.
 
-2. Use a python virtual environment for development.
+2. Setup the python environment using the provided PowerShell script.
 
-    Create an environment named "env". This environment name is required.
-
-    ``` cmd
-    python -m venv env
-    ```
-
-    Activate the virtual environment.
-
-    ``` cmd
-    .\env\Scripts\activate
-    ```
-
-    Install mssql_dataframe in editable mode.
-
-    ``` cmd
-    pip install -e .
-    ```
-
-    Install additional development requirements.
-
-    ``` cmd
-    pip install -r requirements-dev.txt
+    ```ps
+    cicd/setup_env.ps1
     ```
 
 3. Perform test driven development.
@@ -56,7 +36,26 @@ Run all terminal commands in the root mssql_dataframe folder.
     pytest --server='localhost'
     ```
 
-5. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
+5. Set VERSION number in file `VERSION`.
+
+    ```txt
+    X.Y.Z
+    ```
+
+    X: major version (backwards incompatiable changes)
+    Y: minor version (added backwards-compatible functionality)
+    Z: patch version (bug fixes)
+
+    Optionally a pre-release release candidate designation may be set in `VERSION`. This is useful for testing before final release.
+
+    ```txt
+    X.Y.ZrcN
+    ```
+
+    rc: specifies this is a release candidate
+    N: release candidate number
+
+6. Run `cicd/cicd_template.py`. If this finished to completion the CICD process will finish. Correct any errors as needed.
 
     ``` cmd
     python cicd/cicd_template.py
@@ -68,7 +67,7 @@ Run all terminal commands in the root mssql_dataframe folder.
     python cicd/cicd_template.py --server='localhost'
     ```
 
-6. Create a Pull Request
+7. Create a Pull Request
 
 ## CICD Build Pipelines
 
@@ -85,14 +84,3 @@ A GitHub repository owner/contributor adds a comment of `/AzurePipelines run con
 If the continuous integration pipeline passes, the continuous delievery pipeline will need to be manually started with an input for the build version number. After CD completes, a new version is uploaded to PyPI.
 
 [Continuous Delivery Pipeline](https://dev.azure.com/jasoncook1989/mssql_dataframe/_build?definitionId=2)
-
-### Build Versioning
-
-```txt
-Example Version: 
-A.B.C
-
-A: major version (backwards incompatiable changes)
-B: minor version (added backwards-compatible functionality)
-C: patch version (bug fixes)
-```

@@ -1,5 +1,7 @@
 # Azure Pipelines Continuous Integration
 #
+# Runs cicd_template.py using multiple Python versions.
+#
 # See Also
 # --------
 # CONTRIBUTING.md CICD Build Pipelines for a general overview of the CICD process
@@ -16,11 +18,6 @@ pr:
   branches:
     include:
     - main
-
-parameters:
-  - name: version_number
-    type: string
-    default: 0.0.0
 
 pool: 
       vmImage: windows-latest
@@ -44,10 +41,4 @@ stages:
             displayName: 'Multiple Python Versions'
             inputs:
               versionSpec: '$(python.version)'
-          - task: PowerShell@2
-            displayName: Set Package Version
-            inputs:
-              targetType: FilePath
-              filePath: $(Build.SourcesDirectory)\cicd\cicd_version.ps1
-              arguments: -version ${{ parameters.version_number }}
           - template: cicd_template.yml
