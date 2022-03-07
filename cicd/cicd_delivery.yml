@@ -42,10 +42,10 @@ stages:
         - script: |
             $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
           displayName: PyPI Upload
-        # - task: GitHubRelease@0
-        #   inputs:
-        #     gitHubConnection: 
-        #     repositoryName: '$(Build.Repository.Name)' 
-        #     action: 'create' # Options: create, edit, delete
-        #     target: '$(Build.SourceVersion)' # Required when action == Create || Action == Edit
-        #     tagSource: 'auto' # Required when action == Create# Options: auto, manual
+        - task: GithubRelease@1 
+          displayName: 'Create GitHub Release'      
+          inputs:
+            gitHubConnection: mssql_dataframe
+            repositoryName: jcook/mssql_dataframe
+            tagSource: manual
+            tag: 1.5.2rc2
