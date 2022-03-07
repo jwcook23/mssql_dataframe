@@ -52,6 +52,7 @@ stages:
         - task: PowerShell@2
           displayName: 'Push Git Tag Using Version'
           inputs:
+            targetType: 'inline'
             script: | 
                 git tag $tag
                 git push origin $tag
