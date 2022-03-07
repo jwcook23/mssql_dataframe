@@ -27,33 +27,33 @@ stages:
     jobs:
     - job: ContinuousDelivery
       steps:
-        # - task: UsePythonVersion@0
-        #   displayName: 'Use Python 3.10'
-        #   inputs:
-        #     versionSpec: '3.10'
-        # - template: cicd_template.yml
-        # - task: TwineAuthenticate@1
-        #   displayName: Twine Authenticate
-        #   inputs:
-        #     artifactFeed: mssql_dataframe/mssql_dataframe
-        # - script: |
-        #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
-        #   displayName: Upload Artifact
-        # - script: |
-        #     $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
-        #   displayName: PyPI Upload
-        - task: PowerShell@2
-          displayName: 'Read Package VERSION'
+        - task: UsePythonVersion@0
+          displayName: 'Use Python 3.10'
           inputs:
-            targetType: 'inline'
-            script: |
-              $version = Get-Content .\VERSION
-              Write-Host "##vso[task.setvariable variable=tag;]$version"
-        - task: PowerShell@2
-          displayName: 'Push Git Tag Using Version'
+            versionSpec: '3.10'
+        - template: cicd_template.yml
+        - task: TwineAuthenticate@1
+          displayName: Twine Authenticate
           inputs:
-            targetType: 'inline'
-            script: | 
-                git tag $tag
-                git push origin $tag
-            workingDirectory: $(Build.SourcesDirectory)
+            artifactFeed: mssql_dataframe/mssql_dataframe
+        - script: |
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -r mssql_dataframe --config-file $(PYPIRC_PATH) dist/*.whl
+          displayName: Upload Artifact
+        - script: |
+            $(Build.SourcesDirectory)\env\Scripts\python.exe -m twine upload -u $(PYPI_UN) -p $(PYPI_PW) dist/*
+          displayName: PyPI Upload
+        # - task: PowerShell@2
+        #   displayName: 'Read Package VERSION'
+        #   inputs:
+        #     targetType: 'inline'
+        #     script: |
+        #       $version = Get-Content .\VERSION
+        #       Write-Host "##vso[task.setvariable variable=tag;]$version"
+        # - task: PowerShell@2
+        #   displayName: 'Push Git Tag Using Version'
+        #   inputs:
+        #     targetType: 'inline'
+        #     script: | 
+        #         git tag $tag
+        #         git push origin $tag
+        #     workingDirectory: $(Build.SourcesDirectory)
