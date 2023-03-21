@@ -9,6 +9,7 @@ import pyodbc
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import conversion, conversion_rules, dynamic
 from mssql_dataframe import __sample__
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
