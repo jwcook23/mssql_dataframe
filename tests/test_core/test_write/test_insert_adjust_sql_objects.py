@@ -64,7 +64,9 @@ def test_insert_autoadjust_errors(sql):
         pd.DataFrame({"_time": date_time}),
         pd.DataFrame({"_date": date_time}),
         pd.DataFrame({"_datetime2": date_time}),
+        pd.DataFrame({"_char": character_string}),
         pd.DataFrame({"_varchar": character_string}),
+        pd.DataFrame({"_nchar": character_string}),
         pd.DataFrame({"_nvarchar": character_string}),
     ]
 
@@ -178,7 +180,7 @@ def test_insert_add_column(sql, caplog):
     assert caplog.record_tuples[2][1] == logging.WARNING
     assert (
         caplog.record_tuples[2][2]
-        == f"Creating column 'ColumnC' in table '{table_name}' with data type 'varchar(3)'."
+        == f"Creating column 'ColumnC' in table '{table_name}' with data type 'char(3)'."
     )
 
 
@@ -211,7 +213,7 @@ def test_insert_alter_column(sql, caplog):
     table_name = "##test_insert_alter_column"
     sql.create.table(
         table_name,
-        columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)", "ColumnC": "TINYINT"},
+        columns={"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"},
     )
 
     dataframe = pd.DataFrame({"ColumnA": [1], "ColumnB": ["aaa"], "ColumnC": [100000]})
@@ -227,7 +229,7 @@ def test_insert_alter_column(sql, caplog):
     _, dtypes = conversion.sql_spec(schema, dataframe)
     assert dtypes == {
         "ColumnA": "tinyint",
-        "ColumnB": "varchar(3)",
+        "ColumnB": "char(3)",
         "ColumnC": "int",
         "_time_insert": "datetime2",
     }
@@ -244,7 +246,7 @@ def test_insert_alter_column(sql, caplog):
     assert caplog.record_tuples[1][1] == logging.WARNING
     assert (
         caplog.record_tuples[1][2]
-        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(3)' with 'is_nullable=True'."
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'char(3)' with 'is_nullable=True'."
     )
     assert caplog.record_tuples[2][0] == "mssql_dataframe.core.write._exceptions"
     assert caplog.record_tuples[2][1] == logging.WARNING
@@ -274,7 +276,7 @@ def test_insert_alter_primary_key(sql, caplog):
     assert dtypes == {
         "ColumnA": "tinyint",
         "ColumnB": "tinyint",
-        "ColumnC": "varchar(1)",
+        "ColumnC": "char(1)",
     }
     assert schema.at["ColumnA", "pk_seq"] == 1
     assert schema.at["ColumnB", "pk_seq"] == 2
@@ -299,7 +301,7 @@ def test_insert_alter_primary_key(sql, caplog):
     assert dtypes == {
         "ColumnA": "smallint",
         "ColumnB": "tinyint",
-        "ColumnC": "varchar(1)",
+        "ColumnC": "char(1)",
     }
     assert schema.at["ColumnA", "pk_seq"] == 1
     assert schema.at["ColumnB", "pk_seq"] == 2

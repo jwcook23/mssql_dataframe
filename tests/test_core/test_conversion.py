@@ -41,14 +41,11 @@ def sql(data):
     # column name = dataframe column name, data type = dataframe column name without prefixed underscore
     create = {x: x[1::].upper() for x in data.columns if x != "id"}
     # use string lengths to determine string column size
-    create = {
-        k: (v + "(" + str(data[k].str.len().max()) + ")" if v == "VARCHAR" else v)
-        for k, v in create.items()
-    }
-    create = {
-        k: (v + "(" + str(data[k].str.len().max()) + ")" if v == "NVARCHAR" else v)
-        for k, v in create.items()
-    }
+    strings = conversion_rules.rules.loc[
+        conversion_rules.rules['sql_category']=='character string', 'sql_type'
+    ].str.upper().values
+    length = {k:f"{v}({data[k].str.len().max()})" for k,v in create.items() if v in strings}
+    create.update(length)
     # create SQL table, including a primary key for SQL read sorting
     create = ",\n".join([k + " " + v for k, v in create.items()])
     create = f"""

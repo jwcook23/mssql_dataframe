@@ -68,7 +68,7 @@ def test_pk(data):
     # setup test data
     dataframe = data[data.notna().all(axis="columns")].copy()
     dataframe["_tinyint_smaller"] = pd.Series(range(0, len(dataframe)), dtype="UInt8")
-    dataframe["_varchar_smaller"] = dataframe["_varchar"].str.slice(0, 1)
+    dataframe["_char_smaller"] = dataframe["_char"].str.slice(0, 1)
 
     # infer SQL properties
     df = dataframe
@@ -84,7 +84,7 @@ def test_pk(data):
     _check_schema(schema)
     _check_dataframe(df, schema)
     assert df.columns.isin(not_nullable).all()
-    assert pk == "_varchar_smaller"
+    assert pk == "_char_smaller"
 
 
 def test_default(data):

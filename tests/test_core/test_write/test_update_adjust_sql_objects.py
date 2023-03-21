@@ -117,7 +117,7 @@ def test_update_alter_column(sql, caplog):
     assert caplog.record_tuples[2][1] == logging.WARNING
     assert (
         caplog.record_tuples[2][2]
-        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(3)' with 'is_nullable=False'."
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'char(3)' with 'is_nullable=False'."
     )
     assert caplog.record_tuples[3][0] == "mssql_dataframe.core.write._exceptions"
     assert caplog.record_tuples[3][1] == logging.WARNING
@@ -169,5 +169,5 @@ def test_update_add_and_alter_column(sql, caplog):
     assert caplog.record_tuples[3][1] == logging.WARNING
     assert (
         caplog.record_tuples[3][2]
-        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(3)' with 'is_nullable=False'."
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'char(3)' with 'is_nullable=False'."
     )

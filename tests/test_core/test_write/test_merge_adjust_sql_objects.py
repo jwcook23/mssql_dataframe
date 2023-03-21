@@ -164,7 +164,7 @@ def test_merge_alter_column(sql, caplog):
     assert caplog.record_tuples[4][1] == logging.WARNING
     assert (
         caplog.record_tuples[4][2]
-        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(5)' with 'is_nullable=False'."
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'char(5)' with 'is_nullable=False'."
     )
 
 
@@ -216,5 +216,5 @@ def test_merge_add_and_alter_column(sql, caplog):
     assert caplog.record_tuples[4][1] == logging.WARNING
     assert (
         caplog.record_tuples[4][2]
-        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'varchar(5)' with 'is_nullable=False'."
+        == f"Altering column 'ColumnB' in table '{table_name}' to data type 'char(5)' with 'is_nullable=False'."
     )

@@ -46,9 +46,11 @@ dataframe = pd.DataFrame(
             ],
             dtype="datetime64[ns]",
         ),
-        "_varchar": pd.Series(["a", "bbb", None], dtype="string"),
+        "_char": pd.Series(["aa", "bb", None, None], dtype="string"),
+        "_varchar": pd.Series(["a", "bbb", None, None], dtype="string"),
+        "_nchar": pd.Series(["10\N{DEGREE SIGN}C", "20\N{DEGREE SIGN}C", None, None], dtype='string'),
         "_nvarchar": pd.Series(
-            ["100\N{DEGREE SIGN}F", "company name\N{REGISTERED SIGN}", None],
+            ["100\N{DEGREE SIGN}F", "company name\N{REGISTERED SIGN}", None, None],
             dtype="string",
         ),
     }

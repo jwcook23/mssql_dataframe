@@ -259,6 +259,7 @@ def prepare_cursor(
             "column_size",
             "min_value",
             "max_value",
+            "sql_category",
             "sql_type",
             "odbc_type",
             "odbc_size",
@@ -304,7 +305,7 @@ def sql_spec(
     if any(dataframe.index.names):
         dataframe = dataframe.reset_index()
 
-    strings = schema[schema["sql_type"].isin(["varchar", "nvarchar"])].index
+    strings = schema[schema["sql_category"]=='character string'].index
 
     # update odbc_size in schema
     if any(strings):

@@ -22,6 +22,20 @@ class package:
         )
 
 
+# TODO: replace .equals in other tests
+def compare_dfs(df1, df2):
+    
+    if df1.equals(df2):
+        return True
+    
+    assert df1.columns.equals(df2.columns)
+    
+    assert df1.index.equals(df2.index)
+    
+    for col in df1.columns:
+        assert df1[col].equals(df2[col])
+
+
 @pytest.fixture(scope="module")
 def sql():
     db = connect(env.database, env.server, env.driver, env.username, env.password)
@@ -33,7 +47,7 @@ def sql():
 def sample():
     dataframe = pd.DataFrame(
         {
-            "_varchar": [None, "b", "c", "4", "e"],
+            "_char": [None, "b", "c", "4", "e"],
             "_tinyint": [None, 2, 3, 4, 5],
             "_smallint": [256, 2, 6, 4, 5],  # tinyint max is 255
             "_int": [32768, 2, 3, 4, 5],  # smallint max is 32,767
@@ -46,6 +60,76 @@ def sample():
         }
     )
     return dataframe
+
+
+@pytest.fixture(scope="module")
+def validation():
+    
+    expected = pd.DataFrame.from_records([
+        {
+            "column_name": "_index", "sql_type": "tinyint", "is_nullable": False,
+            "ss_is_identity": False, "pk_seq": 1, "pandas_type": "UInt8",
+            "odbc_type": pyodbc.SQL_TINYINT, "odbc_size": 1, "odbc_precision": 0
+        },
+        {
+            "column_name": "_pk", "sql_type": "int identity", "is_nullable": False,
+            "ss_is_identity": True, "pk_seq": 1, "pandas_type": "Int32",
+            "odbc_type": pyodbc.SQL_INTEGER, "odbc_size": 4, "odbc_precision": 0
+        },
+        {
+            "column_name": "_char", "sql_type": "char", "is_nullable": True,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "string",
+            "odbc_type": pyodbc.SQL_CHAR, "odbc_size": 0, "odbc_precision": 0
+        },
+        {
+            "column_name": "_tinyint", "sql_type": "tinyint", "is_nullable": True,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "UInt8",
+            "odbc_type": pyodbc.SQL_TINYINT, "odbc_size": 1, "odbc_precision": 0
+        },
+        {
+            "column_name": "_smallint", "sql_type": "smallint", "is_nullable": False,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "Int16",
+            "odbc_type": pyodbc.SQL_SMALLINT, "odbc_size": 2, "odbc_precision": 0
+        },
+        {
+            "column_name": "_int", "sql_type": "int", "is_nullable": False,
+            "ss_is_identity": False, "pk_seq":pd.NA, "pandas_type": "Int32",
+            "odbc_type": pyodbc.SQL_INTEGER, "odbc_size": 4, "odbc_precision": 0
+        },
+        {
+            "column_name": "_bigint", "sql_type": "bigint", "is_nullable": True,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "Int64",
+            "odbc_type": pyodbc.SQL_BIGINT, "odbc_size": 8, "odbc_precision": 0
+        },
+        {
+            "column_name": "_float", "sql_type": "float", "is_nullable": False,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "float64",
+            "odbc_type": pyodbc.SQL_FLOAT, "odbc_size": 8, "odbc_precision": 53
+        },
+        {
+            "column_name": "_time", "sql_type": "time", "is_nullable": False,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "timedelta64[ns]",
+            "odbc_type": pyodbc.SQL_SS_TIME2, "odbc_size": 16, "odbc_precision": 7
+        },
+        {
+            "column_name": "_datetime", "sql_type": "datetime2", "is_nullable": True,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "datetime64[ns]",
+            "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP, "odbc_size": 27, "odbc_precision": 7
+        },
+        {
+            "column_name": "_empty", "sql_type": "nvarchar", "is_nullable": True,
+            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "string",
+            "odbc_type": pyodbc.SQL_WVARCHAR, "odbc_size": 0, "odbc_precision": 0
+        },
+    ])
+
+    columns = ['column_name', 'sql_type', 'pandas_type']
+    expected[columns] = expected[columns].astype('string')
+    expected[['pk_seq']] = expected[['pk_seq']].astype('Int64')
+
+    expected = expected.set_index("column_name")
+
+    return expected
 
 
 def test_table_errors(sql):
@@ -267,7 +351,7 @@ def test_table_from_dataframe_errorpk(sql, sample):
         sql.create.table_from_dataframe(table_name, sample, primary_key="ColumnName")
 
 
-def test_table_from_dataframe_nopk(sql, sample, caplog):
+def test_table_from_dataframe_nopk(sql, sample, validation, caplog):
 
     table_name = "##test_table_from_dataframe_nopk"
     dataframe = sql.create.table_from_dataframe(
@@ -276,75 +360,8 @@ def test_table_from_dataframe_nopk(sql, sample, caplog):
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [True, True, False, False, True, False, False, True, True], dtype="bool"
-            ),
-            "ss_is_identity": pd.Series([False] * 9, dtype="bool"),
-            "pk_seq": pd.Series([pd.NA] * 9, dtype="Int64"),
-            "pk_name": pd.Series([pd.NA] * 9, dtype="string"),
-            "pandas_type": pd.Series(
-                [
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-    assert schema[expected.columns].equals(expected.loc[schema.index])
+    validation = validation.drop(['_pk','_index'])
+    compare_dfs(schema[validation.columns], validation.loc[schema.index])
 
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
@@ -358,7 +375,7 @@ def test_table_from_dataframe_nopk(sql, sample, caplog):
     assert "Created table" in caplog.record_tuples[0][2]
 
 
-def test_table_from_dataframe_sqlpk(sql, sample, caplog):
+def test_table_from_dataframe_sqlpk(sql, sample, validation, caplog):
 
     table_name = "##test_table_from_dataframe_sqlpk"
     dataframe = sql.create.table_from_dataframe(
@@ -367,80 +384,8 @@ def test_table_from_dataframe_sqlpk(sql, sample, caplog):
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_pk",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "int identity",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([True] + [False] * 9, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "Int32",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([4, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
+    validation = validation.drop('_index')
+    assert schema[validation.columns].equals(validation.loc[schema.index])
     assert pd.notna(schema.at["_pk", "pk_name"])
     assert schema.loc[schema.index != "_pk", "pk_name"].isna().all()
 
@@ -457,7 +402,7 @@ def test_table_from_dataframe_sqlpk(sql, sample, caplog):
     assert "Created table" in caplog.record_tuples[0][2]
 
 
-def test_table_from_dataframe_indexpk_unnamed(sql, sample, caplog):
+def test_table_from_dataframe_indexpk_unnamed(sql, sample, validation, caplog):
 
     table_name = "##test_table_from_dataframe_indexpk_unnamed"
     dataframe = sql.create.table_from_dataframe(
@@ -466,80 +411,8 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample, caplog):
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_index",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "tinyint",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([False] * 10, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "UInt8",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([1, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
+    validation = validation.drop('_pk')
+    assert compare_dfs(schema[validation.columns], validation.loc[schema.index])
     assert pd.notna(schema.at["_index", "pk_name"])
     assert schema.loc[schema.index != "_index", "pk_name"].isna().all()
 
@@ -555,7 +428,7 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample, caplog):
     assert "Created table" in caplog.record_tuples[0][2]
 
 
-def test_table_from_dataframe_indexpk_named(sql, sample, caplog):
+def test_table_from_dataframe_indexpk_named(sql, sample, validation, caplog):
 
     table_name = "##test_table_from_dataframe_indexpk_named"
     sample.index.name = "NamedIndex"
@@ -565,80 +438,11 @@ def test_table_from_dataframe_indexpk_named(sql, sample, caplog):
 
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "NamedIndex",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "tinyint",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([False] * 10, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "UInt8",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([1, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
+    validation = validation.drop('_pk')
+    index = validation.index.values
+    index[index=='_index'] = 'NamedIndex'
+    validation.index = index
+    assert compare_dfs(schema[validation.columns], validation.loc[schema.index])
     assert pd.notna(schema.at["NamedIndex", "pk_name"])
     assert schema.loc[schema.index != "NamedIndex", "pk_name"].isna().all()
 

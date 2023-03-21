@@ -195,7 +195,9 @@ def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[List[str]
         pk = None
     # attempt to use smallest size string value
     if pk is None:
-        check = pd.Series(["varchar", "nvarchar"], name="sql_type")
+        check = conversion_rules.rules.loc[
+            conversion_rules.rules['sql_category']=='character string', 'sql_type'
+        ]
         pk = pd.DataFrame(check).merge(schema, left_on="sql_type", right_on="sql_type")
         if len(pk) > 0:
             pk = (
@@ -257,7 +259,7 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
 
 
 def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.DataFrame:
-    """Determine if pandas string should be SQL varchar or nvarchar.
+    """Determine if pandas string should be SQL char, varchar , nchar or nvarchar.
 
     Parameters
     ----------
@@ -271,7 +273,7 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
     deduplicate = schema[schema["pandas_type"] == "string"]
     columns = deduplicate.index.unique()
     for col in columns:
-        # if encoding removes characters or all are None then assume nvarchar
+        # if encoding removes characters or all are None then assume nchar/nvarchar
         pre = dataframe[col].str.len()
         post = (
             dataframe[col]
@@ -280,9 +282,15 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
             .astype("Int64")
         )
         if pre.ne(post).any() or dataframe[col].isna().all():
-            resolved = deduplicate[deduplicate["sql_type"] == "nvarchar"].loc[col]
+            if dataframe[col].str.len().nunique()==1:
+                resolved = deduplicate[deduplicate["sql_type"] == "nchar"].loc[col]
+            else:
+                resolved = deduplicate[deduplicate["sql_type"] == "nvarchar"].loc[col]
         else:
-            resolved = deduplicate[deduplicate["sql_type"] == "varchar"].loc[col]
+            if dataframe[col].str.len().nunique()==1:
+                resolved = deduplicate[deduplicate["sql_type"] == "char"].loc[col]
+            else:
+                resolved = deduplicate[deduplicate["sql_type"] == "varchar"].loc[col]
         # add resolution into schema
         schema = schema[schema.index != col]
         schema = pd.concat([schema, resolved.to_frame().T])

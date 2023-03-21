@@ -1,3 +1,5 @@
+# TODO: test char/nchar & varchar/nvarchar failures (should test_insert contain these?)
+
 import env
 import logging
 
