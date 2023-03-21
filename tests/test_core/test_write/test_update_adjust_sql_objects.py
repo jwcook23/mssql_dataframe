@@ -7,6 +7,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import update
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -59,7 +60,7 @@ def test_update_add_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
@@ -99,7 +100,7 @@ def test_update_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
@@ -145,7 +146,7 @@ def test_update_add_and_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks

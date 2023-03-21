@@ -140,7 +140,7 @@ def test_sample(sql, data, caplog):
     result = conversion.read_values(statement, schema, connection=sql)
 
     # compare result to insert, comparing to dataframe as values may have changed during insert preparation
-    assert result.equals(dataframe.set_index(keys="id"))
+    assert compare_dfs(result, dataframe.set_index(keys="id"))
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 2

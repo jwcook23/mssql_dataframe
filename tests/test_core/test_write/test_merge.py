@@ -7,6 +7,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import merge
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -84,7 +85,7 @@ def test_merge_upsert(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result.loc[[1, 2]])
+    assert compare_dfs(dataframe, result.loc[[1, 2]])
     assert result.loc[0].equals(pd.Series([3], dtype="UInt8", index=["ColumnA"]))
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
@@ -123,7 +124,7 @@ def test_merge_one_match_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna() == [True, False])
     assert all(result["_time_insert"].notna() == [False, True])
 
@@ -163,7 +164,7 @@ def test_merge_override_timestamps(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna() == [True, True])
     assert all(result["_time_insert"].notna() == [False, False])
 
@@ -220,7 +221,7 @@ def test_merge_two_match_columns(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna() == [True, False])
     assert all(result["_time_insert"].notna() == [False, True])
 
@@ -276,7 +277,7 @@ def test_merge_non_pk_column(sql, caplog):
         schema,
         sql.connection,
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 3
@@ -326,7 +327,7 @@ def test_merge_composite_pk(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert "_time_update" not in result
     assert "_time_insert" not in result
 

@@ -7,6 +7,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import update
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -94,7 +95,7 @@ def test_update_primary_key(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
@@ -127,7 +128,7 @@ def test_update_override_timestamps(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
@@ -165,7 +166,7 @@ def test_update_nonpk_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
@@ -201,7 +202,7 @@ def test_update_two_match_columns(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert updated.equals(result[updated.columns])
+    assert compare_dfs(updated, result[updated.columns])
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
@@ -237,7 +238,7 @@ def test_update_composite_pk(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result.equals(updated)
+    assert compare_dfs(result, updated)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1

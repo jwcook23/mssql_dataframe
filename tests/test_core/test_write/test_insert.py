@@ -9,6 +9,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, conversion
 from mssql_dataframe.core.write import insert
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -130,7 +131,7 @@ def test_insert_dataframe(sql, caplog):
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
     assert all(result["_time_insert"].notna())
-    assert dataframe.equals(result[result.columns.drop("_time_insert")])
+    assert compare_dfs(dataframe, result[result.columns.drop("_time_insert")])
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1

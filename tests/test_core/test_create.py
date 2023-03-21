@@ -283,7 +283,7 @@ def test_table_from_dataframe_simple(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result.equals(dataframe)
+    assert compare_dfs(result, dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -317,12 +317,12 @@ def test_table_from_dataframe_datestr(sql, caplog):
             "odbc_precision": pd.Series([0, 7], dtype="int64"),
         }
     ).set_index(keys="column_name")
-    assert schema[expected.columns].equals(expected)
+    assert compare_dfs(schema[expected.columns], expected)
 
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -353,7 +353,7 @@ def test_table_from_dataframe_nopk(sql, sample, validation, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -372,7 +372,7 @@ def test_table_from_dataframe_sqlpk(sql, sample, validation, caplog):
     schema, _ = conversion.get_schema(sql.connection, table_name)
 
     validation = validation.drop('_index')
-    assert schema[validation.columns].equals(validation.loc[schema.index])
+    assert compare_dfs(schema[validation.columns], validation.loc[schema.index])
     assert pd.notna(schema.at["_pk", "pk_name"])
     assert schema.loc[schema.index != "_pk", "pk_name"].isna().all()
 
@@ -380,7 +380,7 @@ def test_table_from_dataframe_sqlpk(sql, sample, validation, caplog):
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
     result = result.reset_index(drop=True)
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -406,7 +406,7 @@ def test_table_from_dataframe_indexpk_unnamed(sql, sample, validation, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -436,7 +436,7 @@ def test_table_from_dataframe_indexpk_named(sql, sample, validation, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -471,7 +471,7 @@ def test_table_from_dataframe_inferpk_integer(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe.sort_index())
+    assert compare_dfs(result[dataframe.columns], dataframe.sort_index())
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -501,7 +501,7 @@ def test_table_from_dataframe_inferpk_string(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -531,7 +531,7 @@ def test_table_from_dataframe_inferpk_none(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1
@@ -559,7 +559,7 @@ def test_table_from_dataframe_composite_pk(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
 
     # assert warnings raised by logging after all other tasks
     assert len(caplog.record_tuples) == 1

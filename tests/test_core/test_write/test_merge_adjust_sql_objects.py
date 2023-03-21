@@ -7,6 +7,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import create, conversion
 from mssql_dataframe.core.write import merge
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -42,7 +43,7 @@ def test_merge_create_table(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].isna())
     assert all(result["_time_insert"].notna())
 
@@ -85,7 +86,7 @@ def test_merge_add_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna())
     assert all(result["_time_insert"].isna())
 
@@ -133,7 +134,7 @@ def test_merge_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna())
     assert all(result["_time_insert"].isna())
 
@@ -185,7 +186,7 @@ def test_merge_add_and_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_update"].notna())
     assert all(result["_time_insert"].isna())
 

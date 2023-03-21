@@ -13,6 +13,7 @@ from mssql_dataframe.core import (
     conversion_rules,
 )
 from mssql_dataframe.core.write import insert, _exceptions
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -102,7 +103,7 @@ def test_insert_create_table(sql, caplog):
             ),
         }
     ).set_index(keys="ColumnA")
-    assert result[expected.columns].equals(expected)
+    assert compare_dfs(result[expected.columns], expected)
     assert all(result["_time_insert"].notna())
 
     # assert warnings raised by logging after all other tasks
@@ -159,7 +160,7 @@ def test_insert_add_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_insert"].notna())
 
     # assert warnings raised by logging after all other tasks
@@ -223,7 +224,7 @@ def test_insert_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[dataframe.columns].equals(dataframe)
+    assert compare_dfs(result[dataframe.columns], dataframe)
     assert all(result["_time_insert"].notna())
 
     _, dtypes = conversion.sql_spec(schema, dataframe)
@@ -296,7 +297,7 @@ def test_insert_alter_primary_key(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result.equals(pd.concat([dataframe, new]))
+    assert compare_dfs(result, pd.concat([dataframe, new]))
     _, dtypes = conversion.sql_spec(schema, new)
     assert dtypes == {
         "ColumnA": "smallint",
@@ -343,7 +344,7 @@ def test_insert_add_and_alter_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result[new.columns].equals(pd.concat([dataframe, new]))
+    assert compare_dfs(result[new.columns], pd.concat([dataframe, new]))
     assert all(result["_time_insert"].notna())
 
     _, dtypes = conversion.sql_spec(schema, dataframe)

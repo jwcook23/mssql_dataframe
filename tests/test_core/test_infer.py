@@ -4,6 +4,7 @@ import pytest
 
 from mssql_dataframe.core import custom_errors, infer
 from mssql_dataframe import __sample__
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -41,7 +42,7 @@ def _check_dataframe(dataframe, dtypes):
     expected = expected.sort_values(by="column_name", ignore_index=True)
     actual = dtypes["pandas_type"].reset_index()
     actual = actual.sort_values(by="column_name", ignore_index=True)
-    assert actual.equals(expected)
+    assert compare_dfs(actual, expected)
 
 
 def test_dtypes(data):
