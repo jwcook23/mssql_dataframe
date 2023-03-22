@@ -326,6 +326,125 @@ def sql_spec(
     return schema, dtypes
 
 
+def prepare_time(schema, prepped, dataframe):
+
+    
+    dtype = schema[schema["sql_type"] == 'time'].index
+    
+    invalid = (
+        (prepped[dtype] >= pd.Timedelta(days=1))
+        | (prepped[dtype] < pd.Timedelta(days=0))
+    ).any()
+    if any(invalid):
+        invalid = list(invalid[invalid].index)
+        raise ValueError(
+            f"columns {invalid} are out of range for SQL TIME data type. Allowable range is 00:00:00.0000000-23:59:59.9999999"
+        )
+    
+    if any(dtype):
+        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
+    else:
+        truncation = []
+    if any(truncation):
+        truncation = list(truncation[truncation].index)
+        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'time' allows 7 max decimal places."
+        logger.warning(msg)
+    # round nanosecond to the 7th decimal place ...123456789 -> ...123456800 for SQL
+    for col in dtype:
+        rounded = dataframe[col].apply(
+            lambda x: pd.Timedelta(
+                days=x.components.days,
+                hours=x.components.hours,
+                minutes=x.components.minutes,
+                seconds=x.components.seconds,
+                microseconds=x.components.microseconds,
+                nanoseconds=round(x.components.nanoseconds / 100) * 100,
+            )
+            if pd.notnull(x)
+            else x
+        )
+        dataframe[col] = rounded
+        prepped[col] = rounded
+    if any(dtype):
+        # convert to string since python datetime.time allows 6 decimal places but SQL allows 7
+        prepped[dtype] = prepped[dtype].astype("str")
+        prepped[dtype] = prepped[dtype].replace({"NaT": None})
+        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
+
+    return prepped, dataframe
+
+
+def prepare_datetime(schema, prepped, dataframe):
+
+    dtype = schema[schema["sql_type"] == 'datetime'].index
+    if any(dtype):
+        adjust = prepped[dtype].apply(lambda x: any(x.dt.microsecond % 3000 > 0))
+    else:
+        adjust = []
+    if any(adjust):
+        adjust = list(adjust[adjust].index)
+        msg = f"Millisecond precision for dataframe columns {adjust} will be rounded as SQL data type 'datetime' rounds to increments of .000, .003, or .007 seconds."
+        logger.warning(msg)
+        # round millisecond to the 3rd decimal place in approriate increments ...008 -> ..007 for SQL
+        for col in dtype:
+            
+            microseconds = prepped[col].dt.microsecond.to_numpy().reshape(1,-1)
+            increments = np.array([0,3000,7000,10000]).reshape(-1, 1)
+            nearest = increments[np.abs(microseconds-increments).argmin(axis=0)]
+
+            rounded = dataframe[col].dt.floor('s')
+            rounded = rounded + pd.to_timedelta( pd.Series(nearest[:,0]), unit='microseconds')
+
+            dataframe[col] = rounded
+            prepped[col] = rounded
+    if any(dtype):
+        # convert to string since python datetime.datetime allows 6 decimals but SQL allows 7
+        prepped[dtype] = prepped[dtype].astype("str")
+        prepped[dtype] = prepped[dtype].replace({"NaT": None})
+        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
+
+    return prepped, dataframe
+
+
+def prepare_datetime2(schema, prepped, dataframe):
+    
+    dtype = schema[schema["sql_type"] == 'datetime2'].index
+    
+    if any(dtype):
+        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
+    else:
+        truncation = []
+    if any(truncation):
+        truncation = list(truncation[truncation].index)
+        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
+        logger.warning(msg)
+        # round nanosecond to the 7th decimal place ...145224193 -> ...145224200 for SQL
+        for col in dtype:
+            rounded = dataframe[col].apply(
+                lambda x: pd.Timestamp(
+                    x.year,
+                    x.month,
+                    x.day,
+                    x.hour,
+                    x.minute,
+                    x.second,
+                    x.microsecond,
+                    round(x.nanosecond / 100) * 100,
+                )
+                if pd.notnull(x)
+                else x
+            )
+            dataframe[col] = rounded
+            prepped[col] = rounded
+    if any(dtype):
+        # convret to string since python datetime.datetime allows 6 decimals but SQL allows 7
+        prepped[dtype] = prepped[dtype].astype("str")
+        prepped[dtype] = prepped[dtype].replace({"NaT": None})
+        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
+
+    return prepped, dataframe
+
+
 def prepare_values(
     schema: pd.DataFrame, dataframe: pd.DataFrame
 ) -> Tuple[pd.DataFrame, list]:
@@ -352,81 +471,12 @@ def prepare_values(
     # only prepare values currently in dataframe
     schema = schema[schema.index.isin(prepped.columns)]
 
-    # SQL data type TIME as string since python datetime.time allows 6 decimal places but SQL allows 7
-    dtype = schema[schema["odbc_type"] == pyodbc.SQL_SS_TIME2].index
-    # check for valid range in SQL
-    invalid = (
-        (prepped[dtype] >= pd.Timedelta(days=1))
-        | (prepped[dtype] < pd.Timedelta(days=0))
-    ).any()
-    if any(invalid):
-        invalid = list(invalid[invalid].index)
-        raise ValueError(
-            f"columns {invalid} are out of range for SQL TIME data type. Allowable range is 00:00:00.0000000-23:59:59.9999999"
-        )
-    # round and truncate if needed
-    if any(dtype):
-        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
-    else:
-        truncation = []
-    if any(truncation):
-        truncation = list(truncation[truncation].index)
-        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'time' allows 7 max decimal places."
-        logger.warning(msg)
-    # round nanosecond to the 7th decimal place ...123456789 -> ...123456800
-    for col in dtype:
-        rounded = dataframe[col].apply(
-            lambda x: pd.Timedelta(
-                days=x.components.days,
-                hours=x.components.hours,
-                minutes=x.components.minutes,
-                seconds=x.components.seconds,
-                microseconds=x.components.microseconds,
-                nanoseconds=round(x.components.nanoseconds / 100) * 100,
-            )
-            if pd.notnull(x)
-            else x
-        )
-        dataframe[col] = rounded
-        prepped[col] = rounded
-    if any(dtype):
-        prepped[dtype] = prepped[dtype].astype("str")
-        prepped[dtype] = prepped[dtype].replace({"NaT": None})
-        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[7:23])
 
-    # SQL data type DATETIME2 as string since python datetime.datetime allows 6 decimals but SQL allows 7
-    dtype = schema[schema["odbc_type"] == pyodbc.SQL_TYPE_TIMESTAMP].index
-    # round and truncate if needed
-    if any(dtype):
-        truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
-    else:
-        truncation = []
-    if any(truncation):
-        truncation = list(truncation[truncation].index)
-        msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
-        logger.warning(msg)
-        # round nanosecond to the 7th decimal place ...145224193 -> ...145224200
-        for col in dtype:
-            rounded = dataframe[col].apply(
-                lambda x: pd.Timestamp(
-                    x.year,
-                    x.month,
-                    x.day,
-                    x.hour,
-                    x.minute,
-                    x.second,
-                    x.microsecond,
-                    round(x.nanosecond / 100) * 100,
-                )
-                if pd.notnull(x)
-                else x
-            )
-            dataframe[col] = rounded
-            prepped[col] = rounded
-    if any(dtype):
-        prepped[dtype] = prepped[dtype].astype("str")
-        prepped[dtype] = prepped[dtype].replace({"NaT": None})
-        prepped[dtype] = prepped[dtype].apply(lambda x: x.str[0:27])
+    # round and truncate time like dataframe values to be the same as SQL
+    # convert time like values to strings for writing to SQL and raise a warning
+    prepped, dataframe = prepare_time(schema, prepped, dataframe)
+    prepped, dataframe = prepare_datetime(schema, prepped, dataframe)
+    prepped, dataframe = prepare_datetime2(schema, prepped, dataframe)
 
     # treat pandas NA,NaT,etc as NULL in SQL
     # prepped = prepped.fillna(np.nan).replace([np.nan], [None])
@@ -484,23 +534,40 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
 
     connection.add_output_converter(pyodbc.SQL_SS_TIME2, SQL_SS_TIME2)
 
-    # TIMESTAMP (pyodbc.SQL_TYPE_TIMESTMAP, SQL DATETIME2)
+    # TIMESTAMP (pyodbc.SQL_TYPE_TIMESTMAP, SQL DATETIME2) or (pyodbc.SQL_TYPE_TIMESTAMP, SQL DATETIME)
     # python datetime.datetime has 6 decimal places of precision and isn't nullable
     # pandas Timestamp supports 9 decimal places and is nullable
     # SQL DATETIME2 only supports 7 decimal places for precision
-    # pandas Timestamp range range is '1677-09-21 00:12:43.145225' to '2262-04-11 23:47:16.854775807' while SQL allows '0001-01-01' through '9999-12-31'
-    def SQL_TYPE_TIMESTAMP(raw_bytes, pattern=struct.Struct("hHHHHHI")):
-        year, month, day, hour, minute, second, fraction = pattern.unpack(raw_bytes)
-        return pd.Timestamp(
-            year=year,
-            month=month,
-            day=day,
-            hour=hour,
-            minute=minute,
-            second=second,
-            microsecond=fraction // 1000,
-            nanosecond=fraction % 1000,
-        )
+    # SQL DATETIME only supports 3 decimal places for precision in rounded increments of .000, .003, or .007 seconds
+    # pandas Timestamp range range is '1677-09-21 00:12:43.145225' to '2262-04-11 23:47:16.854775807' 
+    # DATETIME2 allows '0001-01-01' through '9999-12-31'
+    # DATETIME allows '1753-01-01' through '9999-12-31'
+    def SQL_TYPE_TIMESTAMP(raw_bytes):
+        # DATETIME2 (16 bytes)
+        if len(raw_bytes)==16:
+            pattern=struct.Struct("hHHHHHI")
+            year, month, day, hour, minute, second, fraction = pattern.unpack(raw_bytes)
+            timestamp = pd.Timestamp(
+                year=year,
+                month=month,
+                day=day,
+                hour=hour,
+                minute=minute,
+                second=second,
+                microsecond=fraction // 1000,
+                nanosecond=fraction % 1000,
+            )
+        # DATETIME (8 bytes)
+        else:
+            pattern = struct.Struct("iI")
+            days, ticks = pattern.unpack(raw_bytes)
+            timestamp = pd.Timestamp(
+                year=1900,
+                month=1,
+                day=1
+            ) + pd.Timedelta(days=days, milliseconds=round(3.3*ticks))
+
+        return timestamp
 
     connection.add_output_converter(pyodbc.SQL_TYPE_TIMESTAMP, SQL_TYPE_TIMESTAMP)
 

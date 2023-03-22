@@ -88,6 +88,9 @@ def test_insert_dataframe(sql, caplog):
                 ],
                 dtype="datetime64[ns]",
             ),
+            "_datetime": pd.Series(
+                ['1900-01-01 00:00:00.003', '1900-01-01 00:00:00.008', '1900-01-01 00:00:00.009'], dtype="datetime64[ns]"
+            ),
             "_datetime2": pd.Series(
                 [pd.Timestamp.min, pd.Timestamp.max, None], dtype="datetime64[ns]"
             ),
@@ -109,6 +112,7 @@ def test_insert_dataframe(sql, caplog):
         "_float": "FLOAT",
         "_time": "TIME",
         "_date": "DATE",
+        "_datetime": "DATETIME",
         "_datetime2": "DATETIME2",
         "_char": "CHAR",
         "_nchar": "NCHAR",
@@ -133,11 +137,17 @@ def test_insert_dataframe(sql, caplog):
     assert compare_dfs(dataframe, result[result.columns.drop("_time_insert")])
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
+    assert len(caplog.record_tuples) == 2
     assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
     assert caplog.record_tuples[0][1] == logging.WARNING
     assert (
         caplog.record_tuples[0][2]
+        == "Millisecond precision for dataframe columns ['_datetime'] will be rounded as SQL data type 'datetime' rounds to increments of .000, .003, or .007 seconds."
+    )
+    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[1][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[1][2]
         == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
     )
 

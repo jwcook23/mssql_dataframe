@@ -85,6 +85,16 @@ rules = pd.DataFrame.from_records(
             "odbc_precision": 0,
         },
         {
+            "sql_type": "datetime",
+            "sql_category": "date time",
+            "min_value": pd.Timestamp.min,
+            "max_value": pd.Timestamp.max,
+            "pandas_type": "datetime64[ns]",
+            "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,
+            "odbc_size": 27,
+            "odbc_precision": 3,
+        },        
+        {
             "sql_type": "datetime2",
             "sql_category": "date time",
             "min_value": pd.Timestamp.min,
