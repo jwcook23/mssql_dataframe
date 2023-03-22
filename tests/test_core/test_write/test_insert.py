@@ -91,11 +91,10 @@ def test_insert_dataframe(sql, caplog):
             "_datetime2": pd.Series(
                 [pd.Timestamp.min, pd.Timestamp.max, None], dtype="datetime64[ns]"
             ),
+            "_char": pd.Series([None, 'a', 'b'], dtype='string'),
+            "_nchar": pd.Series([None, 'い', 'え'], dtype='string'),
             "_varchar": pd.Series(["a", "bbb", None], dtype="string"),
-            "_nvarchar": pd.Series(
-                ["100\N{DEGREE SIGN}F", "company name\N{REGISTERED SIGN}", None],
-                dtype="string",
-            ),
+            "_nvarchar": pd.Series(['い','いえ', None], dtype="string"),
         }
     )
 
@@ -111,15 +110,15 @@ def test_insert_dataframe(sql, caplog):
         "_time": "TIME",
         "_date": "DATE",
         "_datetime2": "DATETIME2",
+        "_char": "CHAR",
+        "_nchar": "NCHAR",
         "_varchar": "VARCHAR",
         "_nvarchar": "NVARCHAR",
     }
-    columns["_varchar"] = (
-        columns["_varchar"] + "(" + str(dataframe["_varchar"].str.len().max()) + ")"
-    )
-    columns["_nvarchar"] = (
-        columns["_nvarchar"] + "(" + str(dataframe["_nvarchar"].str.len().max()) + ")"
-    )
+    strings = ['_char', '_nchar', '_varchar', '_nvarchar']
+    for col in strings:
+        columns[col] = f'{columns[col]}({dataframe[col].str.len().max()})'
+
     sql.create.table(table_name, columns)
 
     # insert data
