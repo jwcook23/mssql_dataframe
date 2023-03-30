@@ -16,6 +16,7 @@ import pandas as pd
 
 pd.options.mode.chained_assignment = "raise"
 
+# TODO: use min/max from conversion_rules
 dataframe = pd.DataFrame(
     {
         "_bit": pd.Series([False, True, None, False], dtype="boolean"),
@@ -36,6 +37,22 @@ dataframe = pd.DataFrame(
                 None,
             ],
             dtype="datetime64[ns]",
+        ),
+        "_datetime": pd.Series([
+                pd.Timestamp(1753,1,1,0,0,0),
+                pd.Timestamp(1900,1,1)+pd.Timedelta.max,
+                None,
+                pd.Timestamp('2001-01-01 01:02:03.005')
+            ],
+            dtype="datetime64[ns]"
+        ),
+        "_datetimeoffset": pd.Series([
+                pd.Timestamp.min,
+                pd.Timestamp.max,
+                None,
+                pd.Timestamp('1900-01-01 00:00:00.123456789+10:30')
+            ],
+            dtype="object"
         ),
         "_datetime2": pd.Series(
             [

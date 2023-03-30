@@ -76,9 +76,10 @@ def test_rules(data):
     try:
         assert all(defined)
     except AssertionError as error:
-        missing = conversion_rules.rules.loc[missing, "sql_type"].tolist()
+        missing = conversion_rules.rules.loc[~defined, "sql_type"].tolist()
         missing = f"columns missing from sample dataframe, SQL column names: {missing}"
-        error.args += missing
+        error.args += (missing,)
+        raise
 
     # insure sample contains correct pandas types
     check = pd.Series(data.dtypes, name="sample")
@@ -91,7 +92,8 @@ def test_rules(data):
     except AssertionError as error:
         missing = check.loc[~defined, "sql_type"].tolist()
         missing = f"columns with wrong data type in sample dataframe, SQL column names: {missing}"
-        error.args += missing
+        error.args += (missing,)
+        raise
 
 
 def test_sample(sql, data, caplog):
@@ -143,7 +145,7 @@ def test_sample(sql, data, caplog):
     assert compare_dfs(result, dataframe.set_index(keys="id"))
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 2
+    assert len(caplog.record_tuples) == 4
     assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
     assert caplog.record_tuples[0][1] == logging.WARNING
     assert (
@@ -154,18 +156,30 @@ def test_sample(sql, data, caplog):
     assert caplog.record_tuples[1][1] == logging.WARNING
     assert (
         caplog.record_tuples[1][2]
+        == "Millisecond precision for dataframe columns ['_datetime'] will be rounded as SQL data type 'datetime' rounds to increments of .000, .003, or .007 seconds."
+    )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
         == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
+    )
+    assert caplog.record_tuples[3][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[3][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[3][2]
+        == "Nanosecond precision for dataframe columns ['_datetimeoffset'] will be rounded as SQL data type 'datetimeoffset' allows 7 max decimal places."
     )
 
 
-def test_prepare_values_errors():
+def test_larger_sql_range():
 
-    schema = pd.DataFrame({"odbc_type": pd.Series([pyodbc.SQL_SS_TIME2])})
-    schema.index = ["ColumnA"]
-    dataframe = pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]})
     # error for a time value outside of allowed range
     with pytest.raises(ValueError):
-        conversion.prepare_values(schema, dataframe)
+        conversion.prepare_values(
+            pd.DataFrame(['time'], columns=['sql_type'], index=['ColumnA']), 
+            pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]})
+        )
 
 
 def test_read_values_errors(sql):

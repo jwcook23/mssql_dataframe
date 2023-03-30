@@ -87,13 +87,25 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "datetime",
             "sql_category": "date time",
-            "min_value": pd.Timestamp.min,
-            "max_value": pd.Timestamp.max,
+            "min_value": pd.Timestamp(1753,1,1,0,0,0),
+            "max_value": pd.Timestamp(1900,1,1)+pd.Timedelta.max,
             "pandas_type": "datetime64[ns]",
             "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,
             "odbc_size": 27,
             "odbc_precision": 3,
-        },        
+        },
+        # TODO: do odbc_size and odbc_precision need to be defined?
+        {
+            "sql_type": "datetimeoffset",
+            "sql_category": "date time",
+            # TODO: inforce SQL TZ offset limit of -14:00 through +14:00
+            "min_value": pd.Timestamp(pd.Timestamp.min, tz='UTC'),
+            "max_value": pd.Timestamp(pd.Timestamp.max, tz='UTC'),
+            "pandas_type": "object",
+            "odbc_type": -155,
+            "odbc_size": 34,
+            "odbc_precision": 7,
+        }, 
         {
             "sql_type": "datetime2",
             "sql_category": "date time",

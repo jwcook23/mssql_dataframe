@@ -1,5 +1,3 @@
-# TODO: test char/nchar & varchar/nvarchar failures (should test_insert contain these?)
-
 import env
 import logging
 
@@ -33,35 +31,67 @@ def sql():
     db.connection.close()
 
 
-def test_insert_errors(sql):
+def test_insert_error_nonexistant(sql):
 
-    table_name = "##test_errors"
+    table_name = "##test_insert_error_nonexistant"
 
     sql.create.table(
-        table_name, columns={"ColumnA": "SMALLINT", "ColumnB": "VARCHAR(1)"}
+        table_name, columns={"ColumnB": "SMALLINT", "ColumnC": "VARCHAR(1)"}
     )
 
-    with pytest.raises(custom_errors.SQLTableDoesNotExist):
-        dataframe = pd.DataFrame({"ColumnA": [1]})
-        sql.insert.insert("error" + table_name, dataframe=dataframe)
-
     with pytest.raises(custom_errors.SQLColumnDoesNotExist):
-        dataframe = pd.DataFrame({"ColumnC": [1]})
+        dataframe = pd.DataFrame({"ColumnA": [1]})
         sql.insert.insert(table_name, dataframe=dataframe)
-
-    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-        dataframe = pd.DataFrame({"ColumnB": ["aaa"]})
-        sql.insert.insert(table_name, dataframe=dataframe)
-
-    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-        sql.insert.insert(table_name, dataframe=pd.DataFrame({"ColumnA": [100000]}))
 
     with pytest.raises(RecursionError):
         sql.insert_errors._target_table(
-            table_name="##non_existant",
+            table_name="##no_table",
             dataframe=pd.DataFrame({"ColumnA": [100000]}),
             cursor=sql.insert._connection.cursor(),
         )
+
+    with pytest.raises(custom_errors.SQLTableDoesNotExist):
+        dataframe = pd.DataFrame({"ColumnB": [1]})
+        sql.insert.insert("##error" + table_name, dataframe=dataframe)
+
+
+def test_insert_error_insufficent(sql):
+
+    table_name = "##test_insert_error_insufficent"
+
+    sql.create.table(
+        table_name, columns={
+            "_smallint": "SMALLINT", 
+            "_char": "CHAR(1)", "_nchar": "NCHAR(1)", 
+            "_varchar": "VARCHAR(1)", "_nvarchar": "NVARCHAR(1)"
+        }
+    )
+
+    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
+        sql.insert.insert(table_name, dataframe=pd.DataFrame({"_smallint": [100000]}))
+
+    dtypes = {"_char": "a", "_varchar": "a", "_nchar": "え", "_nvarchar": "え"}
+    for col, val in dtypes.items():
+        with pytest.raises(custom_errors.SQLInsufficientColumnSize):
+            dataframe = pd.DataFrame({col: [val*3]})
+            sql.insert.insert(table_name, dataframe=dataframe)
+
+
+def test_unicode_error(sql):
+
+    table_name = "##test_unicode_error"
+
+    sql.create.table(
+        table_name, columns={
+            "_char": "CHAR(1)", "_varchar": "VARCHAR(1)"
+        }
+    )
+
+    dtypes = {"_char": "え", "_varchar": "え"}
+    for col, val in dtypes.items():
+        with pytest.raises(custom_errors.SQLNonUnicodeTypeColumn):
+            dataframe = pd.DataFrame({col: [val]})
+            sql.insert.insert(table_name, dataframe=dataframe)   
 
 
 def test_insert_dataframe(sql, caplog):
@@ -91,6 +121,9 @@ def test_insert_dataframe(sql, caplog):
             "_datetime": pd.Series(
                 ['1900-01-01 00:00:00.003', '1900-01-01 00:00:00.008', '1900-01-01 00:00:00.009'], dtype="datetime64[ns]"
             ),
+            "_datetimeoffset": pd.Series(
+                ['1900-01-01 00:00:00.123456789+10:30', '1900-01-01 00:00:00.12-9:15', None], dtype="object"
+            ),            
             "_datetime2": pd.Series(
                 [pd.Timestamp.min, pd.Timestamp.max, None], dtype="datetime64[ns]"
             ),
@@ -113,6 +146,7 @@ def test_insert_dataframe(sql, caplog):
         "_time": "TIME",
         "_date": "DATE",
         "_datetime": "DATETIME",
+        "_datetimeoffset": "DATETIMEOFFSET",
         "_datetime2": "DATETIME2",
         "_char": "CHAR",
         "_nchar": "NCHAR",
@@ -137,7 +171,7 @@ def test_insert_dataframe(sql, caplog):
     assert compare_dfs(dataframe, result[result.columns.drop("_time_insert")])
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 2
+    assert len(caplog.record_tuples) == 3
     assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
     assert caplog.record_tuples[0][1] == logging.WARNING
     assert (
@@ -150,6 +184,12 @@ def test_insert_dataframe(sql, caplog):
         caplog.record_tuples[1][2]
         == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
     )
+    assert caplog.record_tuples[2][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[2][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[2][2]
+        == "Nanosecond precision for dataframe columns ['_datetimeoffset'] will be rounded as SQL data type 'datetimeoffset' allows 7 max decimal places."
+    )    
 
 
 def test_insert_singles(sql):

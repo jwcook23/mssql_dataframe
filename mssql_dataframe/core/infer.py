@@ -27,14 +27,14 @@ def sql(dataframe: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, List[str],
     # numeric like: bit, tinyint, smallint, int, bigint, float
     dataframe = convert_numeric(dataframe)
 
-    # datetime like: time, date, datetime2
-    dataframe = convert_date(dataframe)
+    # datetime like: time, date, datetime2, datetimeoffset, datetime
+    dataframe, datetimeoffset = convert_date(dataframe)
 
     # string like: varchar, nvarchar
-    dataframe = convert_string(dataframe)
+    dataframe = convert_string(dataframe, datetimeoffset)
 
     # determine SQL properties
-    schema = sql_schema(dataframe)
+    schema = sql_schema(dataframe, datetimeoffset)
     not_nullable, pk = sql_unique(dataframe, schema)
 
     return dataframe, schema, not_nullable, pk
@@ -71,9 +71,9 @@ def convert_numeric(dataframe: pd.DataFrame) -> pd.DataFrame:
             if converted.dtype.name.startswith("int"):
                 name = name.capitalize()
             dataframe[col] = dataframe[col].astype(name)
-        except ValueError as error:
+        except (ValueError, TypeError) as error:
             logging.debug(
-                f"Unable to perform numeric downcast of column '{col}'. Exception: {error}"
+                f"Column '{col}' can't be converted to numeric. Exception: {error}"
             )
 
     # convert Int8 to nullable boolean if multiple values of only 0,1, or NA
@@ -118,6 +118,7 @@ def convert_date(dataframe: pd.DataFrame) -> pd.DataFrame:
     Returns
     -------
     dataframe (pandas.DataFrame) : contains possibly converted columns
+    datetimeoffset (list) : object columns of type pd.Timestamp
     """
     # attempt conversion of object columns to timedelta
     columns = dataframe.columns[dataframe.dtypes == "object"]
@@ -127,15 +128,24 @@ def convert_date(dataframe: pd.DataFrame) -> pd.DataFrame:
         dataframe[col] = pd.to_timedelta(dataframe[col], errors="ignore")
     # attempt conversion of object columns to datetime
     columns = dataframe.columns[dataframe.dtypes == "object"]
+    datetimeoffset = []
     for col in columns:
         if dataframe[col].isna().all():
             continue
-        dataframe[col] = pd.to_datetime(dataframe[col], errors="ignore")
+        try:
+            dataframe[col] = pd.to_datetime(dataframe[col])
+        except ValueError:
+            # attempt conversion to object containing pd.Timestamp
+            try:
+                dataframe[col] = dataframe[col].apply(lambda x: pd.Timestamp(x))
+                datetimeoffset += [col]
+            except ValueError:
+                continue
 
-    return dataframe
+    return dataframe, datetimeoffset
 
 
-def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
+def convert_string(dataframe: pd.DataFrame, datetimeoffset: list) -> pd.DataFrame:
     """Convert objects and all empty columns to nullable string data type.
 
     All empty columns are likely composed of numeric numpy.nan by default
@@ -145,6 +155,7 @@ def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
     Parameters
     ----------
     dataframe (pandas.DataFrame) : contains unconverted columns
+    datetimeoffset (list) : object columns of type pd.Timestamp
 
     Returns
     -------
@@ -153,6 +164,9 @@ def convert_string(dataframe: pd.DataFrame) -> pd.DataFrame:
     columns = dataframe.columns[
         (dataframe.dtypes == "object") | (dataframe.isna().all())
     ]
+
+    columns = [col for col in columns if col not in datetimeoffset]
+
     dataframe[columns] = dataframe[columns].astype("string")
 
     return dataframe
@@ -209,12 +223,13 @@ def sql_unique(dataframe: pd.DataFrame, schema: pd.DataFrame) -> Tuple[List[str]
     return not_nullable, pk
 
 
-def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
+def sql_schema(dataframe: pd.DataFrame, datetimeoffset: list) -> pd.DataFrame:
     """Determine SQL data type based on pandas data type.
 
     Parameters
     ----------
     dataframe (pandas.DataFrame) : data to determine SQL type for
+    datetimeoffset (list) : object columns of type pd.Timestamp
 
     Returns
     -------
@@ -241,7 +256,7 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     schema = _deduplicate_string(dataframe, schema)
 
     # determine SQL type for pandas datetime64[ns]
-    schema = _deduplicate_datetime(dataframe, schema)
+    schema = _deduplicate_datetime(dataframe, schema, datetimeoffset)
 
     # ensure schema is in same order as dataframe columns
     schema = schema.loc[dataframe.columns]
@@ -256,6 +271,32 @@ def sql_schema(dataframe: pd.DataFrame) -> pd.DataFrame:
     schema["column_size"] = schema["max_value"]
 
     return schema
+
+
+def contains_unicode(series: pd.Series):
+    """Determine if a string contains unicode
+    
+    Parameters
+    ----------
+    series (pandas.Series) : data to check
+
+    Return
+    ------
+    check (bool) : True if series contains unicode
+
+    """
+    
+    pre = series.str.len()
+    post = (
+        series
+        .str.encode("ascii", errors="ignore")
+        .str.len()
+        .astype("Int64")
+    )
+    # check if encodidng removes characeters
+    check = pre.ne(post).any()
+
+    return check
 
 
 def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.DataFrame:
@@ -273,15 +314,8 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
     deduplicate = schema[schema["pandas_type"] == "string"]
     columns = deduplicate.index.unique()
     for col in columns:
-        # if encoding removes characters or all are None then assume nchar/nvarchar
-        pre = dataframe[col].str.len()
-        post = (
-            dataframe[col]
-            .str.encode("ascii", errors="ignore")
-            .str.len()
-            .astype("Int64")
-        )
-        if pre.ne(post).any() or dataframe[col].isna().all():
+        # if unicode or all are None then assume nchar/nvarchar
+        if contains_unicode(dataframe[col]) or dataframe[col].isna().all():
             if dataframe[col].str.len().nunique()==1:
                 resolved = deduplicate[deduplicate["sql_type"] == "nchar"].loc[col]
             else:
@@ -300,14 +334,15 @@ def _deduplicate_string(dataframe: pd.DataFrame, schema: pd.DataFrame) -> pd.Dat
 
 
 def _deduplicate_datetime(
-    dataframe: pd.DataFrame, schema: pd.DataFrame
+    dataframe: pd.DataFrame, schema: pd.DataFrame, datetimeoffset: list
 ) -> pd.DataFrame:
-    """Determine if pandas datetime should be SQL date or datetime2.
+    """Determine if pandas datetime should be SQL date, datetime2, or datetimeoffset.
 
     Parameters
     ----------
     dataframe (pandas.DataFrame) : data to resolve
     schema (pandas.DataFrame) : conversion information for each column
+    datetimeoffset (list) : object columns of type pd.Timestamp
 
     Return
     ------
@@ -325,5 +360,7 @@ def _deduplicate_datetime(
         schema = schema[schema.index != col]
         schema = pd.concat([schema, resolved.to_frame().T])
         schema.index.name = "column_name"
+
+    schema.loc[datetimeoffset, 'sql_type'] = 'datetimeoffset'
 
     return schema

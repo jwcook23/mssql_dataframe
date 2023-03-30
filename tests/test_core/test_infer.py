@@ -26,9 +26,14 @@ def _check_schema(dtypes):
 
     Dataframe column names should be in the form _SQLDataType or _SQLDataType_SomeOtherText.
     """
+
     expected = dtypes["sql_type"].reset_index()
     expected["actual"] = expected["column_name"].str.split("_")
     expected["actual"] = expected["actual"].apply(lambda x: x[1])
+
+    # datetime2 instead of datetime
+    expected.loc[expected['actual'] == 'datetime', 'actual'] = 'datetime2'
+
     assert (expected["sql_type"] == expected["actual"]).all()
 
 
@@ -67,7 +72,7 @@ def test_dtypes(data):
 def test_pk(data):
 
     # setup test data
-    dataframe = data[data.notna().all(axis="columns")].copy()
+    dataframe = data.copy()
     dataframe["_tinyint_smaller"] = pd.Series(range(0, len(dataframe)), dtype="UInt8")
     dataframe["_char_smaller"] = dataframe["_char"].str.slice(0, 1)
 
@@ -76,11 +81,10 @@ def test_pk(data):
     df, schema, not_nullable, pk = infer.sql(df)
     _check_schema(schema)
     _check_dataframe(df, schema)
-    assert df.columns.isin(not_nullable).all()
     assert pk == "_tinyint_smaller"
 
     # infer SQL properties without numeric
-    df = dataframe.select_dtypes(["datetime", "string"])
+    df = dataframe.select_dtypes(["datetime", "string"]).dropna()
     df, schema, not_nullable, pk = infer.sql(df)
     _check_schema(schema)
     _check_dataframe(df, schema)
@@ -107,4 +111,4 @@ def test_sql_schema_errors():
 
     dataframe = pd.DataFrame({"ColumnA": pd.Series([1, 2, 3], dtype="category")})
     with pytest.raises(custom_errors.UndefinedConversionRule):
-        infer.sql_schema(dataframe)
+        infer.sql_schema(dataframe, datetimeoffset=[])
