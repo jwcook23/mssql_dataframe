@@ -24,7 +24,7 @@ class update(insert):
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
         match_columns (list, default=None) : matches records between dataframe and SQL table, if None the SQL primary key and dataframe index is used
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_update column
+        include_metadata_timestamps (bool, default=None) : include _time_update column
 
         Returns
         -------
@@ -33,6 +33,14 @@ class update(insert):
         Examples
         --------
         A sample table to update, created from a dataframe.
+        >>> create.table(
+        ... '##ExampleUpdateDF',
+        ... {
+        ...     '_index': 'CHAR(3)', 'ColumnA': 'TINYINT', 'ColumnB': 'TINYINT', 
+        ...     'ColumnC': 'TINYINT', 'ColumnD': 'DATE', 'ColumnE': 'CHAR(1)'
+        ... }, 
+        ... primary_key_column = '_index'
+        ... )
         >>> df = pd.DataFrame(
         ...    {
         ...    "ColumnA": [5, 6, 7],
@@ -40,9 +48,9 @@ class update(insert):
         ...    "ColumnC": [8, 9, 10],
         ...    "ColumnD": ["06-22-2021", "06-22-2021", pd.NaT],
         ...    "ColumnE": ["a", "b", None],
-        ...    }, index = ["xxx", "yyy", "zzz"]
+        ...    }, index = pd.Series(["xxx", "yyy", "zzz"], name='_index')
         ... )
-        >>> df = create.table_from_dataframe('##ExampleUpdateDF', df, primary_key='index')
+        >>> df = insert('##ExampleUpdateDF', df)
 
         Update ColumnA only using the dataframe index & SQL primary key.
         >>> df['ColumnA'] = [8,9,10]

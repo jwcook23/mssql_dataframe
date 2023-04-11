@@ -12,7 +12,6 @@ from mssql_dataframe.core import (
     custom_errors,
     conversion_rules,
     dynamic,
-    infer
 )
 
 logger = logging.getLogger(__name__)
@@ -277,11 +276,37 @@ def check_column_size(dataframe, schema):
         )
 
 
+def contains_unicode(series: pd.Series):
+    """Determine if a string contains unicode
+    
+    Parameters
+    ----------
+    series (pandas.Series) : data to check
+
+    Return
+    ------
+    check (bool) : True if series contains unicode
+
+    """
+    
+    pre = series.str.len()
+    post = (
+        series
+        .str.encode("ascii", errors="ignore")
+        .str.len()
+        .astype("Int64")
+    )
+    # check if encodidng removes characeters
+    check = pre.ne(post).any()
+
+    return check
+
+
 def check_unicode(dataframe, schema):
 
     columns = schema[schema['sql_type'].isin(['char','varchar'])].index
     for col in columns:
-        if infer.contains_unicode(dataframe[col]):
+        if contains_unicode(dataframe[col]):
             raise custom_errors.SQLNonUnicodeTypeColumn
 
 

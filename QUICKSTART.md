@@ -2,7 +2,7 @@
 
 ## Initialization and Sample SQL Table
 
-Create a global temporary table for demonstration purposes. Notice a dataframe is returned with better data types assigned, and the dataframe's index corresponds to the primary key.
+Create a connection to SQL Server.
 
 <!--phmdoctest-setup-->
 ``` python
@@ -12,20 +12,6 @@ from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
 sql = SQLServer(database=env.database, server=env.server)
-
-# create a demonstration dataframe
-df = pd.DataFrame({
-    'ColumnA': ['1','2','3','4','5'],
-    'ColumnB': ['a  .','b!','  c','d','e'],
-    'ColumnC': [False, True, True, False, False]
-}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
-
-# create the table using a dataframe
-df = sql.create.table_from_dataframe(
-    table_name='##mssql_dataframe_quickstart',
-    dataframe = df,
-    primary_key = 'index'
-)
 ```
 
 ## Updating SQL Table
@@ -33,31 +19,75 @@ df = sql.create.table_from_dataframe(
 Update an SQL table using the primary key. Without match column details provided, the primary key / dataframe index is automatically used.
 
 ``` python
-# peform a basic text cleaning task
-df['ColumnB'] = df['ColumnB'].str.replace(r'[^\w\s]','', regex=True)
-df['ColumnB'] = df['ColumnB'].str.strip()
+# create demo dataframe
+df = pd.DataFrame(
+    {
+        'Desc': ['A_Initial', 'B_Initial', 'C_Initial'],
+        'OtherCol': [0, 1, 2],
+    }, index=pd.Series(['A', 'B', 'C'], name='PK')
+)
 
-# perform the update in SQL
-updated = sql.write.update('##mssql_dataframe_quickstart', df[['ColumnB']])
+# create demo table in SQL
+sql.create.table(
+    table_name='##_update',
+    columns={'Desc': 'VARCHAR(10)', 'OtherCol': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column='PK'
+)
 
-# read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe_quickstart', column_names=['ColumnB'])
+# insert data into demo table
+df = sql.write.insert('##_update', df)
+
+# update Row0 using the dataframe index
+sample = pd.DataFrame({'Desc': 'A_Updated'}, index=pd.Series(['A'], name='PK'))
+sql.write.update('##_update', sample)
+
+# verify the update in SQL
+result = sql.read.table('##_update')
+
+# Desc for PK 0 has been updated
+assert result.at['A','Desc'] == 'A_Updated'
+
+# OtherCol for PK 0 remains unchanged despite not being in sample
+assert result.at['A', 'OtherCol'] == df.at['A', 'OtherCol']
+
+# records not in sample remain unchanged
+assert result.at['B', 'Desc'] == 'B_Initial'
+assert result.at['C', 'Desc'] == 'C_Initial'
+assert result.loc[['B','C']].equals(df.loc[['B','C']])
 ```
 
-Update an SQL table using other columns that are not the primary key by specifying match columns.
+Update an SQL table without using the dataframe's index / SQL primary key.
 
 ``` python
-# update ColumnA to 0 where ColumnC is False
-sample = pd.DataFrame({
-    'ColumnA': [0],
-    'ColumnC': [False]
-})
+# create demo dataframe
+df = pd.DataFrame(
+    {
+        'Desc': ['A_Initial', 'B_Initial', 'C_Initial'],
+        'OtherCol': [0, 1, 2],
+    }
+)
 
-# peform the update in SQL
-updated = sql.write.update('##mssql_dataframe_quickstart', sample, match_columns='ColumnC')
+# create demo table in SQL
+sql.create.table(
+    table_name='##_update_nopk',
+    columns={'Desc': 'VARCHAR(10)', 'OtherCol': 'TINYINT'}
+)
 
-# read the result from SQL after the update
-result = sql.read.table('##mssql_dataframe_quickstart')
+# insert data into demo table
+df = sql.write.insert('##_update_nopk', df)
+
+# update B using OtherCol
+sample = pd.DataFrame({'Desc': ['B_Updated'], 'OtherCol': [1]})
+sql.write.update('##_update_nopk', sample, match_columns='OtherCol')
+
+# verify the update in SQL
+result = sql.read.table('##_update_nopk')
+
+# Desc where OtherCol == 1 has been updated
+assert (result.loc[result['OtherCol'] == 1, 'Desc'] == 'B_Updated').all()
+
+# records not in sample remain unchanged
+assert (result.loc[result['OtherCol'] != 1, 'Desc'] == ['A_Initial','C_Initial']).all()
 ```
 
 ## Merging/Upsert SQL Table
@@ -66,96 +96,148 @@ Merging the dataframe into an SQL table will:
 
 1. Insert new records in the dataframe that are not in the SQL table.
 2. Update records in the SQL table that are also in the dataframe.
-3. Delete records in the SQL table not in the dataframe (if upsert=False).
+3. Delete records in the SQL table not in the dataframe (if upsert=False which is default).
 
 ```python
-# read what is currenly in the table
-sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
+# create demo dataframe
+df = pd.DataFrame(
+    {
+        'Desc': ['A_Initial', 'B_Initial', 'C_Initial'],
+        'OtherCol': [0, 1, 2],
+    },
+    index=pd.Index(['A', 'B', 'C'], name='PK')
+)
 
-# simulate new records
-sample = pd.concat([
-    sample,
-    pd.DataFrame(
-        {'ColumnA': [9,9], 'ColumnB': ['x','y'], 'ColumnC': [True,True]},
-        index=pd.Index([5,6], name='PrimaryKey')
-    )
-])
+# create demo table in SQL
+sql.create.table(
+    table_name='##_merge',
+    columns={'Desc': 'VARCHAR(10)', 'OtherCol': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
 
-# simulate updated records
-sample.loc[sample['ColumnB'].isin(['d','e']),'ColumnA'] = 1
-
-# simulate deleted records
-sample = sample[~sample['ColumnA'].isin([2,3])]
+# insert data into demo table
+df = sql.write.insert('##_merge', df)
 
 # perform the merge
-merged = sql.write.merge('##mssql_dataframe_quickstart', sample)
+sql.write.merge(
+    '##_merge',
+    pd.DataFrame.from_records([
+        # new record D
+        {'Desc': 'D_New', 'OtherCol': 4, 'PK': 'D'},
+        # updated record A
+        {'Desc': 'A_Updated', 'PK': 'A'},
+        # B isn't included
+        # C isn't included
+    ]).set_index('PK')
+)
 
-# read the result from SQL after the merge
-# records for PrimaryKey 5 & 6 have been inserted
-# records for PrimaryKey 0, 3, & 4 have been updated
-# records for PrimaryKey 2 & 3 have been deleted
-result = sql.read.table('##mssql_dataframe_quickstart')
+# verify the merge in SQL
+result = sql.read.table('##_merge')
+
+assert result.at['A', 'Desc'] == 'A_Updated'
+assert result.at['D', 'Desc'] == 'D_New'
+assert 'B' not in result.index
+assert 'C' not in result.index
 ```
 
-Additional functionality allows data to be incrementally merged into an SQL table. This can be useful for file processing, web scraping multiple pages, or other batch processing situations.
+Additional functionality allows data to be incrementally merged into an SQL table. This can be used for batch operations. It prevents records from being deleted if certain conditions aren't met.
 
 ``` python
-# read what is currenly in the table
-sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
+# create demo dataframe
+df = pd.DataFrame(
+    {
+        'Desc': ['A_Initial', 'B_Initial', 'C_Initial', 'D_Initial'],
+        'OtherCol': [0, 1, 2, 2],
+    },
+    index=pd.Index(['A', 'B', 'C', 'D'], name='PK')
+)
 
-# simulate new records
-sample = pd.concat([
-    sample,
-    pd.DataFrame(
-        {'ColumnA': [10,10,0], 'ColumnB': ['z','z','A'], 'ColumnC': [False,True,True]},
-        index=pd.Index([7,8,9], name='PrimaryKey')
-    )
-])
+# create demo table in SQL
+sql.create.table(
+    table_name='##_merge_batch',
+    columns={'Desc': 'VARCHAR(10)', 'OtherCol': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
 
-# simulate updated records
-sample.loc[sample['ColumnA']==1, 'ColumnC'] = True
+# insert data into demo table
+df = sql.write.insert('##_merge_batch', df)
 
-# simulate deleted records
-sample = sample[sample['ColumnB']!='a']
-sample = sample[sample['ColumnA']!=9]
+# perform the incremental merge
+sql.write.merge(
+    '##_merge_batch',
+    pd.DataFrame.from_records([
+        # new record
+        {'Desc': 'E_New', 'OtherCol': 4, 'PK': 'E'},
+        # updated record
+        {'Desc': 'A_Updated', 'OtherCol': 0, 'PK': 'A'},
+        # update record, note OtherCol = 2
+        {'Desc': 'C_Updated', 'OtherCol': 2, 'PK': 'C'},
+        # B isn't included
+        # D isn't included
+    ]).set_index('PK'),
+    delete_requires=['OtherCol']
+)
 
-# perform the merge
-merged = sql.write.merge('##mssql_dataframe_quickstart', sample, delete_requires=['ColumnA'])
+# verify the incremental merge in SQL
+result = sql.read.table('##_merge_batch')
 
-# read the result from SQL after the merge
-# records for PrimaryKey 5 & 6 were not deleted (value 9 not in dataframe ColumnA)
-# record for PrimaryKey 0 was deleted (value 0 in dataframe ColumnA)
-# records for PrimaryKey 7 & 8 have been inserted
-# records for PrimaryKey 0, 3, & 4 have been updated
-result = sql.read.table('##mssql_dataframe_quickstart')
+# B remains since a value of 1 wasn't included in OtherCol
+assert result.at['B', 'Desc'] == 'B_Initial'
+
+# D was deleted since a value of 2 was included in OtherCol
+assert 'D' not in result.index
+
+# straightforward insert and updates
+assert result.at['A', 'Desc'] == 'A_Updated'
+assert result.at['C', 'Desc'] == 'C_Updated'
+assert result.at['E', 'Desc'] == 'E_New'
 ```
 
 Upsert functionality is accomplished by setting upsert=False. This results in records only being inserted or updated.
 
 ``` python
-# read what is currenly in the table
-sample = sql.read.table('##mssql_dataframe_quickstart', order_column='ColumnA', order_direction='ASC')
+# create demo dataframe
+df = pd.DataFrame(
+    {
+        'Desc': ['A_Initial', 'B_Initial'],
+        'OtherCol': [0, 1],
+    },
+    index=pd.Index(['A', 'B'], name='PK')
+)
 
-# simulate a new record
-sample = pd.concat([
-     sample,
-    pd.DataFrame(
-        {'ColumnA': [11], 'ColumnB': ['z'], 'ColumnC': [False]},
-        index=pd.Index([10], name='PrimaryKey')
-    )
-])
+# create demo table in SQL
+sql.create.table(
+    table_name='##_upsert',
+    columns={'Desc': 'VARCHAR(10)', 'OtherCol': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
 
-# simulate an updated record
-sample.at[3,'ColumnA'] = 12
+# insert data into demo table
+df = sql.write.insert('##_upsert', df)
 
 # perform the upsert
-merged = sql.write.merge('##mssql_dataframe_quickstart', sample, upsert=True)
+sql.write.merge(
+    '##_upsert',
+    pd.DataFrame.from_records([
+        # new record
+        {'Desc': 'C_New', 'PK': 'C'},
+        # updated record
+        {'Desc': 'B_Updated', 'OtherCol': 2, 'PK': 'B'}
+    ]).set_index('PK'),
+    upsert = True
+)
 
-# read the result from SQL after the upsert
-# record for PrimaryKey 3 was updated
-# record for PrimaryKey 10 was inserted
-# all other records remain unchanged
-result = sql.read.table('##mssql_dataframe_quickstart')
+# verify the upsert in SQL
+result = sql.read.table('##_upsert')
+
+# A remains
+assert result.at['A', 'Desc'] == 'A_Initial'
+
+# B is updated
+assert result.at['B', 'Desc'] == 'B_Updated'
+
+# C is inserted
+assert result.at['C', 'Desc'] == 'C_New'
 ```
 
 ## Additional Functionality
@@ -168,27 +250,34 @@ If mssql_dataframe is initialized with include_metadata_timestamps=True insert, 
 # intialized with flag to include metadata timestamps
 sql = SQLServer(database=env.database, server=env.server, include_metadata_timestamps=True)
 
-# create sample table
-df = pd.DataFrame({
-    'ColumnA': ['1','2','3','4','5'],
-}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
-
-df = sql.create.table_from_dataframe(
-    table_name='##mssql_metadata',
-    dataframe = df,
-    primary_key = 'index'
+# create table in SQL
+sql.create.table(
+    table_name='##_metadata',
+    columns = {'Desc': 'VARCHAR(10)', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
 )
 
+# insert initial data
+df = pd.DataFrame({
+    'Desc': ['A_Initial', 'B_Initial'],
+}, index=pd.Index(['A', 'B'], name='PK'))
+
+sql.write.insert('##_metadata', df)
+
 # all records have a _time_insert value
-result = sql.read.table('##mssql_metadata')
+result = sql.read.table('##_metadata')
+assert result['_time_insert'].notna().all()
 
-# simulate an updated record
-result.at[0,'ColumnA'] = 9
-updated = sql.write.update('##mssql_metadata', result.loc[[0]])
-
-# record 0 now has a _time_update value
-# the _time_update column was automatically created
-result = sql.read.table('##mssql_metadata')
+# update a record and verify _time_update value
+sql.write.update(
+    '##_metadata',
+    pd.DataFrame({'Desc': 'B_Updated'}, index=pd.Series(['B'], name='PK'))
+)
+result = sql.read.table('##_metadata')
+assert result.at['B', 'Desc'] == 'B_Updated'
+assert pd.notna(result.at['B', '_time_update'])
+assert result.at['A', 'Desc'] == 'A_Initial'
+assert pd.isna(result.at['A', '_time_update'])
 ```
 
 ### Manual SQL Column Modification
@@ -203,63 +292,22 @@ sql = SQLServer(database=env.database, server=env.server)
 
 # create sample table
 df = pd.DataFrame({
-    'ColumnA': ['1','2','3','4','5'],
+    'ColumnA': [1, 2, 3, 4, 5],
 }, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
 
-df = sql.create.table_from_dataframe(
-    table_name='##mssql_modify',
-    dataframe = df,
-    primary_key = 'index'
+
+sql.create.table(
+    table_name='##_modify',
+    columns = {'ColumnA': 'TINYINT', 'PrimaryKey': 'TINYINT'},
+    primary_key_column = 'PrimaryKey',
+    not_nullable = 'ColumnA'
 )
 
 # modify ColumnA
-sql.modify.column('##mssql_modify', 'alter', 'ColumnA', 'BIGINT', is_nullable=True)
+sql.modify.column('##_modify', 'alter', 'ColumnA', 'BIGINT', is_nullable=True)
 
-# notice ColumnA is now BIGINT and nullable
-schema = sql.get_schema('##mssql_modify')
-```
-
-### Automatic SQL Object Creation and Modification
-
-SQL objects will be created/modified as needed if the class is initialized with `autoadjust_sql_objects=True`.
-
-1. Tables will be created if they do not exist.
-2. Column size will increase if needed, for example from TINYINT to BIGINT or VARCHAR(5) to VARCHAR(10).
-
-``` python
-import pandas as pd
-from mssql_dataframe import SQLServer
-
-sql = SQLServer(database=env.database, server=env.server, autoadjust_sql_objects=True)
-
-# sample dataframe
-df = pd.DataFrame({
-    'ColumnA': [1,2,3,4,5],
-}, index=pd.Index([0, 1, 2, 3, 4], name='PrimaryKey'))
-
-# create table by inserting into a table that doesn't exist
-df = sql.write.insert('##mssql_auto', df)
-
-# automatically add a column
-new = pd.DataFrame({
-    'ColumnA': [6],
-    'ColumnB' : ['z']
-}, index=pd.Index([5], name='PrimaryKey'))
-new = sql.write.insert('##mssql_auto', new)
-
-# automatically modify columns
-alter = pd.DataFrame({
-    'ColumnA': [1000],
-    'ColumnB' : ['zzz']
-}, index=pd.Index([6], name='PrimaryKey'))
-alter = sql.write.insert('##mssql_auto', alter)
-
-# prevent  automatically modifying to different category
-error = pd.DataFrame({
-    'ColumnA': ['z'],
-}, index=pd.Index([7], name='PrimaryKey'))
-try:
-    error = sql.write.insert('##mssql_auto', error)
-except sql.exceptions.DataframeColumnInvalidValue:
-    print('ColumnA not changed to string like column.')
+# validate schema has changed
+schema = sql.get_schema('##_modify')
+assert schema.at['ColumnA', 'sql_type'] == 'bigint'
+assert schema.at['ColumnA', 'is_nullable']
 ```

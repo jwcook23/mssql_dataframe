@@ -19,10 +19,6 @@ logger = logging.getLogger(__name__)
 class SQLServer(connect):
     """Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
-    If autoadjust_sql_objects is True SQL objects may be modified such as creating a table, adding a column,
-    or increasing the size of a column. The exception is internal tracking metadata columns _time_insert and
-    _time_update which will always be created if include_metadata_timestamps=True.
-
     Parameters
     ----------
     database (str, default='master') : name of database to connect to
@@ -31,7 +27,6 @@ class SQLServer(connect):
     username (str, default=None) : if not given, use Windows account credentials to connect
     password (str, default=None) : if not given, use Windows account credentials to connect
     include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
-    autoadjust_sql_objects (bool, default=False) : create and modify SQL table and columns as needed if True
 
     Properties
     ----------
@@ -46,10 +41,6 @@ class SQLServer(connect):
 
     >>> import env
     >>> sql = SQLServer(database=env.database, server=env.server)
-
-    Connect with the ability to automatically adjust SQL objects.
-
-    >>> sql = SQLServer(database=env.database, server=env.server, autoadjust_sql_objects=True)
 
     Enable logging from mssql_dataframe.
 
@@ -73,8 +64,7 @@ class SQLServer(connect):
         driver: str = None,
         username: str = None,
         password: str = None,
-        include_metadata_timestamps: bool = False,
-        autoadjust_sql_objects: bool = False,
+        include_metadata_timestamps: bool = False
     ):
 
         connect.__init__(self, database, server, driver, username, password)
@@ -88,7 +78,7 @@ class SQLServer(connect):
         self.modify = modify.modify(self.connection)
         self.read = read.read(self.connection)
         self.write = write(
-            self.connection, include_metadata_timestamps, autoadjust_sql_objects
+            self.connection, include_metadata_timestamps
         )
 
         # issue warnings for automated functionality
@@ -96,9 +86,6 @@ class SQLServer(connect):
             msg = "SQL write operations will include metadata '_time_insert' & '_time_update' columns as 'include_metadata_timestamps=True'."
             logger.warning(msg)
 
-        if autoadjust_sql_objects:
-            msg = "SQL objects will be created/modified as needed as 'autoadjust_sql_objects=True'."
-            logger.warning(msg)
 
     def log_init(self):
         """Log connection info and versions for Python, SQL, and required packages."""

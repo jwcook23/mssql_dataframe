@@ -32,7 +32,6 @@ def test_SQLServer_basic(caplog):
         env.driver,
         env.username,
         env.password,
-        autoadjust_sql_objects=False,
     )
     assert isinstance(sql, SQLServer)
     assert list(vars(sql).keys()) == attributes
@@ -65,30 +64,6 @@ def test_SQLServer_timestamps(caplog):
     )
 
 
-def test_SQLServer_autoadjust(caplog):
-
-    sql = SQLServer(
-        env.database,
-        env.server,
-        env.driver,
-        env.username,
-        env.password,
-        autoadjust_sql_objects=True,
-    )
-
-    assert isinstance(sql, SQLServer)
-    assert list(vars(sql).keys()) == attributes
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.package"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert (
-        caplog.record_tuples[0][2]
-        == "SQL objects will be created/modified as needed as 'autoadjust_sql_objects=True'."
-    )
-
-
 def test_SQLServer_log_init(caplog):
 
     with caplog.at_level(logging.DEBUG):
@@ -99,7 +74,6 @@ def test_SQLServer_log_init(caplog):
             env.driver,
             env.username,
             env.password,
-            autoadjust_sql_objects=False,
         )
         assert isinstance(sql.connection_spec, dict)
         assert isinstance(sql.version_spec, dict)
@@ -123,7 +97,6 @@ def test_SQLServer_schema():
         env.driver,
         env.username,
         env.password,
-        autoadjust_sql_objects=False,
     )
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 

@@ -48,14 +48,18 @@ class read:
         A sample table to read, created from a dataframe.
         >>> df = pd.DataFrame(
         ...    {
-        ...        "ColumnA": [5, 6, 7],
-        ...        "ColumnB": [5, 6, None],
-        ...        "ColumnC": [pd.NA, 6, 7],
-        ...        "ColumnD": ["06-22-2021", "06-22-2021", pd.NaT],
-        ...        "ColumnE": ["a", "b", None],
-        ...    }, index = ["xxx", "yyy", "zzz"]
+        ...        "ColumnA": [5, 6, None],
+        ...        "ColumnB": ["06-22-2021", "06-22-2021", pd.NaT],
+        ...        "ColumnC": ["aa", "b", None],
+        ...    }, index = pd.Index(["xxx", "yyy", "zzz"], name='PK')
         ... )
-        >>> df = create.table_from_dataframe('##ExampleRead', df, primary_key='index')
+        >>> create.table('##ExampleRead', 
+        ...     {
+        ...         'ColumnA': 'TINYINT', 'ColumnB': 'DATETIME2', 'ColumnC': 'VARCHAR(2)', 'PK': 'CHAR(3)'
+        ...     },
+        ...     primary_key_column = 'PK'
+        ... )
+        >>> df = insert('##ExampleRead', df)
 
         Select the entire table. The primary key is set as the dataframe's index.
         >>> query = read.table('##ExampleRead')
@@ -64,7 +68,7 @@ class read:
         >>> query = read.table('##ExampleRead', column_names=['ColumnA','ColumnB'])
 
         Select using conditions grouped by parentheses while applying a limit and order.
-        >>> query = read.table('##ExampleRead', where="(ColumnB>4 AND ColumnC IS NOT NULL) OR ColumnE IS NULL", limit=5, order_column='ColumnB', order_direction='DESC')
+        >>> query = read.table('##ExampleRead', where="(ColumnA>5 AND ColumnB IS NOT NULL) OR ColumnC IS NULL", limit=5, order_column='ColumnB', order_direction='DESC')
         """
         # get table schema for conversion to pandas
         schema, _ = conversion.get_schema(self._connection, table_name)

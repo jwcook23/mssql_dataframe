@@ -21,7 +21,6 @@ class package:
         self.insert = insert.insert(
             self.connection,
             include_metadata_timestamps=False,
-            autoadjust_sql_objects=False,
         )
         self.read = read.read(self.connection)
 

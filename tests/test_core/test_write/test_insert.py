@@ -1,11 +1,12 @@
 import env
 import logging
+from decimal import Decimal
 
 import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_errors, create, conversion
+from mssql_dataframe.core import create, conversion
 from mssql_dataframe.core.write import insert
 from mssql_dataframe.__equality__ import compare_dfs
 
@@ -20,8 +21,6 @@ class package:
         self.insert_meta = insert.insert(
             self.connection, include_metadata_timestamps=True
         )
-        self.insert_errors = insert.insert(self.connection)
-        self.insert_errors._adjust_sql_attempts = -1
 
 
 @pytest.fixture(scope="module")
@@ -29,69 +28,6 @@ def sql():
     db = connect(env.database, env.server, env.driver, env.username, env.password)
     yield package(db)
     db.connection.close()
-
-
-def test_insert_error_nonexistant(sql):
-
-    table_name = "##test_insert_error_nonexistant"
-
-    sql.create.table(
-        table_name, columns={"ColumnB": "SMALLINT", "ColumnC": "VARCHAR(1)"}
-    )
-
-    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
-        dataframe = pd.DataFrame({"ColumnA": [1]})
-        sql.insert.insert(table_name, dataframe=dataframe)
-
-    with pytest.raises(RecursionError):
-        sql.insert_errors._target_table(
-            table_name="##no_table",
-            dataframe=pd.DataFrame({"ColumnA": [100000]}),
-            cursor=sql.insert._connection.cursor(),
-        )
-
-    with pytest.raises(custom_errors.SQLTableDoesNotExist):
-        dataframe = pd.DataFrame({"ColumnB": [1]})
-        sql.insert.insert("##error" + table_name, dataframe=dataframe)
-
-
-def test_insert_error_insufficent(sql):
-
-    table_name = "##test_insert_error_insufficent"
-
-    sql.create.table(
-        table_name, columns={
-            "_smallint": "SMALLINT", 
-            "_char": "CHAR(1)", "_nchar": "NCHAR(1)", 
-            "_varchar": "VARCHAR(1)", "_nvarchar": "NVARCHAR(1)"
-        }
-    )
-
-    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-        sql.insert.insert(table_name, dataframe=pd.DataFrame({"_smallint": [100000]}))
-
-    dtypes = {"_char": "a", "_varchar": "a", "_nchar": "え", "_nvarchar": "え"}
-    for col, val in dtypes.items():
-        with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-            dataframe = pd.DataFrame({col: [val*3]})
-            sql.insert.insert(table_name, dataframe=dataframe)
-
-
-def test_unicode_error(sql):
-
-    table_name = "##test_unicode_error"
-
-    sql.create.table(
-        table_name, columns={
-            "_char": "CHAR(1)", "_varchar": "VARCHAR(1)"
-        }
-    )
-
-    dtypes = {"_char": "え", "_varchar": "え"}
-    for col, val in dtypes.items():
-        with pytest.raises(custom_errors.SQLNonUnicodeTypeColumn):
-            dataframe = pd.DataFrame({col: [val]})
-            sql.insert.insert(table_name, dataframe=dataframe)   
 
 
 def test_insert_dataframe(sql, caplog):

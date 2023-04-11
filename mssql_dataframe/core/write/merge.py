@@ -32,7 +32,7 @@ class merge(insert):
         match_columns (list, default=None) : combination of columns or index to determine matches, if None the SQL primary key and dataframe index is used
         upsert (bool, default=False) : delete records if they do not match
         delete_requires (list, default=None) : column(s) that need to have a matching row for records to be deleted
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_insert and _time_update columns
+        include_metadata_timestamps (bool, default=None) : include _time_insert and _time_update columns
 
         Returns
         -------
@@ -41,9 +41,13 @@ class merge(insert):
         Examples
         --------
         A sample table to merge, created from a dataframe.
-        >>> df = create.table_from_dataframe(
-        ...    "##ExampleMergeDF", pd.DataFrame({"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}), primary_key="index"
+        >>> create.table(
+        ...     '##ExampleMergeDF',
+        ...     {'State': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'PK': 'TINYINT'},
+        ...     primary_key_column = 'PK'
         ... )
+        >>> df = pd.DataFrame({"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}, index=pd.Index([0, 1], name='PK'))
+        >>> df = insert('##ExampleMergeDF', df)
 
         Merge using the dataframe's index and SQL primary key. Include the column _time_insert and _time_update (automatically created).
         >>> # delete first row
@@ -51,18 +55,18 @@ class merge(insert):
         >>> # update second row
         >>> df.loc[df.index == 1, "ColumnA"] = 5
         >>> # insert new row
-        >>> new = pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=pd.Index([2], name="_index"))
+        >>> new = pd.DataFrame({"State": ["C"], "ColumnA": [6], "ColumnB": ["d"]}, index=pd.Index([2], name="PK"))
         >>> df = pd.concat([df, new])
         >>> # perform the merge.
         >>> df_merged = merge("##ExampleMergeDF", df, include_metadata_timestamps=True)
 
-        Incremntally merge a dataframe. Index=2 will remain unchanged since State=C is not part of the increment.
+        Incremntally merge a dataframe. Index=2 will remain unchanged since State=C is not included in df_increment.
         >>> df_increment = pd.DataFrame.from_records([
         ...    # updated record
         ...    {"State": "B", "ColumnA": 6, "ColumnB": "d"},
         ...    # new record
         ...    {"State": "D", "ColumnA": 6, "ColumnB": "d"},
-        ...    ],index=pd.Index([1, 3], name="_index"),
+        ...    ],index=pd.Index([1, 3], name="PK"),
         ... )
         >>> df_increment = merge("##ExampleMergeDF", df_increment, delete_requires=['State'], include_metadata_timestamps=True)
 
@@ -72,7 +76,7 @@ class merge(insert):
         ...    {"State": "B", "ColumnA": 10, "ColumnB": "x"},
         ...    # new record
         ...    {"State": "E", "ColumnA": 0, "ColumnB": "y"},
-        ...    ],index=pd.Index([1, 4], name="_index"),
+        ...    ],index=pd.Index([1, 4], name="PK"),
         ... )
         >>> df_merge = merge('##ExampleMergeDF', df_upsert, upsert=True, include_metadata_timestamps=True)
         """

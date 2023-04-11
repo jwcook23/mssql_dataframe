@@ -94,7 +94,6 @@ rules = pd.DataFrame.from_records(
             "odbc_size": 27,
             "odbc_precision": 3,
         },
-        # TODO: do odbc_size and odbc_precision need to be defined?
         {
             "sql_type": "datetimeoffset",
             "sql_category": "date time",
