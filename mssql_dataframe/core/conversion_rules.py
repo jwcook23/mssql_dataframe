@@ -16,7 +16,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "tinyint",
-            "sql_category": "exact numeric",
+            "sql_category": "exact_whole_numeric",
             "min_value": 0,
             "max_value": 255,
             "pandas_type": "UInt8",
@@ -26,7 +26,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "smallint",
-            "sql_category": "exact numeric",
+            "sql_category": "exact_whole_numeric",
             "min_value": -(2**15),
             "max_value": 2**15 - 1,
             "pandas_type": "Int16",
@@ -36,7 +36,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "int",
-            "sql_category": "exact numeric",
+            "sql_category": "exact_whole_numeric",
             "min_value": -(2**31),
             "max_value": 2**31 - 1,
             "pandas_type": "Int32",
@@ -46,7 +46,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "bigint",
-            "sql_category": "exact numeric",
+            "sql_category": "exact_whole_numeric",
             "min_value": -(2**63),
             "max_value": 2**63 - 1,
             "pandas_type": "Int64",
@@ -56,7 +56,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "float",
-            "sql_category": "approximate numeric",
+            "sql_category": "approximate_decimal_numeric",
             "min_value": -(1.79**308),
             "max_value": 1.79**308,
             "pandas_type": "float64",
@@ -65,8 +65,28 @@ rules = pd.DataFrame.from_records(
             "odbc_precision": 53,
         },
         {
+            "sql_type": "numeric",
+            "sql_category": "exact_decimal_numeric",
+            "min_value": -10**38+1,
+            "max_value": 10**38-1,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_NUMERIC,
+            "odbc_size": 0,
+            "odbc_precision": 0,    
+        },
+        {
+            "sql_type": "decimal",
+            "sql_category": "exact_decimal_numeric",
+            "min_value": -10**38+1,
+            "max_value": 10**38-1,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_DECIMAL,
+            "odbc_size": 0,
+            "odbc_precision": 0,    
+        },
+        {
             "sql_type": "time",
-            "sql_category": "date time",
+            "sql_category": "date_time",
             "min_value": pd.Timedelta("00:00:00.0000000"),
             "max_value": pd.Timedelta("23:59:59.9999999"),
             "pandas_type": "timedelta64[ns]",
@@ -76,7 +96,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "date",
-            "sql_category": "date time",
+            "sql_category": "date_time",
             "min_value": pd.Timestamp((pd.Timestamp.min + pd.Timedelta(days=1)).date()),
             "max_value": pd.Timestamp(pd.Timestamp.max.date()),
             "pandas_type": "datetime64[ns]",
@@ -86,7 +106,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "datetime",
-            "sql_category": "date time",
+            "sql_category": "date_time",
             "min_value": pd.Timestamp(1753,1,1,0,0,0),
             "max_value": pd.Timestamp(1900,1,1)+pd.Timedelta.max,
             "pandas_type": "datetime64[ns]",
@@ -96,7 +116,7 @@ rules = pd.DataFrame.from_records(
         },
         {
             "sql_type": "datetimeoffset",
-            "sql_category": "date time",
+            "sql_category": "date_time",
             # TODO: inforce SQL TZ offset limit of -14:00 through +14:00
             "min_value": pd.Timestamp(pd.Timestamp.min, tz='UTC'),
             "max_value": pd.Timestamp(pd.Timestamp.max, tz='UTC'),
@@ -107,7 +127,7 @@ rules = pd.DataFrame.from_records(
         }, 
         {
             "sql_type": "datetime2",
-            "sql_category": "date time",
+            "sql_category": "date_time",
             "min_value": pd.Timestamp.min,
             "max_value": pd.Timestamp.max,
             "pandas_type": "datetime64[ns]",

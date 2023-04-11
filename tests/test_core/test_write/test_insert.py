@@ -43,6 +43,8 @@ def test_insert_dataframe(sql, caplog):
             "_int": pd.Series([-(2**31), 2**31 - 1, None], dtype="Int32"),
             "_bigint": pd.Series([-(2**63), 2**63 - 1, None], dtype="Int64"),
             "_float": pd.Series([-(1.79**308), 1.79**308, None], dtype="float"),
+            "_numeric": pd.Series([Decimal('1.23'), Decimal('4.56789'), None], dtype="object"),
+            "_decimal": pd.Series([Decimal('11.23'), Decimal('44.56789'), None], dtype="object"),
             "_time": pd.Series(
                 ["00:00:00.0000000", "23:59:59.9999999", None], dtype="timedelta64[ns]"
             ),
@@ -79,20 +81,18 @@ def test_insert_dataframe(sql, caplog):
         "_int": "INT",
         "_bigint": "BIGINT",
         "_float": "FLOAT",
+        "_numeric": "NUMERIC(5,2)",
+        "_decimal": "DECIMAL(8,6)",
         "_time": "TIME",
         "_date": "DATE",
         "_datetime": "DATETIME",
         "_datetimeoffset": "DATETIMEOFFSET",
         "_datetime2": "DATETIME2",
-        "_char": "CHAR",
-        "_nchar": "NCHAR",
-        "_varchar": "VARCHAR",
-        "_nvarchar": "NVARCHAR",
+        "_char": "CHAR(1)",
+        "_nchar": "NCHAR(1)",
+        "_varchar": "VARCHAR(3)",
+        "_nvarchar": "NVARCHAR(2)",
     }
-    strings = ['_char', '_nchar', '_varchar', '_nvarchar']
-    for col in strings:
-        columns[col] = f'{columns[col]}({dataframe[col].str.len().max()})'
-
     sql.create.table(table_name, columns)
 
     # insert data
@@ -107,7 +107,7 @@ def test_insert_dataframe(sql, caplog):
     assert compare_dfs(dataframe, result[result.columns.drop("_time_insert")])
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 3
+    assert len(caplog.record_tuples) == 4
     assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
     assert caplog.record_tuples[0][1] == logging.WARNING
     assert (
@@ -125,6 +125,12 @@ def test_insert_dataframe(sql, caplog):
     assert (
         caplog.record_tuples[2][2]
         == "Nanosecond precision for dataframe columns ['_datetimeoffset'] will be rounded as SQL data type 'datetimeoffset' allows 7 max decimal places."
+    )
+    assert caplog.record_tuples[3][0] == "mssql_dataframe.core.conversion"
+    assert caplog.record_tuples[3][1] == logging.WARNING
+    assert (
+        caplog.record_tuples[3][2]
+        == "Decimal digits for column _numeric will be rounded to 2 decimal places to fit SQL data type 'numeric' specification."
     )    
 
 

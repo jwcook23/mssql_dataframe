@@ -96,6 +96,7 @@ def get_schema(
             "column_name",
             "data_type",
             "column_size",
+            "decimal_digits",
             "sql_type",
             "is_nullable",
             "ss_is_identity",
@@ -104,6 +105,7 @@ def get_schema(
     schema[["column_name", "sql_type"]] = schema[["column_name", "sql_type"]].astype(
         "string"
     )
+    schema['decimal_digits'] = schema['decimal_digits'].fillna(0).astype('int64')
     schema["is_nullable"] = schema["is_nullable"] == "YES"
     schema["ss_is_identity"] = schema["ss_is_identity"] == 1
 
@@ -121,6 +123,7 @@ def get_schema(
     schema["pk_name"] = schema["pk_name"].astype("string")
 
     # add conversion rules
+    # TODO: remove odbc_size and odbc_precision (use column_size & decimal digits)
     identity = schema["sql_type"] == "int identity"
     schema.loc[identity, "sql_type"] = "int"
     schema = schema.merge(
@@ -199,25 +202,25 @@ def convert_largest_sql_category(dataframe, schema):
     # avoids downcast such as UInt8 value of 10000 to 16
     convert = dataframe.columns[dataframe.dtypes == "object"]
     try:
-        # exact numeric
-        columns = convert[schema.loc[convert, "sql_category"] == "exact numeric"]
+        # exact_whole_numeric
+        columns = convert[schema.loc[convert, "sql_category"] == "exact_whole_numeric"]
         # BUG: first convert to float after replacing pandas.NA
         # https://github.com/pandas-dev/pandas/issues/25472
         dataframe[columns] = dataframe[columns].fillna(np.nan).replace([np.nan], [None])
         dataframe[columns] = dataframe[columns].astype("float")
         dataframe[columns] = dataframe[columns].astype("Int64")
-        # approximate numeric
-        columns = convert[schema.loc[convert, "sql_category"] == "approximate numeric"]
+        # approximate_decimal_numeric
+        columns = convert[schema.loc[convert, "sql_category"] == "approximate_decimal_numeric"]
         dataframe[columns] = dataframe[columns].astype("float64")
-        # date time
+        # date_time
         columns = convert[
-            (schema.loc[convert, "sql_category"] == "date time") & 
+            (schema.loc[convert, "sql_category"] == "date_time") & 
             (schema.loc[convert, "sql_type"] != "datetimeoffset")
         ]
         dataframe[columns] = dataframe[columns].astype("datetime64")
         # datetime offset
         columns = convert[
-            (schema.loc[convert, "sql_category"] == "date time") & 
+            (schema.loc[convert, "sql_category"] == "date_time") & 
             (schema.loc[convert, "sql_type"] == "datetimeoffset")
         ]
         for col in columns:
@@ -328,6 +331,7 @@ def prepare_cursor(
     schema = schema[
         [
             "column_size",
+            "decimal_digits",
             "min_value",
             "max_value",
             "sql_category",
@@ -349,7 +353,7 @@ def prepare_cursor(
     schema, _ = sql_spec(schema, dataframe)
 
     # set SQL data type and size for cursor
-    schema = schema[["odbc_type", "odbc_size", "odbc_precision"]].to_numpy().tolist()
+    schema = schema[["odbc_type", "column_size", "decimal_digits"]].to_numpy().tolist()
     schema = [tuple(x) for x in schema]
     cursor.setinputsizes(schema)
 
@@ -572,6 +576,20 @@ def prepare_datetimeoffset(schema, prepped, dataframe):
     return prepped, dataframe
 
 
+def prepare_numeric(schema, prepped, dataframe):
+    
+    dtype = schema[schema["sql_type"].isin(['numeric','decimal'])].index
+    for col in dtype:
+        decimal_digits = int(schema.at[col, 'decimal_digits'])
+        prepped[col] = dataframe[col].apply(lambda x: round(x, decimal_digits) if pd.notna(x) else x)
+        if not dataframe[col].equals(prepped[col]):
+            msg = f"Decimal digits for column {col} will be rounded to {decimal_digits} decimal places to fit SQL data type 'numeric' specification."
+            logger.warning(msg)            
+        dataframe[col] = prepped[col]
+
+    return prepped, dataframe
+
+
 def prepare_values(
     schema: pd.DataFrame, dataframe: pd.DataFrame
 ) -> Tuple[pd.DataFrame, list]:
@@ -598,11 +616,12 @@ def prepare_values(
     # only prepare values currently in dataframe
     schema = schema[schema.index.isin(prepped.columns)]
 
-    # round and truncate time like dataframe values to be the same as SQL then convert to strings
+    # round and truncate values to be the same as SQL
     prepped, dataframe = prepare_time(schema, prepped, dataframe)
     prepped, dataframe = prepare_datetime(schema, prepped, dataframe)
     prepped, dataframe = prepare_datetime2(schema, prepped, dataframe)
     prepped, dataframe = prepare_datetimeoffset(schema, prepped, dataframe)
+    prepped, dataframe = prepare_numeric(schema, prepped, dataframe)
 
     # treat pandas NA,NaT,etc as NULL in SQL
     # prepped = prepped.fillna(np.nan).replace([np.nan], [None])
