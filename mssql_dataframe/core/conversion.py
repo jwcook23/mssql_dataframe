@@ -123,7 +123,6 @@ def get_schema(
     schema["pk_name"] = schema["pk_name"].astype("string")
 
     # add conversion rules
-    # TODO: remove odbc_size and odbc_precision (use column_size & decimal digits)
     identity = schema["sql_type"] == "int identity"
     schema.loc[identity, "sql_type"] = "int"
     schema = schema.merge(
@@ -336,9 +335,7 @@ def prepare_cursor(
             "max_value",
             "sql_category",
             "sql_type",
-            "odbc_type",
-            "odbc_size",
-            "odbc_precision",
+            "odbc_type"
         ]
     ]
 
@@ -349,56 +346,12 @@ def prepare_cursor(
         columns = list(index) + columns
     schema = schema.loc[columns]
 
-    # use dataframe contents to determine size for strings
-    schema, _ = sql_spec(schema, dataframe)
-
     # set SQL data type and size for cursor
     schema = schema[["odbc_type", "column_size", "decimal_digits"]].to_numpy().tolist()
     schema = [tuple(x) for x in schema]
     cursor.setinputsizes(schema)
 
     return cursor
-
-
-def sql_spec(
-    schema: pd.DataFrame, dataframe: pd.DataFrame
-) -> Tuple[pd.DataFrame, dict]:
-    """Generate dictionary mapping of column name to SQL data type.
-
-    Data type includes the size of VARCHAR and NVARCHAR columns using dataframe contents.
-
-    Parameters
-    ----------
-    schema (pandas.DataFrame) : contains the column size to update and the column sql to identify string columns
-    dataframe (pandas.DataFrame) : dataframe contents
-
-    Returns
-    -------
-    schema (pandas.DataFrame) : column 'odbc_size' set according to size of contents for string columns
-    dtypes (dict) : dictionary mapping of each column SQL data type
-    """
-    if any(dataframe.index.names):
-        dataframe = dataframe.reset_index()
-
-    strings = schema[schema["sql_category"]=='character string'].index
-
-    # update odbc_size in schema
-    if any(strings):
-        infer = dataframe[strings].apply(lambda x: x.str.len()).max()
-        infer = pd.DataFrame(infer, columns=["odbc_size"])
-        infer["odbc_size"] = infer["odbc_size"].fillna(1)
-        schema.update(infer)
-    schema["odbc_size"] = schema["odbc_size"].astype("int64")
-
-    # develop dictionary mapping of data types
-    dtypes = schema.loc[:, ["sql_type", "odbc_size"]]
-    dtypes["odbc_size"] = dtypes["odbc_size"].astype("string")
-    dtypes.loc[strings, "sql_type"] = (
-        dtypes.loc[strings, "sql_type"] + "(" + dtypes.loc[strings, "odbc_size"] + ")"
-    )
-    dtypes = dtypes["sql_type"].to_dict()
-
-    return schema, dtypes
 
 
 def prepare_time(schema, prepped, dataframe):
@@ -580,10 +533,13 @@ def prepare_numeric(schema, prepped, dataframe):
     
     dtype = schema[schema["sql_type"].isin(['numeric','decimal'])].index
     for col in dtype:
+        # set a common missing value
+        dataframe[col] = dataframe[col].replace([pd.NA], None)
+        # round to correct number of decimal digits 
         decimal_digits = int(schema.at[col, 'decimal_digits'])
         prepped[col] = dataframe[col].apply(lambda x: round(x, decimal_digits) if pd.notna(x) else x)
         if not dataframe[col].equals(prepped[col]):
-            msg = f"Decimal digits for column {col} will be rounded to {decimal_digits} decimal places to fit SQL data type 'numeric' specification."
+            msg = f"Decimal digits for column [{col}] will be rounded to {decimal_digits} decimal places to fit SQL specification for this column."
             logger.warning(msg)            
         dataframe[col] = prepped[col]
 
@@ -610,8 +566,11 @@ def prepare_values(
     prepped = dataframe.copy()
 
     # include index as column as it is the primary key
-    if any(prepped.index.names):
+    # also retain the origional index for dataframe/series comparisons
+    index = prepped.index.names
+    if any(index):
         prepped = prepped.reset_index()
+        prepped = prepped.set_index(index, drop=False)
 
     # only prepare values currently in dataframe
     schema = schema[schema.index.isin(prepped.columns)]

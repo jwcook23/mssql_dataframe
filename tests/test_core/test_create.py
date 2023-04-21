@@ -144,8 +144,6 @@ def test_table_column(sql):
     assert all(schema["pk_name"].isna())
     assert all(schema["pandas_type"] == "string")
     assert all(schema["odbc_type"] == pyodbc.SQL_VARCHAR)
-    assert all(schema["odbc_size"] == 0)
-    assert all(schema["odbc_precision"] == 0)
 
 
 def test_table_pk(sql):
@@ -180,8 +178,6 @@ def test_table_pk(sql):
         schema["odbc_type"]
         == [pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT]
     )
-    assert all(schema["odbc_size"] == [1, 0, 8])
-    assert all(schema["odbc_precision"] == [0, 0, 53])
 
 
 def test_table_composite_pk(sql):
@@ -216,8 +212,6 @@ def test_table_composite_pk(sql):
         schema["odbc_type"]
         == [pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT]
     )
-    assert all(schema["odbc_size"] == [1, 0, 8])
-    assert all(schema["odbc_precision"] == [0, 0, 53])
 
 
 def test_table_pk_input_error(sql):
@@ -256,5 +250,3 @@ def test_table_sqlpk(sql):
     assert all(schema["pk_name"].isna() == [False, True])
     assert all(schema["pandas_type"] == ["Int32", "string"])
     assert all(schema["odbc_type"] == [pyodbc.SQL_INTEGER, pyodbc.SQL_VARCHAR])
-    assert all(schema["odbc_size"] == [4, 0])
-    assert all(schema["odbc_precision"] == [0, 0])

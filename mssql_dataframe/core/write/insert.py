@@ -135,6 +135,48 @@ class insert:
 
         return schema, dataframe
 
+
+    def _column_spec(
+            self,
+            schema: pd.DataFrame,
+            columns: list
+    ) -> dict:
+        """Generate dictionary mapping of column name to SQL data type and specifications.
+
+        Parameters
+        ----------
+        schema (pandas.DataFrame) : output of get_schema for a table
+
+        Returns
+        -------
+        dtypes (dict) : dictionary mapping of each column name to SQL data type and specifications
+        """
+
+        # select only columns present in dataframe to prevent updating with nulls
+        dtypes = schema.loc[columns, ["sql_category", "sql_type", "column_size", "decimal_digits"]]
+        dtypes = dtypes.astype('string')
+
+        # add byte size for string columns
+        idx = dtypes[dtypes["sql_category"]=='character string'].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"] + "(" + dtypes.loc[idx, "column_size"] + ")"
+        )
+
+        # add precision and scale for exact decimal numerics
+        idx = dtypes[dtypes["sql_category"]=='exact_decimal_numeric'].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"] +"(" + dtypes.loc[idx, "column_size"] +","+ dtypes.loc[idx, "decimal_digits"] +")"
+        )
+
+        # avoid creating an int identify data type column for a source table
+        dtypes['sql_type'] = dtypes['sql_type'].replace('int identity', 'int')
+
+        # convert to dictionary of column name : data type
+        dtypes = dtypes["sql_type"].to_dict()
+
+        return dtypes
+
+
     def _source_table(
         self,
         table_name,
@@ -196,12 +238,22 @@ class insert:
         columns = list(dataframe.columns)
         if any(dataframe.index.names):
             columns = list(dataframe.index.names) + columns
-        _, dtypes = conversion.sql_spec(schema.loc[columns], dataframe)
-        dtypes = {k: v.replace("int identity", "int") for k, v in dtypes.items()}
+
+        dtypes = self._column_spec(schema, columns)
+
         not_nullable = list(schema[~schema["is_nullable"]].index)
+
         self._create.table(
             temp_name, dtypes, not_nullable, primary_key_column=match_columns
         )
-        _ = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
+
+        dataframe = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
+
+        # reset match columns that were part of the primary key in the source table
+        # dataframe needs returned in the event values were adjusted but indicies/columns should be the same
+        names = schema.loc[dataframe.index.names, "pk_seq"]
+        extra = names[names.isna()].index.tolist()
+        if any(extra):
+            dataframe = dataframe.reset_index(level=extra)
 
         return schema, dataframe, match_columns, temp_name
