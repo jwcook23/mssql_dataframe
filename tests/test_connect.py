@@ -8,7 +8,6 @@ from mssql_dataframe.core import custom_errors
 
 
 def test_connect():
-
     # master database, local host, trusted Windows connection
     db = connect(env.database, env.server, env.driver, env.username, env.password)
     assert isinstance(db.connection, pyodbc.Connection)

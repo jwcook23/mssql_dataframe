@@ -25,7 +25,6 @@ def test_version():
 
 
 def test_SQLServer_basic(caplog):
-
     sql = SQLServer(
         env.database,
         env.server,
@@ -41,7 +40,6 @@ def test_SQLServer_basic(caplog):
 
 
 def test_SQLServer_timestamps(caplog):
-
     sql = SQLServer(
         env.database,
         env.server,
@@ -65,9 +63,7 @@ def test_SQLServer_timestamps(caplog):
 
 
 def test_SQLServer_log_init(caplog):
-
     with caplog.at_level(logging.DEBUG):
-
         sql = SQLServer(
             env.database,
             env.server,
@@ -89,7 +85,6 @@ def test_SQLServer_log_init(caplog):
 
 
 def test_SQLServer_schema():
-
     table_name = "##test_SQLServer_schema"
     sql = SQLServer(
         env.database,

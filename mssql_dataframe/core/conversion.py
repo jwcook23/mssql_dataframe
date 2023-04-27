@@ -416,7 +416,6 @@ def prepare_datetime(schema, prepped, dataframe):
         # round millisecond to the 3rd decimal place in approriate increments ...008 -> ..007 for SQL
         increments = np.array([10, 7, 3, 0]).reshape(-1, 1)
         for col in adjust:
-
             thousandths = (
                 (prepped[col].dt.microsecond / 1000 % 10).to_numpy().reshape(1, -1)
             )
@@ -694,7 +693,6 @@ def convert_datetimeoffset(connection):
     """
 
     def SQL_TYPE_DATETIMEOFFSET(raw_bytes):
-
         (
             year,
             month,

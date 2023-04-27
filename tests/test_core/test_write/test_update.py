@@ -31,7 +31,6 @@ def sql():
 
 
 def test_update_primary_key(sql, caplog):
-
     table_name = "##test_update_primary_key"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
@@ -68,7 +67,6 @@ def test_update_primary_key(sql, caplog):
 
 
 def test_update_override_timestamps(sql, caplog):
-
     table_name = "##test_update_override_timestamps"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
@@ -112,7 +110,6 @@ def test_update_override_timestamps(sql, caplog):
 
 
 def test_update_nonpk_column(sql, caplog):
-
     table_name = "##test_update_nonpk_column"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
@@ -143,7 +140,6 @@ def test_update_nonpk_column(sql, caplog):
 
 
 def test_update_two_match_columns(sql, caplog):
-
     table_name = "##test_update_two_match_columns"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
@@ -184,7 +180,6 @@ def test_update_two_match_columns(sql, caplog):
 
 
 def test_update_composite_pk(sql, caplog):
-
     table_name = "##test_update_composite_pk"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}

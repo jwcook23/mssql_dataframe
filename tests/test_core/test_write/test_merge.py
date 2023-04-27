@@ -29,7 +29,6 @@ def sql():
 
 
 def test_merge_upsert(sql, caplog):
-
     table_name = "##test_merge_upsert"
     dataframe = pd.DataFrame(
         {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
@@ -70,7 +69,6 @@ def test_merge_upsert(sql, caplog):
 
 
 def test_merge_one_match_column(sql, caplog):
-
     table_name = "##test_merge_one_match_column"
     dataframe = pd.DataFrame(
         {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
@@ -122,7 +120,6 @@ def test_merge_one_match_column(sql, caplog):
 
 
 def test_merge_override_timestamps(sql, caplog):
-
     table_name = "##test_merge_override_timestamps"
     dataframe = pd.DataFrame(
         {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
@@ -165,7 +162,6 @@ def test_merge_override_timestamps(sql, caplog):
 
 
 def test_merge_two_match_columns(sql, caplog):
-
     table_name = "##test_merge_two_match_columns"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]},
@@ -228,7 +224,6 @@ def test_merge_two_match_columns(sql, caplog):
 
 
 def test_merge_non_pk_column(sql, caplog):
-
     table_name = "##test_merge_non_pk_column"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
@@ -282,7 +277,6 @@ def test_merge_non_pk_column(sql, caplog):
 
 
 def test_merge_composite_pk(sql, caplog):
-
     table_name = "##test_merge_composite_pk"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
@@ -322,7 +316,6 @@ def test_merge_composite_pk(sql, caplog):
 
 
 def test_merge_one_delete_condition(sql, caplog):
-
     table_name = "##test_merge_one_delete_condition"
     dataframe = pd.DataFrame(
         {"State": ["A", "B", "B"], "ColumnA": [3, 4, 4], "ColumnB": ["a", "b", "b"]},
@@ -391,7 +384,6 @@ def test_merge_one_delete_condition(sql, caplog):
 
 
 def test_merge_two_delete_requires(sql, caplog):
-
     table_name = "##test_merge_two_delete_requires"
     dataframe = pd.DataFrame(
         {

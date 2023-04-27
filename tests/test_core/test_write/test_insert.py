@@ -29,7 +29,6 @@ def sql():
 
 
 def test_insert_singles(sql):
-
     table_name = "##test_insert_singles"
 
     # create table
@@ -75,7 +74,6 @@ def test_insert_singles(sql):
 
 
 def test_insert_composite_pk(sql):
-
     table_name = "##test_insert_composite_pk"
 
     columns = columns = {
@@ -97,7 +95,6 @@ def test_insert_composite_pk(sql):
 
 
 def test_insert_include_metadata_timestamps(sql, caplog):
-
     table_name = "##test_insert_include_metadata_timestamps"
 
     # sample data

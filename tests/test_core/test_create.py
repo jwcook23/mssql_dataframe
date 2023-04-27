@@ -49,7 +49,6 @@ def sample():
 
 @pytest.fixture(scope="module")
 def validation():
-
     expected = pd.DataFrame.from_records(
         [
             {
@@ -186,7 +185,6 @@ def validation():
 
 
 def test_table_errors(sql):
-
     table_name = "##test_table_column"
 
     with pytest.raises(KeyError):
@@ -195,7 +193,6 @@ def test_table_errors(sql):
 
 
 def test_table_column(sql):
-
     table_name = "dbo.##test_table_column"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
@@ -213,7 +210,6 @@ def test_table_column(sql):
 
 
 def test_table_pk(sql):
-
     table_name = "##test_table_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "FLOAT"}
     primary_key_column = "A"
@@ -247,7 +243,6 @@ def test_table_pk(sql):
 
 
 def test_table_composite_pk(sql):
-
     table_name = "##test_table_composite_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "FLOAT"}
     primary_key_column = ["A", "B"]
@@ -281,7 +276,6 @@ def test_table_composite_pk(sql):
 
 
 def test_table_pk_input_error(sql):
-
     with pytest.raises(ValueError):
         table_name = "##test_table_pk_input_error"
         columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
@@ -297,7 +291,6 @@ def test_table_pk_input_error(sql):
 
 
 def test_table_sqlpk(sql):
-
     table_name = "##test_table_sqlpk"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns, sql_primary_key=True)

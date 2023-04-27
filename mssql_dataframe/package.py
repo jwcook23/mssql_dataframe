@@ -66,7 +66,6 @@ class SQLServer(connect):
         password: str = None,
         include_metadata_timestamps: bool = False,
     ):
-
         connect.__init__(self, database, server, driver, username, password)
 
         # log initialization details

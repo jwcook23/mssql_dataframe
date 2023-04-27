@@ -27,7 +27,6 @@ def sql():
 
 
 def test_insert_error_nonexistant(sql):
-
     table_name = "##test_insert_error_nonexistant"
 
     sql.create.table(
@@ -44,7 +43,6 @@ def test_insert_error_nonexistant(sql):
 
 
 def test_insert_error_insufficent(sql):
-
     table_name = "##test_insert_error_insufficent"
 
     sql.create.table(
@@ -69,7 +67,6 @@ def test_insert_error_insufficent(sql):
 
 
 def test_unicode_error(sql):
-
     table_name = "##test_unicode_error"
 
     sql.create.table(table_name, columns={"_char": "CHAR(1)", "_varchar": "VARCHAR(1)"})
@@ -82,7 +79,6 @@ def test_unicode_error(sql):
 
 
 def test_update_errors(sql):
-
     table_name = "##test_update_errors"
     sql.create.table(
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
@@ -128,7 +124,6 @@ def test_update_errors(sql):
 
 
 def test_merge_errors(sql):
-
     table_name = "##test_merge_errors"
     sql.create.table(
         table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}

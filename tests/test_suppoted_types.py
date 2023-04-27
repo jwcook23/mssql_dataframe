@@ -33,7 +33,6 @@ def sql():
 
 @pytest.fixture
 def sample():
-
     # data types to test with the column name as the data type prepended by an underscore
     # Index=1: truncation test 2 if applicable or another value
     # Index=2: truncation test 2 if applicable or another value
@@ -123,7 +122,6 @@ def sample():
 
 
 def check_expected_warnings(caplog):
-
     assert len(caplog.record_tuples) == 5
 
     for log_num in caplog.record_tuples:
@@ -161,7 +159,6 @@ def check_expected_warnings(caplog):
 
 
 def test_insert(sql, sample, caplog):
-
     table_name = "##test_supported_dtypes_insert"
 
     sql.create.table(table_name, sample["columns"])
@@ -174,7 +171,6 @@ def test_insert(sql, sample, caplog):
 
 
 def test_update(sql, sample, caplog):
-
     table_name = "##test_supported_dtypes_update"
 
     # create table with primary key for updating
@@ -198,7 +194,6 @@ def test_update(sql, sample, caplog):
 
 
 def test_merge(sql, sample, caplog):
-
     table_name = "##test_supported_dtypes_merge"
 
     # create table with primary key for merging

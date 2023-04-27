@@ -34,7 +34,6 @@ def sql():
 
 @pytest.fixture(scope="session")
 def sample(sql):
-
     # create table and insert sample data
     sql.create.table(
         table_name,
@@ -67,7 +66,6 @@ def sample(sql):
 
 
 def test_select_errors(sql, sample):
-
     table_name = "##test_select_errors"
     sql.create.table(table_name, columns={"ColumnA": "TINYINT"})
 
@@ -87,7 +85,6 @@ def test_select_errors(sql, sample):
 
 
 def test_undefined_conversion(sql):
-
     table_name = "##test_undefined_conversion"
     columns = {"_geography": "GEOGRAPHY", "_datetimeoffset": "DATETIMEOFFSET(4)"}
     sql.create.table(table_name, columns)
@@ -108,13 +105,11 @@ def test_undefined_conversion(sql):
 
 
 def test_select_all(sql, sample):
-
     dataframe = sql.read.table(table_name)
     assert compare_dfs(dataframe, sample)
 
 
 def test_select_columns(sql, sample):
-
     column_names = sample.columns.drop("ColumnB")
     dataframe = sql.read.table(table_name, column_names)
     assert compare_dfs(dataframe[column_names], sample[column_names])
@@ -125,7 +120,6 @@ def test_select_columns(sql, sample):
 
 
 def test_select_where(sql, sample):
-
     # basic test
     column_names = ["ColumnB", "ColumnC", "ColumnD"]
     dataframe = sql.read.table(
@@ -150,14 +144,12 @@ def test_select_where(sql, sample):
 
 
 def test_select_limit(sql, sample):
-
     dataframe = sql.read.table(table_name, limit=1)
     assert dataframe.shape[0] == 1
     assert compare_dfs(dataframe, sample.loc[[dataframe.index[0]]])
 
 
 def test_select_order(sql, sample):
-
     dataframe = sql.read.table(
         table_name,
         column_names=["ColumnB"],

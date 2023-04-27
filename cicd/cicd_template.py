@@ -68,7 +68,6 @@ def remove_output_dirs():
 
 
 def check_black_formatting():
-
     cmd = ["black", ".", "--check", f"--extend-exclude={markdown_test_dir}"]
     print(f"Checking code format '{' '.join(cmd)}'.")
     try:
@@ -81,7 +80,6 @@ def check_black_formatting():
 
 
 def check_flake8_style():
-
     exclude = f"{venv_dir}, {markdown_test_dir}, {build_test_dir}"
     cmd = [
         "flake8",
@@ -95,28 +93,24 @@ def check_flake8_style():
 
 
 def check_bandit_security():
-
     cmd = ["bandit", "-c", "pyproject.toml", "-r", package_name]
     print(f"Checking security '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 
 
 def check_docstring_formatting():
-
     cmd = ["pydocstyle", package_name, "--convention=numpy"]
     print(f"Checking docstring format '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 
 
 def run_docstring_pytest():
-
     cmd = ["pytest", package_name, "--doctest-modules"]
     print(f"Running docstring tests '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 
 
 def generate_markdown_pytest():
-
     os.mkdir(markdown_test_dir)
 
     markdown_test_files = {}
@@ -138,7 +132,6 @@ def generate_markdown_pytest():
 
 
 def run_coverage_pytest():
-
     # required arguments
     cmd = [
         "coverage",
@@ -171,7 +164,6 @@ def run_coverage_pytest():
 
 
 def report_coverage_output():
-
     _ = run_cmd(
         [
             "coverage",
@@ -197,7 +189,6 @@ def report_coverage_output():
 
 
 def generage_package_badges():
-
     badges = {
         "tests": pytest_file,
         "coverage": coverage_xml,
@@ -210,14 +201,12 @@ def generage_package_badges():
 
 
 def check_package_version():
-
     with open("VERSION", "r") as fh:
         version = fh.read()
     print(f"Package version in file 'VERSION' set at '{version}'.")
 
 
 def build_python_package():
-
     # build package .gz and .whl files
     cmd = ["python", "-m", "build", f"--outdir={build_dir}"]
     print(f"Building package '{' '.join(cmd)}'.")
@@ -225,7 +214,6 @@ def build_python_package():
 
 
 def test_python_package():
-
     # find build files
     source = glob.glob(os.path.join(build_dir, "*.tar.gz"))[0]
     wheel = glob.glob(os.path.join(build_dir, "*.whl"))[0]

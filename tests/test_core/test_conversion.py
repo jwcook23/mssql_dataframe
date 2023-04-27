@@ -31,7 +31,6 @@ def sql():
 
 
 def test_larger_sql_range():
-
     # error for a time value outside of allowed range
     with pytest.raises(ValueError):
         conversion.prepare_values(
@@ -41,7 +40,6 @@ def test_larger_sql_range():
 
 
 def test_read_values_errors(sql):
-
     schema, _ = conversion.get_schema(
         connection=sql, table_name="##test_conversion_error"
     )
