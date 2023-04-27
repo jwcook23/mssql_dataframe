@@ -164,8 +164,9 @@ def test_select_order(sql, sample):
         order_column="ColumnA",
         order_direction="DESC",
     )
-    assert compare_dfs(dataframe, 
+    assert compare_dfs(
+        dataframe,
         sample[["ColumnB"]].sort_values(
             by="ColumnB", ascending=False, na_position="first"
-        )
+        ),
     )

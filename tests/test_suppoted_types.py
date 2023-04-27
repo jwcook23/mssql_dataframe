@@ -33,7 +33,7 @@ def sql():
 
 @pytest.fixture
 def sample():
-    
+
     # data types to test with the column name as the data type prepended by an underscore
     # Index=1: truncation test 2 if applicable or another value
     # Index=2: truncation test 2 if applicable or another value
@@ -46,10 +46,15 @@ def sample():
             "_int": pd.Series([-(2**31), 2**31 - 1, None], dtype="Int32"),
             "_bigint": pd.Series([-(2**63), 2**63 - 1, None], dtype="Int64"),
             "_float": pd.Series([-(1.79**308), 1.79**308, None], dtype="float"),
-            "_numeric": pd.Series([Decimal('1.23'), Decimal('4.56789'), None], dtype="object"),
-            "_decimal": pd.Series([Decimal('11.23'), Decimal('44.56789'), None], dtype="object"),
+            "_numeric": pd.Series(
+                [Decimal("1.23"), Decimal("4.56789"), None], dtype="object"
+            ),
+            "_decimal": pd.Series(
+                [Decimal("11.23"), Decimal("44.56789"), None], dtype="object"
+            ),
             "_time": pd.Series(
-                ["00:00:00.000000123", "23:59:59.123456789", None], dtype="timedelta64[ns]"
+                ["00:00:00.000000123", "23:59:59.123456789", None],
+                dtype="timedelta64[ns]",
             ),
             "_date": pd.Series(
                 [
@@ -60,29 +65,35 @@ def sample():
                 dtype="datetime64[ns]",
             ),
             "_datetime": pd.Series(
-                ['1900-01-01 00:00:00.008', '1900-01-01 00:00:00.009', None], dtype="datetime64[ns]"
+                ["1900-01-01 00:00:00.008", "1900-01-01 00:00:00.009", None],
+                dtype="datetime64[ns]",
             ),
             "_datetimeoffset": pd.Series(
-                ['1900-01-01 00:00:00.123456789+10:30', '1900-01-01 00:00:00.12-9:15', None], dtype="object"
+                [
+                    "1900-01-01 00:00:00.123456789+10:30",
+                    "1900-01-01 00:00:00.12-9:15",
+                    None,
+                ],
+                dtype="object",
             ),
             "_datetime2": pd.Series(
                 [pd.Timestamp.min, pd.Timestamp.max, None], dtype="datetime64[ns]"
             ),
-            "_char": pd.Series(['a', 'b', None], dtype='string'),
-            "_nchar": pd.Series(['い', 'え', None], dtype='string'),
+            "_char": pd.Series(["a", "b", None], dtype="string"),
+            "_nchar": pd.Series(["い", "え", None], dtype="string"),
             "_varchar": pd.Series(["a", "bbb", None], dtype="string"),
-            "_nvarchar": pd.Series(['い','いえ', None], dtype="string"),
+            "_nvarchar": pd.Series(["い", "いえ", None], dtype="string"),
         }
     )
 
     # add min and max values from conversion_rules
     # Index=4: min value
     # Index=5: max value
-    extremes = conversion_rules.rules[['sql_type', 'min_value', 'max_value']].copy()
-    extremes['sql_type'] = '_'+extremes['sql_type']
+    extremes = conversion_rules.rules[["sql_type", "min_value", "max_value"]].copy()
+    extremes["sql_type"] = "_" + extremes["sql_type"]
     extremes = extremes.T
-    extremes.columns = extremes.loc['sql_type']
-    extremes = extremes.drop('sql_type')
+    extremes.columns = extremes.loc["sql_type"]
+    extremes = extremes.drop("sql_type")
     extremes.dtypes
     extremes = extremes.astype(dataframe.dtypes)
     extremes = extremes.replace([-inf, inf], pd.NA)
@@ -108,7 +119,7 @@ def sample():
         "_nvarchar": "NVARCHAR(2)",
     }
 
-    return {'dataframe': dataframe, 'columns': columns}
+    return {"dataframe": dataframe, "columns": columns}
 
 
 def check_expected_warnings(caplog):
@@ -151,11 +162,11 @@ def check_expected_warnings(caplog):
 
 def test_insert(sql, sample, caplog):
 
-    table_name = '##test_supported_dtypes_insert'
+    table_name = "##test_supported_dtypes_insert"
 
-    sql.create.table(table_name, sample['columns'])
+    sql.create.table(table_name, sample["columns"])
 
-    df = sql.insert.insert(table_name, sample['dataframe'])
+    df = sql.insert.insert(table_name, sample["dataframe"])
     caplog = check_expected_warnings(caplog)
 
     result = sql.read.table(table_name)
@@ -164,16 +175,16 @@ def test_insert(sql, sample, caplog):
 
 def test_update(sql, sample, caplog):
 
-    table_name = '##test_supported_dtypes_update'
+    table_name = "##test_supported_dtypes_update"
 
     # create table with primary key for updating
-    columns = sample['columns']
-    columns['pk'] = 'TINYINT'
-    sql.create.table(table_name, columns, primary_key_column='pk')
+    columns = sample["columns"]
+    columns["pk"] = "TINYINT"
+    sql.create.table(table_name, columns, primary_key_column="pk")
 
     # add primary key to dataframe for updating then insert
-    base = sample['dataframe'].copy()
-    base.index.name = 'pk'
+    base = sample["dataframe"].copy()
+    base.index.name = "pk"
     _ = sql.insert.insert(table_name, base)
     caplog = check_expected_warnings(caplog)
 
@@ -188,16 +199,16 @@ def test_update(sql, sample, caplog):
 
 def test_merge(sql, sample, caplog):
 
-    table_name = '##test_supported_dtypes_merge'
+    table_name = "##test_supported_dtypes_merge"
 
     # create table with primary key for merging
-    columns = sample['columns']
-    columns['pk'] = 'TINYINT'
-    sql.create.table(table_name, columns, primary_key_column='pk')
+    columns = sample["columns"]
+    columns["pk"] = "TINYINT"
+    sql.create.table(table_name, columns, primary_key_column="pk")
 
     # add primary key to dataframe for merging then insert
-    base = sample['dataframe'].copy()
-    base.index.name = 'pk'
+    base = sample["dataframe"].copy()
+    base.index.name = "pk"
     _ = sql.insert.insert(table_name, base)
     caplog = check_expected_warnings(caplog)
 

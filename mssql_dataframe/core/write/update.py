@@ -36,9 +36,9 @@ class update(insert):
         >>> create.table(
         ... '##ExampleUpdateDF',
         ... {
-        ...     '_index': 'CHAR(3)', 'ColumnA': 'TINYINT', 'ColumnB': 'TINYINT', 
+        ...     '_index': 'CHAR(3)', 'ColumnA': 'TINYINT', 'ColumnB': 'TINYINT',
         ...     'ColumnC': 'TINYINT', 'ColumnD': 'DATE', 'ColumnE': 'CHAR(1)'
-        ... }, 
+        ... },
         ... primary_key_column = '_index'
         ... )
         >>> df = pd.DataFrame(

@@ -19,7 +19,7 @@ def sql():
     cursor = db.connection.cursor()
 
     # create table
-    create = f"""
+    create = """
     CREATE TABLE ##test_conversion_error (
     id BIGINT PRIMARY KEY,
     _bit BIT
@@ -35,14 +35,16 @@ def test_larger_sql_range():
     # error for a time value outside of allowed range
     with pytest.raises(ValueError):
         conversion.prepare_values(
-            pd.DataFrame(['time'], columns=['sql_type'], index=['ColumnA']), 
-            pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]})
+            pd.DataFrame(["time"], columns=["sql_type"], index=["ColumnA"]),
+            pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]}),
         )
 
 
 def test_read_values_errors(sql):
 
-    schema, _ = conversion.get_schema(connection=sql, table_name="##test_conversion_error")
+    schema, _ = conversion.get_schema(
+        connection=sql, table_name="##test_conversion_error"
+    )
     # error for a column missing in schema definition
     with pytest.raises(AttributeError):
         conversion.read_values(

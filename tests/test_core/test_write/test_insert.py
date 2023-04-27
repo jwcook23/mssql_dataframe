@@ -1,6 +1,5 @@
 import env
 import logging
-from decimal import Decimal
 
 import pytest
 import pandas as pd

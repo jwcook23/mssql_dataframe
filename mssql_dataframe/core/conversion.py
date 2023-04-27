@@ -49,7 +49,7 @@ def get_schema(
     except ValueError as err:
         if err.args[0].startswith("not enough values to unpack"):
             schema_name = None
-        else:
+        else:  # pragma: no cover
             raise
     if table_name.startswith("#"):
         catalog = "tempdb"
@@ -105,7 +105,7 @@ def get_schema(
     schema[["column_name", "sql_type"]] = schema[["column_name", "sql_type"]].astype(
         "string"
     )
-    schema['decimal_digits'] = schema['decimal_digits'].fillna(0).astype('int64')
+    schema["decimal_digits"] = schema["decimal_digits"].fillna(0).astype("int64")
     schema["is_nullable"] = schema["is_nullable"] == "YES"
     schema["ss_is_identity"] = schema["ss_is_identity"] == 1
 
@@ -182,7 +182,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
     # convert dataframe based on SQL type
     try:
         dataframe = dataframe.astype(schema["pandas_type"].to_dict())
-    except TypeError:
+    except TypeError:  # pragma: no cover
         raise custom_errors.DataframeColumnInvalidValue(
             "Dataframe columns cannot be converted based on their SQL data type"
         )
@@ -197,7 +197,7 @@ def _precheck_dataframe(schema: pd.DataFrame, dataframe: pd.DataFrame) -> pd.Dat
 
 
 def convert_largest_sql_category(dataframe, schema):
-
+    """Convert objects to allow for comparison without truncation."""
     # avoids downcast such as UInt8 value of 10000 to 16
     convert = dataframe.columns[dataframe.dtypes == "object"]
     try:
@@ -209,25 +209,27 @@ def convert_largest_sql_category(dataframe, schema):
         dataframe[columns] = dataframe[columns].astype("float")
         dataframe[columns] = dataframe[columns].astype("Int64")
         # approximate_decimal_numeric
-        columns = convert[schema.loc[convert, "sql_category"] == "approximate_decimal_numeric"]
+        columns = convert[
+            schema.loc[convert, "sql_category"] == "approximate_decimal_numeric"
+        ]
         dataframe[columns] = dataframe[columns].astype("float64")
         # date_time
         columns = convert[
-            (schema.loc[convert, "sql_category"] == "date_time") & 
-            (schema.loc[convert, "sql_type"] != "datetimeoffset")
+            (schema.loc[convert, "sql_category"] == "date_time")
+            & (schema.loc[convert, "sql_type"] != "datetimeoffset")
         ]
         dataframe[columns] = dataframe[columns].astype("datetime64")
         # datetime offset
         columns = convert[
-            (schema.loc[convert, "sql_category"] == "date_time") & 
-            (schema.loc[convert, "sql_type"] == "datetimeoffset")
+            (schema.loc[convert, "sql_category"] == "date_time")
+            & (schema.loc[convert, "sql_type"] == "datetimeoffset")
         ]
         for col in columns:
             dataframe[col] = dataframe[col].apply(lambda x: pd.Timestamp(x))
         # character string
         columns = convert[schema.loc[convert, "sql_category"] == "character string"]
         dataframe[columns] = dataframe[columns].astype("string")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):  # pragma: no cover
         raise custom_errors.DataframeColumnInvalidValue(
             "Dataframe columns cannot be converted based on their SQL data type",
             list(columns),
@@ -237,24 +239,29 @@ def convert_largest_sql_category(dataframe, schema):
 
 
 def check_column_size(dataframe, schema):
-
+    """Raise exception if dataframe value is too large for SQL data type specification."""
     check = dataframe.copy()
     strings = check.columns[check.dtypes == "string"]
     if any(strings):
         schema.loc[strings, "max_value"] = schema.loc[strings, "column_size"]
         check[strings] = check[strings].apply(lambda x: x.str.len())
-    datetimeoffset = schema.index[schema['sql_type'] == 'datetimeoffset']
+    datetimeoffset = schema.index[schema["sql_type"] == "datetimeoffset"]
     standard = check.drop(columns=datetimeoffset)
-    if len(standard.columns)==0:
-        check = pd.DataFrame(columns=['min','max'])
+    if len(standard.columns) == 0:  # pragma: no cover
+        check = pd.DataFrame(columns=["min", "max"])
     else:
         check = standard.agg([min, max]).transpose()
     # calculate min/max for object pd.Timestamp seperately
     for col in datetimeoffset:
-        check = pd.concat([
-            check,
-            pd.DataFrame({'min': min(dataframe[col]), 'max': max(dataframe[col])}, index=[col])
-        ])
+        check = pd.concat(
+            [
+                check,
+                pd.DataFrame(
+                    {"min": min(dataframe[col]), "max": max(dataframe[col])},
+                    index=[col],
+                ),
+            ]
+        )
     check = check.merge(
         schema[["min_value", "max_value"]], left_index=True, right_index=True
     )
@@ -262,7 +269,7 @@ def check_column_size(dataframe, schema):
         invalid = check[
             (check["min"] < check["min_value"]) | (check["max"] > check["max_value"])
         ]
-    except TypeError:
+    except TypeError:  # pragma: no cover
         raise custom_errors.DataframeColumnInvalidValue(
             "Dataframe columns cannot be converted based on their SQL data type"
         )
@@ -279,8 +286,8 @@ def check_column_size(dataframe, schema):
 
 
 def contains_unicode(series: pd.Series):
-    """Determine if a string contains unicode
-    
+    """Determine if a string contains unicode.
+
     Parameters
     ----------
     series (pandas.Series) : data to check
@@ -290,14 +297,8 @@ def contains_unicode(series: pd.Series):
     check (bool) : True if series contains unicode
 
     """
-    
     pre = series.str.len()
-    post = (
-        series
-        .str.encode("ascii", errors="ignore")
-        .str.len()
-        .astype("Int64")
-    )
+    post = series.str.encode("ascii", errors="ignore").str.len().astype("Int64")
     # check if encodidng removes characeters
     check = pre.ne(post).any()
 
@@ -305,8 +306,8 @@ def contains_unicode(series: pd.Series):
 
 
 def check_unicode(dataframe, schema):
-
-    columns = schema[schema['sql_type'].isin(['char','varchar'])].index
+    """Raise error if string contains unicode for SQL char/varchar column."""
+    columns = schema[schema["sql_type"].isin(["char", "varchar"])].index
     for col in columns:
         if contains_unicode(dataframe[col]):
             raise custom_errors.SQLNonUnicodeTypeColumn
@@ -335,7 +336,7 @@ def prepare_cursor(
             "max_value",
             "sql_category",
             "sql_type",
-            "odbc_type"
+            "odbc_type",
         ]
     ]
 
@@ -355,10 +356,9 @@ def prepare_cursor(
 
 
 def prepare_time(schema, prepped, dataframe):
+    """Prepare time for writting to SQL."""
+    dtype = schema[schema["sql_type"] == "time"].index
 
-    
-    dtype = schema[schema["sql_type"] == 'time'].index
-    
     invalid = (
         (prepped[dtype] >= pd.Timedelta(days=1))
         | (prepped[dtype] < pd.Timedelta(days=0))
@@ -368,7 +368,7 @@ def prepare_time(schema, prepped, dataframe):
         raise ValueError(
             f"columns {invalid} are out of range for SQL TIME data type. Allowable range is 00:00:00.0000000-23:59:59.9999999"
         )
-    
+
     if any(dtype):
         truncation = prepped[dtype].apply(lambda x: any(x.dt.nanoseconds % 100 > 0))
         truncation = list(truncation[truncation].index)
@@ -403,8 +403,8 @@ def prepare_time(schema, prepped, dataframe):
 
 
 def prepare_datetime(schema, prepped, dataframe):
-
-    dtype = schema[schema["sql_type"] == 'datetime'].index
+    """Prepare datetime for writting to SQL."""
+    dtype = schema[schema["sql_type"] == "datetime"].index
     if any(dtype):
         adjust = prepped[dtype].apply(lambda x: any(x.dt.microsecond % 3000 > 0))
     else:
@@ -414,16 +414,20 @@ def prepare_datetime(schema, prepped, dataframe):
         msg = f"Millisecond precision for dataframe columns {adjust} will be rounded as SQL data type 'datetime' rounds to increments of .000, .003, or .007 seconds."
         logger.warning(msg)
         # round millisecond to the 3rd decimal place in approriate increments ...008 -> ..007 for SQL
-        increments = np.array([10,7,3,0]).reshape(-1, 1)
+        increments = np.array([10, 7, 3, 0]).reshape(-1, 1)
         for col in adjust:
-            
-            thousandths = (prepped[col].dt.microsecond / 1000 % 10).to_numpy().reshape(1,-1)
-            thousandths = increments[np.abs(thousandths-increments).argmin(axis=0)]
 
-            milliseconds = prepped[col].dt.microsecond // 10000 * 10 + pd.Series(thousandths[:,0])
-            milliseconds = pd.to_timedelta(milliseconds, unit='milliseconds')
+            thousandths = (
+                (prepped[col].dt.microsecond / 1000 % 10).to_numpy().reshape(1, -1)
+            )
+            thousandths = increments[np.abs(thousandths - increments).argmin(axis=0)]
 
-            rounded = dataframe[col].dt.floor('s') + milliseconds
+            milliseconds = prepped[col].dt.microsecond // 10000 * 10 + pd.Series(
+                thousandths[:, 0], index=prepped.index
+            )
+            milliseconds = pd.to_timedelta(milliseconds, unit="milliseconds")
+
+            rounded = dataframe[col].dt.floor("s") + milliseconds
 
             dataframe[col] = rounded
             prepped[col] = rounded
@@ -438,9 +442,9 @@ def prepare_datetime(schema, prepped, dataframe):
 
 
 def prepare_datetime2(schema, prepped, dataframe):
-    
-    dtype = schema[schema["sql_type"] == 'datetime2'].index
-    
+    """Prepare datetime2 for writting to SQL."""
+    dtype = schema[schema["sql_type"] == "datetime2"].index
+
     if any(dtype):
         truncation = prepped[dtype].apply(lambda x: any(x.dt.nanosecond % 100 > 0))
     else:
@@ -477,42 +481,48 @@ def prepare_datetime2(schema, prepped, dataframe):
 
 
 def prepare_datetimeoffset(schema, prepped, dataframe):
-    
-    dtype = schema[schema["sql_type"] == 'datetimeoffset'].index
-    truncation = pd.Series(dtype='object')
+    """Prepare datetimeoffset for writing to SQL."""
+    dtype = schema[schema["sql_type"] == "datetimeoffset"].index
+    truncation = pd.Series(dtype="object")
     for col in dtype:
         # replace None with pd.NaT
         dataframe[col] = dataframe[col].fillna(pd.NaT)
         # assume +00:00 UTC if time zone is not set
-        dataframe[col] = dataframe[col].apply(lambda x: x.tz_localize('UTC') if x.tzinfo is None else x)
+        dataframe[col] = dataframe[col].apply(
+            lambda x: x.tz_localize("UTC") if x.tzinfo is None else x
+        )
         # apply adjustments to prepped data that will be inserted
         prepped[col] = dataframe[col]
         # check if pandas datatype has greater precision than SQL data type
         # TODO: check need to round/truncate timezoneoffset?
         extra = prepped[col].apply(lambda x: x.nanosecond % 100 > 0).any()
         truncation = pd.concat([truncation, pd.Series(extra, index=[col])])
-                
+
     if any(truncation):
         truncation = list(truncation[truncation].index)
         msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetimeoffset' allows 7 max decimal places."
         logger.warning(msg)
         # round nanosecond to the 7th decimal place ...145224193 -> ...145224200 for SQL
         for col in truncation:
-            rounded = dataframe[col].apply(
-                lambda x: pd.Timestamp(
-                    year=x.year,
-                    month=x.month,
-                    day=x.day,
-                    hour=x.hour,
-                    minute=x.minute,
-                    second=x.second,
-                    microsecond=x.microsecond,
-                    nanosecond=round(x.nanosecond / 100) * 100,
-                    tzinfo=x.tzinfo
+            rounded = (
+                dataframe[col]
+                .apply(
+                    lambda x: pd.Timestamp(
+                        year=x.year,
+                        month=x.month,
+                        day=x.day,
+                        hour=x.hour,
+                        minute=x.minute,
+                        second=x.second,
+                        microsecond=x.microsecond,
+                        nanosecond=round(x.nanosecond / 100) * 100,
+                        tzinfo=x.tzinfo,
+                    )
+                    if pd.notnull(x)
+                    else x
                 )
-                if pd.notnull(x)
-                else x
-            ).fillna(pd.NaT)
+                .fillna(pd.NaT)
+            )
             dataframe[col] = rounded
             prepped[col] = rounded
     if any(dtype):
@@ -522,25 +532,29 @@ def prepare_datetimeoffset(schema, prepped, dataframe):
             prepped[col] = prepped[col].astype("str")
             prepped[col] = prepped[col].replace({"NaT": None})
             # limit to 7 decimal places
-            prepped[col] = prepped[col].str.replace(r'(?<=\.\d{7})00', '', regex=True)
+            prepped[col] = prepped[col].str.replace(r"(?<=\.\d{7})00", "", regex=True)
             # include +00:00 where tzinfo is None
-            prepped[col] = prepped[col].str.replace(r'(?<=\.\d{7})$', '\g<0>+00:00', regex=True)
+            prepped[col] = prepped[col].str.replace(
+                r"(?<=\.\d{7})$", r"\g<0>+00:00", regex=True
+            )
 
     return prepped, dataframe
 
 
 def prepare_numeric(schema, prepped, dataframe):
-    
-    dtype = schema[schema["sql_type"].isin(['numeric','decimal'])].index
+    """Prepare numeric & decimal for writting to SQL."""
+    dtype = schema[schema["sql_type"].isin(["numeric", "decimal"])].index
     for col in dtype:
         # set a common missing value
         dataframe[col] = dataframe[col].replace([pd.NA], None)
-        # round to correct number of decimal digits 
-        decimal_digits = int(schema.at[col, 'decimal_digits'])
-        prepped[col] = dataframe[col].apply(lambda x: round(x, decimal_digits) if pd.notna(x) else x)
+        # round to correct number of decimal digits
+        decimal_digits = int(schema.at[col, "decimal_digits"])
+        prepped[col] = dataframe[col].apply(
+            lambda x: round(x, decimal_digits) if pd.notna(x) else x
+        )
         if not dataframe[col].equals(prepped[col]):
             msg = f"Decimal digits for column [{col}] will be rounded to {decimal_digits} decimal places to fit SQL specification for this column."
-            logger.warning(msg)            
+            logger.warning(msg)
         dataframe[col] = prepped[col]
 
     return prepped, dataframe
@@ -602,14 +616,16 @@ def prepare_values(
 
 
 def convert_time(connection):
-    '''
+    """
+    Convert SQL time to timedelta.
+
     pyodbc "SQL_SS_TIME2" = T-SQL "TIME"
 
     python datetime.time has 6 decimal places of precision and isn't nullable
     pandas Timedelta supports 9 decimal places and is nullable
     SQL TIME only supports 7 decimal places for precision
     SQL TIME range is '00:00:00.0000000' to '23:59:59.9999999' while pandas allows multiple days and negatives
-    '''
+    """
 
     def SQL_SS_TIME2(raw_bytes, pattern=struct.Struct("<4hI")):
         hour, minute, second, _, fraction = pattern.unpack(raw_bytes)
@@ -627,21 +643,23 @@ def convert_time(connection):
 
 
 def convert_timestamp(connection):
-    '''
-    pyodbc "SQL_TYPE_TIMESTAMP" = T-SQL "DATETIME2" or pyodbc "SQL_TYPE_TIMESTAMP" =  T-SQL "DATETIME"
+    """
+    Convert SQL DATETIME2/DATETIME to datetime.
+
+    Types: pyodbc "SQL_TYPE_TIMESTAMP" = T-SQL "DATETIME2" or pyodbc "SQL_TYPE_TIMESTAMP" =  T-SQL "DATETIME"
     python datetime.datetime has 6 decimal places of precision and isn't nullable
     pandas Timestamp supports 9 decimal places and is nullable
     SQL DATETIME2 only supports 7 decimal places for precision
     SQL DATETIME only supports 3 decimal places for precision in rounded increments of .000, .003, or .007 seconds
-    pandas Timestamp range range is '1677-09-21 00:12:43.145225' to '2262-04-11 23:47:16.854775807' 
+    pandas Timestamp range range is '1677-09-21 00:12:43.145225' to '2262-04-11 23:47:16.854775807'
     DATETIME2 allows '0001-01-01' through '9999-12-31'
     DATETIME allows '1753-01-01' through '9999-12-31'
-    '''
+    """
 
     def SQL_TYPE_TIMESTAMP(raw_bytes):
         # DATETIME2 (16 bytes)
-        if len(raw_bytes)==16:
-            pattern=struct.Struct("hHHHHHI")
+        if len(raw_bytes) == 16:
+            pattern = struct.Struct("hHHHHHI")
             year, month, day, hour, minute, second, fraction = pattern.unpack(raw_bytes)
             timestamp = pd.Timestamp(
                 year=year,
@@ -657,11 +675,9 @@ def convert_timestamp(connection):
         else:
             pattern = struct.Struct("iI")
             days, ticks = pattern.unpack(raw_bytes)
-            timestamp = pd.Timestamp(
-                year=1900,
-                month=1,
-                day=1
-            ) + pd.Timedelta(days=days, milliseconds=round(3.33333333*ticks))
+            timestamp = pd.Timestamp(year=1900, month=1, day=1) + pd.Timedelta(
+                days=days, milliseconds=round(3.33333333 * ticks)
+            )
 
         return timestamp
 
@@ -671,29 +687,41 @@ def convert_timestamp(connection):
 
 
 def convert_datetimeoffset(connection):
-    '''
-    pyodbc "UNDEFINED" = T-SQL "DATETIMEOFFSET" = ODBC SQL type "-155"
-    '''
+    """
+    Convert SQL datetimeoffset to datetime with timezone.
+
+    Types: pyodbc "UNDEFINED" = T-SQL "DATETIMEOFFSET" = ODBC SQL type "-155"
+    """
 
     def SQL_TYPE_DATETIMEOFFSET(raw_bytes):
 
-        year, month, day, hour, minute, second, fraction, offset_hour, offset_minute = struct.unpack("<6hI2h", raw_bytes)
+        (
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            fraction,
+            offset_hour,
+            offset_minute,
+        ) = struct.unpack("<6hI2h", raw_bytes)
 
         timestamp = pd.Timestamp(
-                year=year,
-                month=month,
-                day=day,
-                hour=hour,
-                minute=minute,
-                second=second,
-                microsecond=fraction // 1000,
-                nanosecond=fraction % 1000,
-                tzinfo=pytz.FixedOffset(offset_hour*60+offset_minute)
+            year=year,
+            month=month,
+            day=day,
+            hour=hour,
+            minute=minute,
+            second=second,
+            microsecond=fraction // 1000,
+            nanosecond=fraction % 1000,
+            tzinfo=pytz.FixedOffset(offset_hour * 60 + offset_minute),
         )
 
         return timestamp
 
-    connection.add_output_converter(-155, SQL_TYPE_DATETIMEOFFSET) 
+    connection.add_output_converter(-155, SQL_TYPE_DATETIMEOFFSET)
 
     return connection
 
@@ -718,7 +746,6 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
     -------
     connection (pyodbc.connect) : connection with added output converters
     """
-
     connection = convert_time(connection)
     connection = convert_timestamp(connection)
     connection = convert_datetimeoffset(connection)
@@ -825,7 +852,7 @@ def read_values(
     result = pd.DataFrame(result)
 
     # replace missing values in object columns with pandas type
-    datetimeoffset = schema.index[schema['sql_type']=='datetimeoffset']
+    datetimeoffset = schema.index[schema["sql_type"] == "datetimeoffset"]
     result[datetimeoffset] = result[datetimeoffset].fillna(pd.NaT)
 
     # set primary key columns as index

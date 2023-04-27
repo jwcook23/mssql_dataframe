@@ -1,6 +1,6 @@
 black
 flake8
-bandit
+bandit[toml]
 coverage
 pytest
 phmdoctest

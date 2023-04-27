@@ -96,7 +96,7 @@ def check_flake8_style():
 
 def check_bandit_security():
 
-    cmd = ["bandit", "-r", package_name]
+    cmd = ["bandit", "-c", "pyproject.toml", "-r", package_name]
     print(f"Checking security '{' '.join(cmd)}'.")
     _ = run_cmd(cmd)
 

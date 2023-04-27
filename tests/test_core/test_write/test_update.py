@@ -35,9 +35,18 @@ def test_update_primary_key(sql, caplog):
     table_name = "##test_update_primary_key"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
-        index = pd.Series([0, 1], name='_index')
+        index=pd.Series([0, 1], name="_index"),
     )
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'ColumnC': 'TINYINT', '_index': 'TINYINT'}, primary_key_column='_index')
+    sql.create.table(
+        table_name,
+        {
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "ColumnC": "TINYINT",
+            "_index": "TINYINT",
+        },
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -63,9 +72,18 @@ def test_update_override_timestamps(sql, caplog):
     table_name = "##test_update_override_timestamps"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
-        index = pd.Series([0, 1], name='_index')
+        index=pd.Series([0, 1], name="_index"),
     )
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'ColumnC': 'TINYINT', '_index': 'TINYINT'}, primary_key_column='_index')
+    sql.create.table(
+        table_name,
+        {
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "ColumnC": "TINYINT",
+            "_index": "TINYINT",
+        },
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -99,7 +117,9 @@ def test_update_nonpk_column(sql, caplog):
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'ColumnC': 'TINYINT'})
+    sql.create.table(
+        table_name, {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"}
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
@@ -128,7 +148,11 @@ def test_update_two_match_columns(sql, caplog):
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'ColumnC': 'TINYINT'}, sql_primary_key=True)
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"},
+        sql_primary_key=True,
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
@@ -164,8 +188,12 @@ def test_update_composite_pk(sql, caplog):
     table_name = "##test_update_composite_pk"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
-    ).set_index(['ColumnA', 'ColumnB'])
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', 'ColumnC': 'TINYINT'}, primary_key_column=['ColumnA', 'ColumnB'])
+    ).set_index(["ColumnA", "ColumnB"])
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"},
+        primary_key_column=["ColumnA", "ColumnB"],
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA

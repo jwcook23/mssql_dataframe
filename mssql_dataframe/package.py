@@ -64,7 +64,7 @@ class SQLServer(connect):
         driver: str = None,
         username: str = None,
         password: str = None,
-        include_metadata_timestamps: bool = False
+        include_metadata_timestamps: bool = False,
     ):
 
         connect.__init__(self, database, server, driver, username, password)
@@ -77,15 +77,12 @@ class SQLServer(connect):
         self.create = create.create(self.connection, include_metadata_timestamps)
         self.modify = modify.modify(self.connection)
         self.read = read.read(self.connection)
-        self.write = write(
-            self.connection, include_metadata_timestamps
-        )
+        self.write = write(self.connection, include_metadata_timestamps)
 
         # issue warnings for automated functionality
         if include_metadata_timestamps:
             msg = "SQL write operations will include metadata '_time_insert' & '_time_update' columns as 'include_metadata_timestamps=True'."
             logger.warning(msg)
-
 
     def log_init(self):
         """Log connection info and versions for Python, SQL, and required packages."""

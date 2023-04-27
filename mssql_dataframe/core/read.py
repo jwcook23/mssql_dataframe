@@ -53,7 +53,7 @@ class read:
         ...        "ColumnC": ["aa", "b", None],
         ...    }, index = pd.Index(["xxx", "yyy", "zzz"], name='PK')
         ... )
-        >>> create.table('##ExampleRead', 
+        >>> create.table('##ExampleRead',
         ...     {
         ...         'ColumnA': 'TINYINT', 'ColumnB': 'DATETIME2', 'ColumnC': 'VARCHAR(2)', 'PK': 'CHAR(3)'
         ...     },

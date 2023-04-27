@@ -1,5 +1,4 @@
 """Functions for handling exceptions when attempting to write to SQL."""
-from typing import List
 import logging
 
 import pandas as pd
@@ -32,13 +31,7 @@ def add_metadata_timestamps(
     dataframe (pandas.DataFrame) : data to insert that may have been adjust to conform to SQL data types
 
     """
-    # check if specific columns initiated the failure
-    if len(failure.args) > 1:
-        columns = pd.Series(failure.args[1], dtype="string")
-    else:
-        columns = pd.Series([], dtype="string")
-
-    # add include_metadata_timestamps columns if needed
+    columns = pd.Series(failure.args[1], dtype="string")
     include_metadata_timestamps = ["_time_insert", "_time_update"]
     if isinstance(failure, custom_errors.SQLColumnDoesNotExist) and all(
         columns.isin(include_metadata_timestamps)

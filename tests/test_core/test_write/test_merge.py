@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_errors, create, conversion
+from mssql_dataframe.core import create, conversion
 from mssql_dataframe.core.write import insert, merge
 from mssql_dataframe.__equality__ import compare_dfs
 
@@ -31,8 +31,14 @@ def sql():
 def test_merge_upsert(sql, caplog):
 
     table_name = "##test_merge_upsert"
-    dataframe = pd.DataFrame({"ColumnA": [3, 4]}, index=pd.Series([0, 1], name='_index'))
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', '_index': 'TINYINT'}, primary_key_column='_index')
+    dataframe = pd.DataFrame(
+        {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
+    )
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "_index": "TINYINT"},
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete, but keep in SQL since upserting
@@ -66,8 +72,14 @@ def test_merge_upsert(sql, caplog):
 def test_merge_one_match_column(sql, caplog):
 
     table_name = "##test_merge_one_match_column"
-    dataframe = pd.DataFrame({"ColumnA": [3, 4]}, index = pd.Series([0, 1], name='_index'))
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', '_index': 'TINYINT'}, primary_key_column='_index')
+    dataframe = pd.DataFrame(
+        {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
+    )
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "_index": "TINYINT"},
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete
@@ -112,8 +124,14 @@ def test_merge_one_match_column(sql, caplog):
 def test_merge_override_timestamps(sql, caplog):
 
     table_name = "##test_merge_override_timestamps"
-    dataframe = pd.DataFrame({"ColumnA": [3, 4]}, index = pd.Series([0, 1], name='_index'))
-    sql.create.table(table_name, {'ColumnA': 'TINYINT', '_index': 'TINYINT'}, primary_key_column='_index')
+    dataframe = pd.DataFrame(
+        {"ColumnA": [3, 4]}, index=pd.Series([0, 1], name="_index")
+    )
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "_index": "TINYINT"},
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # update
@@ -151,9 +169,18 @@ def test_merge_two_match_columns(sql, caplog):
     table_name = "##test_merge_two_match_columns"
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]},
-        index = pd.Series([0, 1], name='_index')
+        index=pd.Series([0, 1], name="_index"),
     )
-    sql.create.table(table_name, {'State': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', '_index': 'TINYINT'}, primary_key_column='_index')
+    sql.create.table(
+        table_name,
+        {
+            "State": "CHAR(1)",
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "_index": "TINYINT",
+        },
+        primary_key_column="_index",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete
@@ -206,7 +233,9 @@ def test_merge_non_pk_column(sql, caplog):
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
     )
-    sql.create.table(table_name, {'State': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)'})
+    sql.create.table(
+        table_name, {"State": "CHAR(1)", "ColumnA": "TINYINT", "ColumnB": "CHAR(1)"}
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete
@@ -258,7 +287,11 @@ def test_merge_composite_pk(sql, caplog):
     dataframe = pd.DataFrame(
         {"State": ["A", "B"], "ColumnA": [3, 4], "ColumnB": ["a", "b"]}
     ).set_index(keys=["State", "ColumnA"])
-    sql.create.table(table_name, {'State': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)'}, primary_key_column=["State", "ColumnA"])
+    sql.create.table(
+        table_name,
+        {"State": "CHAR(1)", "ColumnA": "TINYINT", "ColumnB": "CHAR(1)"},
+        primary_key_column=["State", "ColumnA"],
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete
@@ -293,9 +326,18 @@ def test_merge_one_delete_condition(sql, caplog):
     table_name = "##test_merge_one_delete_condition"
     dataframe = pd.DataFrame(
         {"State": ["A", "B", "B"], "ColumnA": [3, 4, 4], "ColumnB": ["a", "b", "b"]},
-        index=pd.Series([0, 1, 2], name='_pk'),
+        index=pd.Series([0, 1, 2], name="_pk"),
     )
-    sql.create.table(table_name, {'State': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', '_pk': 'TINYINT'}, primary_key_column="_pk")
+    sql.create.table(
+        table_name,
+        {
+            "State": "CHAR(1)",
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "_pk": "TINYINT",
+        },
+        primary_key_column="_pk",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete 2 records
@@ -358,9 +400,19 @@ def test_merge_two_delete_requires(sql, caplog):
             "ColumnA": [3, 4, 4],
             "ColumnB": ["a", "b", "b"],
         },
-        index=pd.Series([0, 1, 2], name='_pk'),
+        index=pd.Series([0, 1, 2], name="_pk"),
     )
-    sql.create.table(table_name, {'State1': 'CHAR(1)', 'State2': 'CHAR(1)', 'ColumnA': 'TINYINT', 'ColumnB': 'CHAR(1)', '_pk': 'TINYINT'}, primary_key_column="_pk")
+    sql.create.table(
+        table_name,
+        {
+            "State1": "CHAR(1)",
+            "State2": "CHAR(1)",
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "_pk": "TINYINT",
+        },
+        primary_key_column="_pk",
+    )
     dataframe = sql.insert.insert(table_name, dataframe)
 
     # delete 2 records

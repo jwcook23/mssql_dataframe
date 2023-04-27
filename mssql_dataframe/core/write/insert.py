@@ -26,7 +26,6 @@ class insert:
         self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
 
-
         # create temporary tables for upsert/merging
         self._create = create.create(connection)
 
@@ -135,12 +134,7 @@ class insert:
 
         return schema, dataframe
 
-
-    def _column_spec(
-            self,
-            schema: pd.DataFrame,
-            columns: list
-    ) -> dict:
+    def _column_spec(self, schema: pd.DataFrame, columns: list) -> dict:
         """Generate dictionary mapping of column name to SQL data type and specifications.
 
         Parameters
@@ -151,31 +145,36 @@ class insert:
         -------
         dtypes (dict) : dictionary mapping of each column name to SQL data type and specifications
         """
-
         # select only columns present in dataframe to prevent updating with nulls
-        dtypes = schema.loc[columns, ["sql_category", "sql_type", "column_size", "decimal_digits"]]
-        dtypes = dtypes.astype('string')
+        dtypes = schema.loc[
+            columns, ["sql_category", "sql_type", "column_size", "decimal_digits"]
+        ]
+        dtypes = dtypes.astype("string")
 
         # add byte size for string columns
-        idx = dtypes[dtypes["sql_category"]=='character string'].index
+        idx = dtypes[dtypes["sql_category"] == "character string"].index
         dtypes.loc[idx, "sql_type"] = (
             dtypes.loc[idx, "sql_type"] + "(" + dtypes.loc[idx, "column_size"] + ")"
         )
 
         # add precision and scale for exact decimal numerics
-        idx = dtypes[dtypes["sql_category"]=='exact_decimal_numeric'].index
+        idx = dtypes[dtypes["sql_category"] == "exact_decimal_numeric"].index
         dtypes.loc[idx, "sql_type"] = (
-            dtypes.loc[idx, "sql_type"] +"(" + dtypes.loc[idx, "column_size"] +","+ dtypes.loc[idx, "decimal_digits"] +")"
+            dtypes.loc[idx, "sql_type"]
+            + "("
+            + dtypes.loc[idx, "column_size"]
+            + ","
+            + dtypes.loc[idx, "decimal_digits"]
+            + ")"
         )
 
         # avoid creating an int identify data type column for a source table
-        dtypes['sql_type'] = dtypes['sql_type'].replace('int identity', 'int')
+        dtypes["sql_type"] = dtypes["sql_type"].replace("int identity", "int")
 
         # convert to dictionary of column name : data type
         dtypes = dtypes["sql_type"].to_dict()
 
         return dtypes
-
 
     def _source_table(
         self,

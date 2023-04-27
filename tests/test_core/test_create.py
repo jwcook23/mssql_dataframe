@@ -1,5 +1,4 @@
 import env
-import logging
 
 from datetime import datetime
 
@@ -9,7 +8,6 @@ import pyodbc
 
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import conversion, create
-from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -51,68 +49,136 @@ def sample():
 
 @pytest.fixture(scope="module")
 def validation():
-    
-    expected = pd.DataFrame.from_records([
-        {
-            "column_name": "_index", "sql_type": "tinyint", "is_nullable": False,
-            "ss_is_identity": False, "pk_seq": 1, "pandas_type": "UInt8",
-            "odbc_type": pyodbc.SQL_TINYINT, "odbc_size": 1, "odbc_precision": 0
-        },
-        {
-            "column_name": "_pk", "sql_type": "int identity", "is_nullable": False,
-            "ss_is_identity": True, "pk_seq": 1, "pandas_type": "Int32",
-            "odbc_type": pyodbc.SQL_INTEGER, "odbc_size": 4, "odbc_precision": 0
-        },
-        {
-            "column_name": "_char", "sql_type": "char", "is_nullable": True,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "string",
-            "odbc_type": pyodbc.SQL_CHAR, "odbc_size": 0, "odbc_precision": 0
-        },
-        {
-            "column_name": "_tinyint", "sql_type": "tinyint", "is_nullable": True,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "UInt8",
-            "odbc_type": pyodbc.SQL_TINYINT, "odbc_size": 1, "odbc_precision": 0
-        },
-        {
-            "column_name": "_smallint", "sql_type": "smallint", "is_nullable": False,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "Int16",
-            "odbc_type": pyodbc.SQL_SMALLINT, "odbc_size": 2, "odbc_precision": 0
-        },
-        {
-            "column_name": "_int", "sql_type": "int", "is_nullable": False,
-            "ss_is_identity": False, "pk_seq":pd.NA, "pandas_type": "Int32",
-            "odbc_type": pyodbc.SQL_INTEGER, "odbc_size": 4, "odbc_precision": 0
-        },
-        {
-            "column_name": "_bigint", "sql_type": "bigint", "is_nullable": True,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "Int64",
-            "odbc_type": pyodbc.SQL_BIGINT, "odbc_size": 8, "odbc_precision": 0
-        },
-        {
-            "column_name": "_float", "sql_type": "float", "is_nullable": False,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "float64",
-            "odbc_type": pyodbc.SQL_FLOAT, "odbc_size": 8, "odbc_precision": 53
-        },
-        {
-            "column_name": "_time", "sql_type": "time", "is_nullable": False,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "timedelta64[ns]",
-            "odbc_type": pyodbc.SQL_SS_TIME2, "odbc_size": 16, "odbc_precision": 7
-        },
-        {
-            "column_name": "_datetime", "sql_type": "datetime2", "is_nullable": True,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "datetime64[ns]",
-            "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP, "odbc_size": 27, "odbc_precision": 7
-        },
-        {
-            "column_name": "_empty", "sql_type": "nvarchar", "is_nullable": True,
-            "ss_is_identity": False, "pk_seq": pd.NA, "pandas_type": "string",
-            "odbc_type": pyodbc.SQL_WVARCHAR, "odbc_size": 0, "odbc_precision": 0
-        },
-    ])
 
-    columns = ['column_name', 'sql_type', 'pandas_type']
-    expected[columns] = expected[columns].astype('string')
-    expected[['pk_seq']] = expected[['pk_seq']].astype('Int64')
+    expected = pd.DataFrame.from_records(
+        [
+            {
+                "column_name": "_index",
+                "sql_type": "tinyint",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": 1,
+                "pandas_type": "UInt8",
+                "odbc_type": pyodbc.SQL_TINYINT,
+                "odbc_size": 1,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_pk",
+                "sql_type": "int identity",
+                "is_nullable": False,
+                "ss_is_identity": True,
+                "pk_seq": 1,
+                "pandas_type": "Int32",
+                "odbc_type": pyodbc.SQL_INTEGER,
+                "odbc_size": 4,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_char",
+                "sql_type": "char",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "string",
+                "odbc_type": pyodbc.SQL_CHAR,
+                "odbc_size": 0,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_tinyint",
+                "sql_type": "tinyint",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "UInt8",
+                "odbc_type": pyodbc.SQL_TINYINT,
+                "odbc_size": 1,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_smallint",
+                "sql_type": "smallint",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int16",
+                "odbc_type": pyodbc.SQL_SMALLINT,
+                "odbc_size": 2,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_int",
+                "sql_type": "int",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int32",
+                "odbc_type": pyodbc.SQL_INTEGER,
+                "odbc_size": 4,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_bigint",
+                "sql_type": "bigint",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int64",
+                "odbc_type": pyodbc.SQL_BIGINT,
+                "odbc_size": 8,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_float",
+                "sql_type": "float",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "float64",
+                "odbc_type": pyodbc.SQL_FLOAT,
+                "odbc_size": 8,
+                "odbc_precision": 53,
+            },
+            {
+                "column_name": "_time",
+                "sql_type": "time",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "timedelta64[ns]",
+                "odbc_type": pyodbc.SQL_SS_TIME2,
+                "odbc_size": 16,
+                "odbc_precision": 7,
+            },
+            {
+                "column_name": "_datetime",
+                "sql_type": "datetime2",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "datetime64[ns]",
+                "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,
+                "odbc_size": 27,
+                "odbc_precision": 7,
+            },
+            {
+                "column_name": "_empty",
+                "sql_type": "nvarchar",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "string",
+                "odbc_type": pyodbc.SQL_WVARCHAR,
+                "odbc_size": 0,
+                "odbc_precision": 0,
+            },
+        ]
+    )
+
+    columns = ["column_name", "sql_type", "pandas_type"]
+    expected[columns] = expected[columns].astype("string")
+    expected[["pk_seq"]] = expected[["pk_seq"]].astype("Int64")
 
     expected = expected.set_index("column_name")
 

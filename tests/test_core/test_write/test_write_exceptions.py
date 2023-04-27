@@ -48,11 +48,14 @@ def test_insert_error_insufficent(sql):
     table_name = "##test_insert_error_insufficent"
 
     sql.create.table(
-        table_name, columns={
-            "_smallint": "SMALLINT", 
-            "_char": "CHAR(1)", "_nchar": "NCHAR(1)", 
-            "_varchar": "VARCHAR(1)", "_nvarchar": "NVARCHAR(1)"
-        }
+        table_name,
+        columns={
+            "_smallint": "SMALLINT",
+            "_char": "CHAR(1)",
+            "_nchar": "NCHAR(1)",
+            "_varchar": "VARCHAR(1)",
+            "_nvarchar": "NVARCHAR(1)",
+        },
     )
 
     with pytest.raises(custom_errors.SQLInsufficientColumnSize):
@@ -61,7 +64,7 @@ def test_insert_error_insufficent(sql):
     dtypes = {"_char": "a", "_varchar": "a", "_nchar": "え", "_nvarchar": "え"}
     for col, val in dtypes.items():
         with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-            dataframe = pd.DataFrame({col: [val*3]})
+            dataframe = pd.DataFrame({col: [val * 3]})
             sql.insert.insert(table_name, dataframe=dataframe)
 
 
@@ -69,17 +72,13 @@ def test_unicode_error(sql):
 
     table_name = "##test_unicode_error"
 
-    sql.create.table(
-        table_name, columns={
-            "_char": "CHAR(1)", "_varchar": "VARCHAR(1)"
-        }
-    )
+    sql.create.table(table_name, columns={"_char": "CHAR(1)", "_varchar": "VARCHAR(1)"})
 
     dtypes = {"_char": "え", "_varchar": "え"}
     for col, val in dtypes.items():
         with pytest.raises(custom_errors.SQLNonUnicodeTypeColumn):
             dataframe = pd.DataFrame({col: [val]})
-            sql.insert.insert(table_name, dataframe=dataframe)   
+            sql.insert.insert(table_name, dataframe=dataframe)
 
 
 def test_update_errors(sql):

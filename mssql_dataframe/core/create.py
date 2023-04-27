@@ -1,11 +1,10 @@
 """Methods for creating SQL tables both explicitly and implicitly."""
-from typing import Literal, List, Dict
+from typing import List, Dict
 import logging
 
-import pandas as pd
 import pyodbc
 
-from mssql_dataframe.core import dynamic, conversion
+from mssql_dataframe.core import dynamic
 
 logger = logging.getLogger(__name__)
 
