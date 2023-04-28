@@ -15,7 +15,6 @@ class insert:
         self,
         connection: pyodbc.connect,
         include_metadata_timestamps: bool = False,
-        autoadjust_sql_objects: bool = False,
     ):
         """Class for inserting data into SQL.
 
@@ -23,19 +22,15 @@ class insert:
         ----------
         connection (pyodbc.Connection) : connection for executing statement
         include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update for write operations
-        autoadjust_sql_objects (bool, default=False) : if True, create SQL tables or alter SQL columns if needed
         """
         self._connection = connection
         self.include_metadata_timestamps = include_metadata_timestamps
-        self.autoadjust_sql_objects = autoadjust_sql_objects
 
-        # max attempts for creating/modifing SQL tables
-        # value of 3 will: add include_metadata_timestamps columns and/or add other columns and/or increase column size
-        self._adjust_sql_attempts = 3
-
-        # handle failures if autoadjust_sql_objects==True
-        self._modify = modify.modify(connection)
+        # create temporary tables for upsert/merging
         self._create = create.create(connection)
+
+        # add include_metadata_timestamps if needed
+        self._modify = modify.modify(connection)
 
     def insert(
         self,
@@ -49,7 +44,6 @@ class insert:
         ----------
         table_name (str) : name of table to insert data into
         dataframe (pandas.DataFrame): tabular data to insert
-        include_metadata_timestamps (bool, default=None) : override for the class initialized parameter autoadjust_sql_objects to include _time_insert column
 
         Returns
         -------
@@ -110,42 +104,77 @@ class insert:
         schema (pandas.DataFrame) : table column specifications and conversion rules
         dataframe (pandas.DataFrame) : input dataframe with optimal values and types for inserting into SQL
         """
-        for _ in range(0, self._adjust_sql_attempts + 1):
-            try:
-                # dataframe values converted according to SQL data type
-                schema, dataframe = conversion.get_schema(
-                    self._connection,
-                    table_name,
-                    dataframe,
-                    additional_columns,
-                )
-                break
-            except (
-                custom_errors.SQLTableDoesNotExist,
-                custom_errors.SQLColumnDoesNotExist,
-                custom_errors.SQLInsufficientColumnSize,
-            ) as failure:
-                cursor.rollback()
-                # dataframe values may be converted according to SQL data type
-                dataframe = _exceptions.handle(
-                    failure,
-                    table_name,
-                    dataframe,
-                    updating_table,
-                    self.autoadjust_sql_objects,
-                    self._modify,
-                    self._create,
-                )
-                cursor.commit()
-            except Exception as err:
-                cursor.rollback()
-                raise err
-        else:
-            raise RecursionError(
-                f"adjust_sql_attempts={self._adjust_sql_attempts} reached"
+        try:
+            schema, dataframe = conversion.get_schema(
+                self._connection,
+                table_name,
+                dataframe,
+                additional_columns,
             )
+        except custom_errors.SQLColumnDoesNotExist as failure:
+            # add metadata_timestamps
+            cursor.rollback()
+            dataframe = _exceptions.add_metadata_timestamps(
+                failure,
+                table_name,
+                dataframe,
+                self._modify,
+            )
+            cursor.commit()
+            # retry data insert
+            schema, dataframe = conversion.get_schema(
+                self._connection,
+                table_name,
+                dataframe,
+                additional_columns,
+            )
+        except Exception as err:
+            cursor.rollback()
+            raise err
 
         return schema, dataframe
+
+    def _column_spec(self, schema: pd.DataFrame, columns: list) -> dict:
+        """Generate dictionary mapping of column name to SQL data type and specifications.
+
+        Parameters
+        ----------
+        schema (pandas.DataFrame) : output of get_schema for a table
+
+        Returns
+        -------
+        dtypes (dict) : dictionary mapping of each column name to SQL data type and specifications
+        """
+        # select only columns present in dataframe to prevent updating with nulls
+        dtypes = schema.loc[
+            columns, ["sql_category", "sql_type", "column_size", "decimal_digits"]
+        ]
+        dtypes = dtypes.astype("string")
+
+        # add byte size for string columns
+        idx = dtypes[dtypes["sql_category"] == "character string"].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"] + "(" + dtypes.loc[idx, "column_size"] + ")"
+        )
+
+        # add precision and scale for exact decimal numerics
+        idx = dtypes[dtypes["sql_category"] == "exact_decimal_numeric"].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"]
+            + "("
+            + dtypes.loc[idx, "column_size"]
+            + ","
+            + dtypes.loc[idx, "decimal_digits"]
+            + ")"
+        )
+
+        # avoid creating an int identify data type column for a source table
+        dtypes["sql_type"] = dtypes["sql_type"].replace("int identity", "int")
+
+        # convert to dictionary of column name : data type
+        dtypes = dtypes["sql_type"].to_dict()
+
+        return dtypes
 
     def _source_table(
         self,
@@ -208,12 +237,22 @@ class insert:
         columns = list(dataframe.columns)
         if any(dataframe.index.names):
             columns = list(dataframe.index.names) + columns
-        _, dtypes = conversion.sql_spec(schema.loc[columns], dataframe)
-        dtypes = {k: v.replace("int identity", "int") for k, v in dtypes.items()}
+
+        dtypes = self._column_spec(schema, columns)
+
         not_nullable = list(schema[~schema["is_nullable"]].index)
+
         self._create.table(
             temp_name, dtypes, not_nullable, primary_key_column=match_columns
         )
-        _ = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
+
+        dataframe = self.insert(temp_name, dataframe, include_metadata_timestamps=False)
+
+        # reset match columns that were part of the primary key in the source table
+        # dataframe needs returned in the event values were adjusted but indicies/columns should be the same
+        names = schema.loc[dataframe.index.names, "pk_seq"]
+        extra = names[names.isna()].index.tolist()
+        if any(extra):
+            dataframe = dataframe.reset_index(level=extra)
 
         return schema, dataframe, match_columns, temp_name

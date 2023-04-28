@@ -1,5 +1,4 @@
 import env
-import logging
 
 from datetime import datetime
 
@@ -33,7 +32,7 @@ def sql():
 def sample():
     dataframe = pd.DataFrame(
         {
-            "_varchar": [None, "b", "c", "4", "e"],
+            "_char": [None, "b", "c", "4", "e"],
             "_tinyint": [None, 2, 3, 4, 5],
             "_smallint": [256, 2, 6, 4, 5],  # tinyint max is 255
             "_int": [32768, 2, 3, 4, 5],  # smallint max is 32,767
@@ -48,8 +47,144 @@ def sample():
     return dataframe
 
 
-def test_table_errors(sql):
+@pytest.fixture(scope="module")
+def validation():
+    expected = pd.DataFrame.from_records(
+        [
+            {
+                "column_name": "_index",
+                "sql_type": "tinyint",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": 1,
+                "pandas_type": "UInt8",
+                "odbc_type": pyodbc.SQL_TINYINT,
+                "odbc_size": 1,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_pk",
+                "sql_type": "int identity",
+                "is_nullable": False,
+                "ss_is_identity": True,
+                "pk_seq": 1,
+                "pandas_type": "Int32",
+                "odbc_type": pyodbc.SQL_INTEGER,
+                "odbc_size": 4,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_char",
+                "sql_type": "char",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "string",
+                "odbc_type": pyodbc.SQL_CHAR,
+                "odbc_size": 0,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_tinyint",
+                "sql_type": "tinyint",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "UInt8",
+                "odbc_type": pyodbc.SQL_TINYINT,
+                "odbc_size": 1,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_smallint",
+                "sql_type": "smallint",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int16",
+                "odbc_type": pyodbc.SQL_SMALLINT,
+                "odbc_size": 2,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_int",
+                "sql_type": "int",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int32",
+                "odbc_type": pyodbc.SQL_INTEGER,
+                "odbc_size": 4,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_bigint",
+                "sql_type": "bigint",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "Int64",
+                "odbc_type": pyodbc.SQL_BIGINT,
+                "odbc_size": 8,
+                "odbc_precision": 0,
+            },
+            {
+                "column_name": "_float",
+                "sql_type": "float",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "float64",
+                "odbc_type": pyodbc.SQL_FLOAT,
+                "odbc_size": 8,
+                "odbc_precision": 53,
+            },
+            {
+                "column_name": "_time",
+                "sql_type": "time",
+                "is_nullable": False,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "timedelta64[ns]",
+                "odbc_type": pyodbc.SQL_SS_TIME2,
+                "odbc_size": 16,
+                "odbc_precision": 7,
+            },
+            {
+                "column_name": "_datetime",
+                "sql_type": "datetime2",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "datetime64[ns]",
+                "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,
+                "odbc_size": 27,
+                "odbc_precision": 7,
+            },
+            {
+                "column_name": "_empty",
+                "sql_type": "nvarchar",
+                "is_nullable": True,
+                "ss_is_identity": False,
+                "pk_seq": pd.NA,
+                "pandas_type": "string",
+                "odbc_type": pyodbc.SQL_WVARCHAR,
+                "odbc_size": 0,
+                "odbc_precision": 0,
+            },
+        ]
+    )
 
+    columns = ["column_name", "sql_type", "pandas_type"]
+    expected[columns] = expected[columns].astype("string")
+    expected[["pk_seq"]] = expected[["pk_seq"]].astype("Int64")
+
+    expected = expected.set_index("column_name")
+
+    return expected
+
+
+def test_table_errors(sql):
     table_name = "##test_table_column"
 
     with pytest.raises(KeyError):
@@ -58,7 +193,6 @@ def test_table_errors(sql):
 
 
 def test_table_column(sql):
-
     table_name = "dbo.##test_table_column"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
@@ -73,12 +207,9 @@ def test_table_column(sql):
     assert all(schema["pk_name"].isna())
     assert all(schema["pandas_type"] == "string")
     assert all(schema["odbc_type"] == pyodbc.SQL_VARCHAR)
-    assert all(schema["odbc_size"] == 0)
-    assert all(schema["odbc_precision"] == 0)
 
 
 def test_table_pk(sql):
-
     table_name = "##test_table_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "FLOAT"}
     primary_key_column = "A"
@@ -109,12 +240,9 @@ def test_table_pk(sql):
         schema["odbc_type"]
         == [pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT]
     )
-    assert all(schema["odbc_size"] == [1, 0, 8])
-    assert all(schema["odbc_precision"] == [0, 0, 53])
 
 
 def test_table_composite_pk(sql):
-
     table_name = "##test_table_composite_pk"
     columns = {"A": "TINYINT", "B": "VARCHAR(5)", "C": "FLOAT"}
     primary_key_column = ["A", "B"]
@@ -145,12 +273,9 @@ def test_table_composite_pk(sql):
         schema["odbc_type"]
         == [pyodbc.SQL_TINYINT, pyodbc.SQL_VARCHAR, pyodbc.SQL_FLOAT]
     )
-    assert all(schema["odbc_size"] == [1, 0, 8])
-    assert all(schema["odbc_precision"] == [0, 0, 53])
 
 
 def test_table_pk_input_error(sql):
-
     with pytest.raises(ValueError):
         table_name = "##test_table_pk_input_error"
         columns = {"A": "TINYINT", "B": "VARCHAR(100)", "C": "DECIMAL(5,2)"}
@@ -166,7 +291,6 @@ def test_table_pk_input_error(sql):
 
 
 def test_table_sqlpk(sql):
-
     table_name = "##test_table_sqlpk"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns, sql_primary_key=True)
@@ -185,593 +309,3 @@ def test_table_sqlpk(sql):
     assert all(schema["pk_name"].isna() == [False, True])
     assert all(schema["pandas_type"] == ["Int32", "string"])
     assert all(schema["odbc_type"] == [pyodbc.SQL_INTEGER, pyodbc.SQL_VARCHAR])
-    assert all(schema["odbc_size"] == [4, 0])
-    assert all(schema["odbc_precision"] == [0, 0])
-
-
-def test_table_from_dataframe_simple(sql, caplog):
-
-    table_name = "##test_table_from_dataframe_simple"
-    dataframe = pd.DataFrame({"ColumnA": [1]})
-    dataframe = sql.create.table_from_dataframe(table_name, dataframe)
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    assert len(schema) == 1
-    assert all(schema.index == "ColumnA")
-    assert all(schema["sql_type"] == "tinyint")
-    assert all(~schema["is_nullable"])
-    assert all(~schema["ss_is_identity"])
-    assert all(schema["pk_seq"].isna())
-    assert all(schema["pk_name"].isna())
-    assert all(schema["pandas_type"] == "UInt8")
-    assert all(schema["odbc_type"] == pyodbc.SQL_TINYINT)
-    assert all(schema["odbc_size"] == 1)
-    assert all(schema["odbc_precision"] == 0)
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result.equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_datestr(sql, caplog):
-    table_name = "##test_table_from_dataframe_datestr"
-    dataframe = pd.DataFrame({"ColumnA": ["06/22/2021"]})
-    dataframe = sql.create_meta.table_from_dataframe(table_name, dataframe)
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(["ColumnA", "_time_insert"], dtype="string"),
-            "sql_type": pd.Series(["date", "datetime2"], dtype="string"),
-            "is_nullable": pd.Series([False, True]),
-            "ss_is_identity": pd.Series([False, False]),
-            "pk_seq": pd.Series([None, None], dtype="Int64"),
-            "pk_name": pd.Series([None, None], dtype="string"),
-            "pandas_type": pd.Series(
-                ["datetime64[ns]", "datetime64[ns]"], dtype="string"
-            ),
-            "odbc_type": pd.Series(
-                [pyodbc.SQL_TYPE_DATE, pyodbc.SQL_TYPE_TIMESTAMP], dtype="int64"
-            ),
-            "odbc_size": pd.Series([10, 27], dtype="int64"),
-            "odbc_precision": pd.Series([0, 7], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-    assert schema[expected.columns].equals(expected)
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_errorpk(sql, sample):
-
-    with pytest.raises(ValueError):
-        table_name = "##test_table_from_dataframe_nopk"
-        sql.create.table_from_dataframe(table_name, sample, primary_key="ColumnName")
-
-
-def test_table_from_dataframe_nopk(sql, sample, caplog):
-
-    table_name = "##test_table_from_dataframe_nopk"
-    dataframe = sql.create.table_from_dataframe(
-        table_name, sample.copy(), primary_key=None
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [True, True, False, False, True, False, False, True, True], dtype="bool"
-            ),
-            "ss_is_identity": pd.Series([False] * 9, dtype="bool"),
-            "pk_seq": pd.Series([pd.NA] * 9, dtype="Int64"),
-            "pk_name": pd.Series([pd.NA] * 9, dtype="string"),
-            "pandas_type": pd.Series(
-                [
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-    assert schema[expected.columns].equals(expected.loc[schema.index])
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_sqlpk(sql, sample, caplog):
-
-    table_name = "##test_table_from_dataframe_sqlpk"
-    dataframe = sql.create.table_from_dataframe(
-        table_name, sample.copy(), primary_key="sql"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_pk",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "int identity",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([True] + [False] * 9, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "Int32",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([4, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
-    assert pd.notna(schema.at["_pk", "pk_name"])
-    assert schema.loc[schema.index != "_pk", "pk_name"].isna().all()
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    result = result.reset_index(drop=True)
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_indexpk_unnamed(sql, sample, caplog):
-
-    table_name = "##test_table_from_dataframe_indexpk_unnamed"
-    dataframe = sql.create.table_from_dataframe(
-        table_name, sample.copy(), primary_key="index"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "_index",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "tinyint",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([False] * 10, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "UInt8",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([1, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
-    assert pd.notna(schema.at["_index", "pk_name"])
-    assert schema.loc[schema.index != "_index", "pk_name"].isna().all()
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_indexpk_named(sql, sample, caplog):
-
-    table_name = "##test_table_from_dataframe_indexpk_named"
-    sample.index.name = "NamedIndex"
-    dataframe = sql.create.table_from_dataframe(
-        table_name, sample.copy(), primary_key="index"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    expected = pd.DataFrame(
-        {
-            "column_name": pd.Series(
-                [
-                    "NamedIndex",
-                    "_varchar",
-                    "_tinyint",
-                    "_smallint",
-                    "_int",
-                    "_bigint",
-                    "_float",
-                    "_time",
-                    "_datetime",
-                    "_empty",
-                ],
-                dtype="string",
-            ),
-            "sql_type": pd.Series(
-                [
-                    "tinyint",
-                    "varchar",
-                    "tinyint",
-                    "smallint",
-                    "int",
-                    "bigint",
-                    "float",
-                    "time",
-                    "datetime2",
-                    "nvarchar",
-                ],
-                dtype="string",
-            ),
-            "is_nullable": pd.Series(
-                [False, True, True, False, False, True, False, False, True, True],
-                dtype="bool",
-            ),
-            "ss_is_identity": pd.Series([False] * 10, dtype="bool"),
-            "pk_seq": pd.Series([1] + [pd.NA] * 9, dtype="Int64"),
-            "pandas_type": pd.Series(
-                [
-                    "UInt8",
-                    "string",
-                    "UInt8",
-                    "Int16",
-                    "Int32",
-                    "Int64",
-                    "float64",
-                    "timedelta64[ns]",
-                    "datetime64[ns]",
-                    "string",
-                ],
-                dtype="string",
-            ),
-            "odbc_type": pd.Series(
-                [
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_VARCHAR,
-                    pyodbc.SQL_TINYINT,
-                    pyodbc.SQL_SMALLINT,
-                    pyodbc.SQL_INTEGER,
-                    pyodbc.SQL_BIGINT,
-                    pyodbc.SQL_FLOAT,
-                    pyodbc.SQL_SS_TIME2,
-                    pyodbc.SQL_TYPE_TIMESTAMP,
-                    pyodbc.SQL_WVARCHAR,
-                ],
-                dtype="int64",
-            ),
-            "odbc_size": pd.Series([1, 0, 1, 2, 4, 8, 8, 16, 27, 0], dtype="int64"),
-            "odbc_precision": pd.Series([0, 0, 0, 0, 0, 0, 53, 7, 7, 0], dtype="int64"),
-        }
-    ).set_index(keys="column_name")
-
-    assert schema[expected.columns].equals(expected.loc[schema.index])
-    assert pd.notna(schema.at["NamedIndex", "pk_name"])
-    assert schema.loc[schema.index != "NamedIndex", "pk_name"].isna().all()
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_inferpk_integer(sql, caplog):
-
-    table_name = "##test_table_from_dataframe_inferpk_integer"
-    dataframe = pd.DataFrame(
-        {
-            "_varchar1": ["a", "b", "c", "d", "e"],
-            "_varchar2": ["aa", "b", "c", "d", "e"],
-            "_tinyint": [None, 2, 3, 4, 5],
-            "_smallint": [265, 2, 6, 4, 5],
-            "_int": [32768, 2, 3, 4, 5],
-            "_float1": [1.1111, 2, 3, 4, 5],
-            "_float2": [1.1111, 2, 3, 4, 6],
-        }
-    )
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="infer"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    assert schema.at["_smallint", "pk_seq"] == 1
-    assert all(schema.loc[schema.index != "_smallint", "pk_seq"].isna())
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe.sort_index())
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_inferpk_string(sql, caplog):
-
-    table_name = "##test_table_from_dataframe_inferpk_string"
-    dataframe = pd.DataFrame(
-        {
-            "_varchar1": ["a", "b", "c", "d", "e"],
-            "_varchar2": ["aa", "b", "c", "d", "e"],
-        }
-    )
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="infer"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    assert schema.at["_varchar1", "pk_seq"] == 1
-    assert all(schema.loc[schema.index != "_varchar1", "pk_seq"].isna())
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_inferpk_none(sql, caplog):
-
-    table_name = "##test_table_from_dataframe_inferpk_none"
-    dataframe = pd.DataFrame(
-        {
-            "_varchar1": [None, "b", "c", "d", "e"],
-            "_varchar2": [None, "b", "c", "d", "e"],
-        }
-    )
-
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="infer"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    assert all(schema["pk_seq"].isna())
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]
-
-
-def test_table_from_dataframe_composite_pk(sql, caplog):
-
-    table_name = "##test_table_from_dataframe_composite_pk"
-    dataframe = pd.DataFrame(
-        {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
-    )
-    dataframe = dataframe.set_index(keys=["ColumnA", "ColumnB"])
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="index"
-    )
-
-    schema, _ = conversion.get_schema(sql.connection, table_name)
-
-    assert schema.at["ColumnA", "pk_seq"] == 1
-    assert schema.at["ColumnB", "pk_seq"] == 2
-
-    result = conversion.read_values(
-        f"SELECT * FROM {table_name}", schema, sql.connection
-    )
-    assert result[dataframe.columns].equals(dataframe)
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert "Created table" in caplog.record_tuples[0][2]

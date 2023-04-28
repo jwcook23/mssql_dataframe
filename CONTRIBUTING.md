@@ -20,6 +20,21 @@ Run all terminal commands in the root mssql_dataframe folder.
 
 4. Run tests.
 
+    Run tests for docstrings.
+
+    ```cmd
+    pytest mssql_dataframe --doctest-modules
+    ```
+
+    Generate files for testing markdown files.
+
+    ``` cmd
+    phmdoctest QUICKSTART.md --outfile tests/test_markdown/test_QUICKSTART.py
+    phmdoctest README.md --outfile tests/test_markdown/test_README.py
+    ```
+
+    Run tests for test files.
+
     ``` cmd
     pytest
     ```

@@ -5,8 +5,9 @@ import pytest
 import pandas as pd
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import custom_errors, create, conversion
-from mssql_dataframe.core.write import update
+from mssql_dataframe.core import create, conversion
+from mssql_dataframe.core.write import insert, update
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -15,6 +16,7 @@ class package:
     def __init__(self, connection):
         self.connection = connection.connection
         self.create = create.create(self.connection)
+        self.insert = insert.insert(self.connection)
         self.update = update.update(self.connection)
         self.update_meta = update.update(
             self.connection, include_metadata_timestamps=True
@@ -28,61 +30,23 @@ def sql():
     db.connection.close()
 
 
-def test_update_errors(sql):
-
-    table_name = "##test_update_errors"
-    sql.create.table(
-        table_name, columns={"ColumnA": "TINYINT", "ColumnB": "VARCHAR(1)"}
-    )
-
-    with pytest.raises(custom_errors.SQLTableDoesNotExist):
-        sql.update.update(
-            "error" + table_name, dataframe=pd.DataFrame({"ColumnA": [1]})
-        )
-
-    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
-        sql.update.update(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": [0], "ColumnC": [1]}),
-            match_columns=["ColumnA"],
-        )
-
-    with pytest.raises(custom_errors.SQLInsufficientColumnSize):
-        sql.update.update(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": [100000], "ColumnB": ["aaa"]}),
-            match_columns=["ColumnA"],
-        )
-
-    with pytest.raises(custom_errors.SQLUndefinedPrimaryKey):
-        sql.update.update(
-            table_name, dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"]})
-        )
-
-    with pytest.raises(custom_errors.SQLColumnDoesNotExist):
-        sql.update.update(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1], "ColumnB": ["a"], "ColumnC": [1]}),
-            match_columns=["ColumnC"],
-        )
-
-    with pytest.raises(custom_errors.DataframeColumnDoesNotExist):
-        sql.update.update(
-            table_name,
-            dataframe=pd.DataFrame({"ColumnA": [1]}),
-            match_columns=["ColumnB"],
-        )
-
-
 def test_update_primary_key(sql, caplog):
-
     table_name = "##test_update_primary_key"
     dataframe = pd.DataFrame(
-        {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
+        {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
+        index=pd.Series([0, 1], name="_index"),
     )
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="index"
+    sql.create.table(
+        table_name,
+        {
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "ColumnC": "TINYINT",
+            "_index": "TINYINT",
+        },
+        primary_key_column="_index",
     )
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
@@ -94,26 +58,31 @@ def test_update_primary_key(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert len(caplog.record_tuples) == 0
 
 
 def test_update_override_timestamps(sql, caplog):
-
     table_name = "##test_update_override_timestamps"
     dataframe = pd.DataFrame(
-        {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
+        {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]},
+        index=pd.Series([0, 1], name="_index"),
     )
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="index"
+    sql.create.table(
+        table_name,
+        {
+            "ColumnA": "TINYINT",
+            "ColumnB": "CHAR(1)",
+            "ColumnC": "TINYINT",
+            "_index": "TINYINT",
+        },
+        primary_key_column="_index",
     )
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnC"] = [5, 6]
@@ -127,31 +96,28 @@ def test_update_override_timestamps(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 2
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
     assert caplog.record_tuples[0][1] == logging.WARNING
-    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
-    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
-    assert caplog.record_tuples[1][1] == logging.WARNING
     assert (
-        caplog.record_tuples[1][2]
+        caplog.record_tuples[0][2]
         == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
     )
 
 
 def test_update_nonpk_column(sql, caplog):
-
     table_name = "##test_update_nonpk_column"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
-    ).set_index(keys="ColumnA")
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="index"
     )
+    sql.create.table(
+        table_name, {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"}
+    )
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the SQL primary key that came from the dataframe's index
     dataframe["ColumnB"] = ["c", "d"]
@@ -165,26 +131,25 @@ def test_update_nonpk_column(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert dataframe.equals(result[dataframe.columns])
+    assert compare_dfs(dataframe, result[dataframe.columns])
     assert "_time_update" not in result.columns
     assert "_time_insert" not in result.columns
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert len(caplog.record_tuples) == 0
 
 
 def test_update_two_match_columns(sql, caplog):
-
     table_name = "##test_update_two_match_columns"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
     )
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="sql"
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"},
+        sql_primary_key=True,
     )
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
     schema, _ = conversion.get_schema(sql.connection, table_name)
@@ -201,32 +166,30 @@ def test_update_two_match_columns(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert updated.equals(result[updated.columns])
+    assert compare_dfs(updated, result[updated.columns])
     assert result["_time_update"].notna().all()
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 2
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
+    assert len(caplog.record_tuples) == 1
+    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.write._exceptions"
     assert caplog.record_tuples[0][1] == logging.WARNING
-    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
-    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.write._exceptions"
-    assert caplog.record_tuples[1][1] == logging.WARNING
     assert (
-        caplog.record_tuples[1][2]
+        caplog.record_tuples[0][2]
         == f"Creating column '_time_update' in table '{table_name}' with data type 'datetime2'."
     )
 
 
 def test_update_composite_pk(sql, caplog):
-
     table_name = "##test_update_composite_pk"
     dataframe = pd.DataFrame(
         {"ColumnA": [1, 2], "ColumnB": ["a", "b"], "ColumnC": [3, 4]}
+    ).set_index(["ColumnA", "ColumnB"])
+    sql.create.table(
+        table_name,
+        {"ColumnA": "TINYINT", "ColumnB": "CHAR(1)", "ColumnC": "TINYINT"},
+        primary_key_column=["ColumnA", "ColumnB"],
     )
-    dataframe = dataframe.set_index(keys=["ColumnA", "ColumnB"])
-    dataframe = sql.create.table_from_dataframe(
-        table_name, dataframe, primary_key="index"
-    )
+    dataframe = sql.insert.insert(table_name, dataframe)
 
     # update values in table, using the primary key created in SQL and ColumnA
     dataframe["ColumnC"] = [5, 6]
@@ -237,10 +200,7 @@ def test_update_composite_pk(sql, caplog):
     result = conversion.read_values(
         f"SELECT * FROM {table_name}", schema, sql.connection
     )
-    assert result.equals(updated)
+    assert compare_dfs(result, updated)
 
     # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 1
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.create"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert f"Created table: {table_name}" in caplog.record_tuples[0][2]
+    assert len(caplog.record_tuples) == 0

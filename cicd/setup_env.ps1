@@ -16,7 +16,7 @@ Write-Output "Updating pip to latest version."
 python -m pip install --upgrade pip;
 
 Write-Output "Installing development requirements from '$required'."
-pip install -r $required;
+pip install -r $required --upgrade;
 
 Write-Output "Installing package in editable mode."
 pip install -e .;

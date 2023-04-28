@@ -65,7 +65,6 @@ def pytest_configure(config):
 # create namespace functions for testing docstrings
 @pytest.fixture(autouse=True)
 def add_docstring_namespace(doctest_namespace):
-
     doctest_namespace["pd"] = pandas
 
     sql = SQLServer(env.database, env.server, env.driver, env.username, env.password)

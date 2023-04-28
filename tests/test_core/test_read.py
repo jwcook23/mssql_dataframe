@@ -7,6 +7,7 @@ import pandas as pd
 from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors, create, read
 from mssql_dataframe.core.write import insert
+from mssql_dataframe.__equality__ import compare_dfs
 
 pd.options.mode.chained_assignment = "raise"
 
@@ -20,7 +21,6 @@ class package:
         self.insert = insert.insert(
             self.connection,
             include_metadata_timestamps=False,
-            autoadjust_sql_objects=False,
         )
         self.read = read.read(self.connection)
 
@@ -34,7 +34,6 @@ def sql():
 
 @pytest.fixture(scope="session")
 def sample(sql):
-
     # create table and insert sample data
     sql.create.table(
         table_name,
@@ -67,7 +66,6 @@ def sample(sql):
 
 
 def test_select_errors(sql, sample):
-
     table_name = "##test_select_errors"
     sql.create.table(table_name, columns={"ColumnA": "TINYINT"})
 
@@ -87,7 +85,6 @@ def test_select_errors(sql, sample):
 
 
 def test_undefined_conversion(sql):
-
     table_name = "##test_undefined_conversion"
     columns = {"_geography": "GEOGRAPHY", "_datetimeoffset": "DATETIMEOFFSET(4)"}
     sql.create.table(table_name, columns)
@@ -108,24 +105,21 @@ def test_undefined_conversion(sql):
 
 
 def test_select_all(sql, sample):
-
     dataframe = sql.read.table(table_name)
-    assert dataframe.equals(sample)
+    assert compare_dfs(dataframe, sample)
 
 
 def test_select_columns(sql, sample):
-
     column_names = sample.columns.drop("ColumnB")
     dataframe = sql.read.table(table_name, column_names)
-    assert dataframe[column_names].equals(sample[column_names])
+    assert compare_dfs(dataframe[column_names], sample[column_names])
 
     column_names = "ColumnB"
     dataframe = sql.read.table(table_name, column_names)
-    assert dataframe[[column_names]].equals(sample[[column_names]])
+    assert compare_dfs(dataframe[[column_names]], sample[[column_names]])
 
 
 def test_select_where(sql, sample):
-
     # basic test
     column_names = ["ColumnB", "ColumnC", "ColumnD"]
     dataframe = sql.read.table(
@@ -135,7 +129,7 @@ def test_select_where(sql, sample):
     )
     query = "(ColumnB>5 and ColumnC.notnull()) or ColumnD.isnull()"
     assert all(dataframe.columns.isin(column_names))
-    assert dataframe.equals(sample[dataframe.columns].query(query))
+    assert compare_dfs(dataframe, sample[dataframe.columns].query(query))
 
     # test multi-length operators and string literal
     column_names = ["ColumnB", "ColumnC", "ColumnD", "ColumnE"]
@@ -146,26 +140,25 @@ def test_select_where(sql, sample):
     )
     query = "(ColumnB>=5 and ColumnE!='a')"
     assert all(dataframe.columns.isin(column_names))
-    assert dataframe.equals(sample[dataframe.columns].query(query))
+    assert compare_dfs(dataframe, sample[dataframe.columns].query(query))
 
 
 def test_select_limit(sql, sample):
-
     dataframe = sql.read.table(table_name, limit=1)
     assert dataframe.shape[0] == 1
-    assert dataframe.equals(sample.loc[[dataframe.index[0]]])
+    assert compare_dfs(dataframe, sample.loc[[dataframe.index[0]]])
 
 
 def test_select_order(sql, sample):
-
     dataframe = sql.read.table(
         table_name,
         column_names=["ColumnB"],
         order_column="ColumnA",
         order_direction="DESC",
     )
-    assert dataframe.equals(
+    assert compare_dfs(
+        dataframe,
         sample[["ColumnB"]].sort_values(
             by="ColumnB", ascending=False, na_position="first"
-        )
+        ),
     )

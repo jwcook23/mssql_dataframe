@@ -1,60 +1,28 @@
 import env
-import logging
 
 import pandas as pd
 
 import pytest
-import pyodbc
 
 from mssql_dataframe.connect import connect
-from mssql_dataframe.core import conversion, conversion_rules, dynamic
-from mssql_dataframe import __sample__
+from mssql_dataframe.core import conversion
 
 pd.options.mode.chained_assignment = "raise"
 
 
 @pytest.fixture(scope="module")
-def data():
-    """Sample data for supported data types.
-
-    See Also: mssql_dataframe/__sample__.py
-    """
-
-    df = __sample__.dataframe
-
-    # add id column to guarantee SQL read return order
-    df.index.name = "id"
-    df = df.reset_index()
-    df["id"] = df["id"].astype("Int64")
-
-    return df
-
-
-@pytest.fixture(scope="module")
-def sql(data):
+def sql():
     # create database cursor
     db = connect(env.database, env.server, env.driver, env.username, env.password)
 
     # database cursor
     cursor = db.connection.cursor()
 
-    # column name = dataframe column name, data type = dataframe column name without prefixed underscore
-    create = {x: x[1::].upper() for x in data.columns if x != "id"}
-    # use string lengths to determine string column size
-    create = {
-        k: (v + "(" + str(data[k].str.len().max()) + ")" if v == "VARCHAR" else v)
-        for k, v in create.items()
-    }
-    create = {
-        k: (v + "(" + str(data[k].str.len().max()) + ")" if v == "NVARCHAR" else v)
-        for k, v in create.items()
-    }
-    # create SQL table, including a primary key for SQL read sorting
-    create = ",\n".join([k + " " + v for k, v in create.items()])
-    create = f"""
-    CREATE TABLE ##test_conversion (
+    # create table
+    create = """
+    CREATE TABLE ##test_conversion_error (
     id BIGINT PRIMARY KEY,
-    {create}
+    _bit BIT
     )"""
     cursor.execute(create)
 
@@ -62,128 +30,30 @@ def sql(data):
     db.connection.close()
 
 
-def test_rules(data):
-
-    # insure conversion rules are fully defined
-    defined = conversion_rules.rules.notna().all()
-    try:
-        assert all(defined)
-    except AssertionError as error:
-        missing = defined[~defined].index.tolist()
-        missing = f"conversion not fully defined for: {missing}"
-        error.args += missing
-
-    # insure sample contains all conversion rules
-    defined = conversion_rules.rules["sql_type"].isin([x[1::] for x in data.columns])
-    try:
-        assert all(defined)
-    except AssertionError as error:
-        missing = conversion_rules.rules.loc[missing, "sql_type"].tolist()
-        missing = f"columns missing from sample dataframe, SQL column names: {missing}"
-        error.args += missing
-
-    # insure sample contains correct pandas types
-    check = pd.Series(data.dtypes, name="sample")
-    check = check.apply(lambda x: x.name)
-    check.index = [x[1::] for x in check.index]
-    check = conversion_rules.rules.merge(check, left_on="sql_type", right_index=True)
-    defined = check["pandas_type"] == check["sample"]
-    try:
-        assert all(defined)
-    except AssertionError as error:
-        missing = check.loc[~defined, "sql_type"].tolist()
-        missing = f"columns with wrong data type in sample dataframe, SQL column names: {missing}"
-        error.args += missing
-
-
-def test_sample(sql, data, caplog):
-
-    # create cursor to perform operations
-    cursor = sql.cursor()
-    cursor.fast_executemany = True
-
-    # get table schema for setting input data types and sizes
-    schema, dataframe = conversion.get_schema(
-        connection=sql, table_name="##test_conversion"
-    )
-
-    # only schema_name.table_name can be specified
-    with pytest.raises(ValueError):
-        conversion.get_schema(
-            connection=sql, table_name="ServerName.dbo.##test_conversion"
-        )
-
-    # dynamic SQL object names
-    table = dynamic.escape(cursor, "##test_conversion")
-    columns = dynamic.escape(cursor, data.columns)
-
-    # prepare values of dataframe for insert
-    dataframe, values = conversion.prepare_values(schema, data)
-
-    # prepare cursor for input data types and sizes
-    cursor = conversion.prepare_cursor(schema, dataframe, cursor)
-
-    # issue insert statement
-    insert = ", ".join(columns)
-    params = ", ".join(["?"] * len(columns))
-    statement = f"""
-    INSERT INTO
-    {table} (
-        {insert}
-    ) VALUES (
-        {params}
-    )
-    """
-    cursor.executemany(statement, values)
-
-    # read data, excluding ID columns that is only to insure sorting
-    columns = ", ".join([x for x in data.columns])
-    statement = f"SELECT {columns} FROM {table} ORDER BY id ASC"
-    result = conversion.read_values(statement, schema, connection=sql)
-
-    # compare result to insert, comparing to dataframe as values may have changed during insert preparation
-    assert result.equals(dataframe.set_index(keys="id"))
-
-    # assert warnings raised by logging after all other tasks
-    assert len(caplog.record_tuples) == 2
-    assert caplog.record_tuples[0][0] == "mssql_dataframe.core.conversion"
-    assert caplog.record_tuples[0][1] == logging.WARNING
-    assert (
-        caplog.record_tuples[0][2]
-        == "Nanosecond precision for dataframe columns ['_time'] will be rounded as SQL data type 'time' allows 7 max decimal places."
-    )
-    assert caplog.record_tuples[1][0] == "mssql_dataframe.core.conversion"
-    assert caplog.record_tuples[1][1] == logging.WARNING
-    assert (
-        caplog.record_tuples[1][2]
-        == "Nanosecond precision for dataframe columns ['_datetime2'] will be rounded as SQL data type 'datetime2' allows 7 max decimal places."
-    )
-
-
-def test_prepare_values_errors():
-
-    schema = pd.DataFrame({"odbc_type": pd.Series([pyodbc.SQL_SS_TIME2])})
-    schema.index = ["ColumnA"]
-    dataframe = pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]})
+def test_larger_sql_range():
     # error for a time value outside of allowed range
     with pytest.raises(ValueError):
-        conversion.prepare_values(schema, dataframe)
+        conversion.prepare_values(
+            pd.DataFrame(["time"], columns=["sql_type"], index=["ColumnA"]),
+            pd.DataFrame({"ColumnA": [pd.Timedelta(days=2)]}),
+        )
 
 
 def test_read_values_errors(sql):
-
-    schema, _ = conversion.get_schema(connection=sql, table_name="##test_conversion")
-    # error for a column missingin schema definition
+    schema, _ = conversion.get_schema(
+        connection=sql, table_name="##test_conversion_error"
+    )
+    # error for a column missing in schema definition
     with pytest.raises(AttributeError):
         conversion.read_values(
-            statement="SELECT * FROM ##test_conversion",
+            statement="SELECT * FROM ##test_conversion_error",
             schema=schema[schema.index != "id"],
             connection=sql,
         )
     # error for primary key missing from query statement
     with pytest.raises(KeyError):
         conversion.read_values(
-            statement="SELECT _bit FROM ##test_conversion",
+            statement="SELECT _bit FROM ##test_conversion_error",
             schema=schema,
             connection=sql,
         )

@@ -21,7 +21,6 @@ def sql():
 
 
 def test_column_input_error(sql):
-
     table_name = "##column_input_error"
     columns = {"A": "VARCHAR", "B": "VARCHAR"}
     sql.create.table(table_name, columns)
@@ -32,7 +31,6 @@ def test_column_input_error(sql):
 
 
 def test_column_drop(sql):
-
     table_name = "##column_drop"
     columns = {"A": "VARCHAR", "B": "VARCHAR"}
     sql.create.table(table_name, columns)
@@ -44,7 +42,6 @@ def test_column_drop(sql):
 
 
 def test_column_add(sql):
-
     table_name = "##test_column_add"
     columns = {"A": "VARCHAR"}
     sql.create.table(table_name, columns)
@@ -63,7 +60,6 @@ def test_column_add(sql):
 
 
 def test_column_alter(sql):
-
     table_name = "##test_column_alter"
     columns = {"A": "VARCHAR(10)", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
     sql.create.table(table_name, columns)
@@ -84,7 +80,6 @@ def test_column_alter(sql):
 
 
 def test_primary_key_input_error(sql):
-
     table_name = "##test_primary_key_input_error"
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
     sql.create.table(table_name, columns, not_nullable=["A", "B"])
@@ -96,7 +91,6 @@ def test_primary_key_input_error(sql):
 
 
 def test_primary_key_one_column(sql):
-
     table_name = "##test_primary_key_one_column"
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
     sql.create.table(table_name, columns, not_nullable=["A", "B"])
@@ -116,7 +110,6 @@ def test_primary_key_one_column(sql):
 
 
 def test_primary_key_two_columns(sql):
-
     table_name = "##test_primary_key_two_columns"
     columns = {"A": "INT", "B": "BIGINT", "C": "BIGINT", "D": "BIGINT"}
     sql.create.table(table_name, columns, not_nullable=["A", "B"])
@@ -137,7 +130,6 @@ def test_primary_key_two_columns(sql):
 
 
 def test_alter_primary_key_column(sql):
-
     table_name = "##test_alter_primary_key_column"
     columns = {"_pk": "TINYINT", "A": "VARCHAR(1)"}
     primary_key_column = "_pk"

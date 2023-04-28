@@ -50,7 +50,6 @@ class connect:
         username: str = None,
         password: str = None,
     ):
-
         driver, drivers_installed = self._get_driver(driver)
         self.connection_spec = {
             "database": database,

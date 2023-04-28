@@ -1,11 +1,10 @@
 """Methods for creating SQL tables both explicitly and implicitly."""
-from typing import Literal, List, Dict
+from typing import List, Dict
 import logging
 
-import pandas as pd
 import pyodbc
 
-from mssql_dataframe.core import dynamic, conversion, infer
+from mssql_dataframe.core import dynamic
 
 logger = logging.getLogger(__name__)
 
@@ -212,117 +211,3 @@ class create:
         cursor = self._connection.cursor()
         cursor.execute(statement, args)
         cursor.commit()
-
-    def table_from_dataframe(
-        self,
-        table_name: str,
-        dataframe: pd.DataFrame,
-        primary_key: Literal[None, "sql", "index", "infer"] = None,
-        insert_dataframe: bool = True,
-    ) -> pd.DataFrame:
-        """Create SQL table by inferring SQL create table parameters from the contents of a dataframe.
-
-        The contents can be composed of strings/objects only and converted better data types if conversion is possible within pandas.
-
-        Parameters
-        ----------
-        table_name (str) : name of table to create, may also contain schema name in the form schema_name.table_name
-        dataframe (pandas.DataFrame) : data used to create table
-        primary_key (str, default = None) : method of setting the table's primary key, see below for description of options
-        insert_dataframe (bool, default=True) : insert the dataframe after creating the table
-
-        primary_key = None : do not set a primary key
-        primary_key = 'sql' : create an SQL managed auto-incrementing INT identity primary key column named '_pk'
-        primary_key = 'index' : use the index of the dataframe and it's name, or '_index' if the index is not named
-        primary_key = 'infer' : determine the column in the dataframe that best serves as a primary key and use it's name
-
-        Returns
-        -------
-        dataframe (pandas.DataFrame) : data potentially converted from obejcts/strings to better pandas types
-
-        Examples
-        --------
-        Table without a primary key.
-        >>> df = create.table_from_dataframe('##ExampleCreateDFNoPKTable', pd.DataFrame({"ColumnA": [1]}))
-
-        Table with the dataframe's index as the primary key.
-        >>> df = create.table_from_dataframe('##ExampleCreateDFIndexPKTable', pd.DataFrame({"ColumnA": [1,2]}, index=['a','z']), primary_key='index')
-
-        Table with SQL identity primary key.
-        >>> df = create.table_from_dataframe('##ExampleCreateDFIdentityPKTable', pd.DataFrame({"ColumnA": [1,2]}), primary_key='sql')
-
-        Table using ColumnA as the primary key, after it was inferred to be the primary key.
-        >>> df = create.table_from_dataframe('##ExampleCreateDFInferPKTable', pd.DataFrame({"ColumnA": [1,2], "ColumnB": ["a","b"]}), primary_key='infer')
-        """
-        # determine primary key
-        if primary_key is None:
-            sql_primary_key = False
-            primary_key_column = None
-        elif primary_key == "sql":
-            sql_primary_key = True
-            primary_key_column = None
-        elif primary_key == "index":
-            sql_primary_key = False
-            if not any(dataframe.index.names):
-                dataframe.index.name = "_index"
-            primary_key_column = list(dataframe.index.names)
-            dataframe = dataframe.reset_index()
-        elif primary_key == "infer":
-            sql_primary_key = False
-            primary_key_column = None
-        else:
-            options = [None, "sql", "index", "infer"]
-            raise ValueError("primary_key must be one of: " + str(options))
-
-        # infer SQL specifications from contents of dataframe
-        dataframe, schema, not_nullable, pk = infer.sql(dataframe)
-        _, dtypes = conversion.sql_spec(schema, dataframe)
-
-        # infer primary key column after best fit data types have been determined
-        if primary_key == "infer":
-            primary_key_column = pk
-
-        # add _time_insert column
-        if self.include_metadata_timestamps:
-            dtypes["_time_insert"] = "DATETIME2"
-
-        # create final SQL table
-        self.table(
-            table_name,
-            dtypes,
-            not_nullable=not_nullable,
-            primary_key_column=primary_key_column,
-            sql_primary_key=sql_primary_key,
-        )
-
-        # issue message for derived table
-        pk_name = primary_key_column
-        if sql_primary_key:
-            pk_name = "_pk (SQL managed int identity column)"
-        elif primary_key == "index":
-            pk_name = str(primary_key_column) + " (dataframe index)"
-        elif primary_key_column is not None:
-            pk_name = primary_key_column + " (dataframe column)"
-        else:
-            pk_name = "None"
-        msg = f"""
-        Created table: {table_name}
-        Primary key: {pk_name}
-        Non-null columns: {not_nullable}
-        Data types: {dtypes}
-        """
-        logger.warning(msg)
-
-        # set primary key column as dataframe index
-        if primary_key_column is not None:
-            dataframe = dataframe.set_index(keys=primary_key_column)
-
-        # insert dataframe
-        if insert_dataframe:
-            cursor = self._connection.cursor()
-            cursor.fast_executemany = True
-            dataframe = conversion.insert_values(
-                table_name, dataframe, self.include_metadata_timestamps, schema, cursor
-            )
-
-        return dataframe

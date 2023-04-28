@@ -43,6 +43,10 @@ class SQLInsufficientColumnSize(Exception):
     pass
 
 
+class SQLNonUnicodeTypeColumn(Exception):
+    """Exception for data containing unicode but SQL column is a non-unicode type."""
+
+
 class SQLRecastColumnUnchanged(Exception):
     """Exception for SQLInsufficientColumnSize handling not resulting in change of type or size."""
 

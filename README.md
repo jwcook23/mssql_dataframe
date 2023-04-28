@@ -29,19 +29,6 @@ from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
 sql = SQLServer(database=env.database, server=env.server)
-
-# create a demonstration dataframe
-df = pd.DataFrame({
-    'ColumnA': ['1','2','3','4','5'],
-    'ColumnB': ['a  .','b!','  c','d','e'],
-}, index=pd.Index([0, 1, 2, 3, 4], name='PK'))
-
-# create the table using a dataframe
-df = sql.create.table_from_dataframe(
-    table_name='##mssql_dataframe_readme',
-    dataframe = df,
-    primary_key = 'index'
-)
 ```
 
 ## Update
@@ -49,13 +36,35 @@ df = sql.create.table_from_dataframe(
 Records in an SQL table are updated by simply providing a dataframe. By default a match on the SQL table's primary key is required for a record to be updated.
 
 ```python
-# update records for index 0 & 1
+# create demo SQL table
+df = sql.create.table(
+    table_name = '##mssql_update',
+    columns = {'Column1': 'VARCHAR(10)', 'Column2': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
+
+# create a demo dataframe
+df = pd.DataFrame({
+    'Column1': ['A_Initial', 'B_Initial'],
+    'Column2': [1, 2],
+}, index=pd.Index(['A', 'B'], name='PK'))
+
+# perform an initial insert
+sql.write.insert('##mssql_update', df)
+
+# update records
 update_df = pd.DataFrame({
-        'ColumnA': ['11','22'],
-        'ColumnB': ['A','B'],
-}, index=pd.Index([0, 1], name='PK'))
+        'Column1': ['A_Updated'],
+}, index=pd.Index(['A'], name='PK'))
 # update data in the SQL table
-update_df = sql.write.update('##mssql_dataframe_readme', update_df)
+update_df = sql.write.update('##mssql_update', update_df)
+
+# validate the result
+result = sql.read.table('##mssql_update')
+assert result.at['A', 'Column1'] == 'A_Updated'
+assert result.at['A', 'Column2'] == 1
+assert result.at['B', 'Column1'] == 'B_Initial'
+assert result.at['B', 'Column2'] == 2
 ```
 
 ## Merge
@@ -67,15 +76,37 @@ Records can be inserted/updated/deleted by providing a dataframe to the merge me
 3. SQL column value not in dataframe column -> delete record in SQL
 
 ```python
-# update existing record for index 0
-# insert new record for index 5
-# delete missing records for index 1,2,3,4
-merge_df = pd.DataFrame({
-        'ColumnA': ['11','6'],
-        'ColumnB': ['aa','f'],
-}, index=pd.Index([0, 6], name='PK'))
-# merge data in the SQL table
-merged_df = sql.write.merge('##mssql_dataframe_readme', merge_df)
+# create demo SQL table
+df = sql.create.table(
+    table_name = '##mssql_merge',
+    columns = {'Column1': 'VARCHAR(10)', 'Column2': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
+
+# create a demo dataframe
+df = pd.DataFrame({
+    'Column1': ['A_Initial', 'B_Initial'],
+    'Column2': [1, 2],
+}, index=pd.Index(['A', 'B'], name='PK'))
+
+# perform an initial insert
+sql.write.insert('##mssql_merge', df)
+
+# perform merge
+sql.write.merge(
+        '##mssql_merge',
+        pd.DataFrame.from_records([
+                {'Column1': 'C_New', 'Column2': 3, 'PK': 'C'},
+                {'Column1': 'B_Updated', 'Column2': 0, 'PK': 'B'},
+        ]).set_index('PK')
+)
+
+# validate the results
+result = sql.read.table('##mssql_merge')
+assert 'A' not in result.index
+assert result.at['C', 'Column1'] == 'C_New'
+assert result.at['B', 'Column1'] == 'B_Updated'
+assert result.at['B', 'Column2'] == 0
 ```
 
 ## Upsert
@@ -83,14 +114,39 @@ merged_df = sql.write.merge('##mssql_dataframe_readme', merge_df)
 The merge method can be restricted to not delete records in SQL by specifying the upsert flag. Records in SQL are then only inserted or updated.
 
 ```python
-# update existing record for index 0
-# insert new record for index 7
-# records not in the dataframe but in SQL won't be deleted
-upsert_df = pd.DataFrame({
-        'ColumnA': ['11','7'],
-        'ColumnB': ['AA','g'],
-}, index=pd.Index([0, 7], name='PK'))
-sql.write.merge('##mssql_dataframe_readme', upsert_df, upsert=True)
+# create demo SQL table
+df = sql.create.table(
+    table_name = '##mssql_upsert',
+    columns = {'Column1': 'VARCHAR(10)', 'Column2': 'TINYINT', 'PK': 'CHAR(1)'},
+    primary_key_column = 'PK'
+)
+
+# create a demo dataframe
+df = pd.DataFrame({
+    'Column1': ['A_Initial', 'B_Initial'],
+    'Column2': [1, 2],
+}, index=pd.Index(['A', 'B'], name='PK'))
+
+# perform an initial insert
+sql.write.insert('##mssql_upsert', df)
+
+# perform upsert
+sql.write.merge(
+        '##mssql_upsert',
+        pd.DataFrame.from_records([
+                {'Column1': 'C_New', 'Column2': 3, 'PK': 'C'},
+                {'Column1': 'B_Updated', 'Column2': 0, 'PK': 'B'},
+        ]).set_index('PK'),
+        upsert = True
+)
+
+# validate the results
+result = sql.read.table('##mssql_upsert')
+assert result.at['A', 'Column1'] == 'A_Initial'
+assert result.at['A', 'Column2'] == 1
+assert result.at['C', 'Column1'] == 'C_New'
+assert result.at['B', 'Column1'] == 'B_Updated'
+assert result.at['B', 'Column2'] == 0
 ```
 
 ## Installation
