@@ -218,7 +218,7 @@ def convert_largest_sql_category(dataframe, schema):
             (schema.loc[convert, "sql_category"] == "date_time")
             & (schema.loc[convert, "sql_type"] != "datetimeoffset")
         ]
-        dataframe[columns] = dataframe[columns].astype("datetime64")
+        dataframe[columns] = dataframe[columns].astype("datetime64[ns]")
         # datetime offset
         columns = convert[
             (schema.loc[convert, "sql_category"] == "date_time")
@@ -468,6 +468,7 @@ def prepare_datetime2(schema, prepped, dataframe):
                 if pd.notnull(x)
                 else x
             )
+            rounded = rounded.astype("datetime64[ns]")
             dataframe[col] = rounded
             prepped[col] = rounded
     if any(dtype):
@@ -796,6 +797,8 @@ def insert_values(
     else:
         insert = ", ".join(columns)
         params = ", ".join(["?"] * len(columns))
+
+    # skip security check since table and columns have been escaped
     statement = f"""
     INSERT INTO
     {table} (
@@ -803,7 +806,7 @@ def insert_values(
     ) VALUES (
         {params}
     )
-    """
+    """  # nosec hardcoded_sql_expressions
     cursor.executemany(statement, values)
     cursor.commit()
 

@@ -76,7 +76,8 @@ def sample():
                 dtype="object",
             ),
             "_datetime2": pd.Series(
-                [pd.Timestamp.min, pd.Timestamp.max, None], dtype="datetime64[ns]"
+                [pd.Timestamp.min.ceil("us"), pd.Timestamp.max, None],
+                dtype="datetime64[ns]",
             ),
             "_char": pd.Series(["a", "b", None], dtype="string"),
             "_nchar": pd.Series(["い", "え", None], dtype="string"),

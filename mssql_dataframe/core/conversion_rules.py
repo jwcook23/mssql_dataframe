@@ -105,7 +105,7 @@ rules = pd.DataFrame.from_records(
         {
             "sql_type": "datetime2",
             "sql_category": "date_time",
-            "min_value": pd.Timestamp.min,
+            "min_value": pd.Timestamp.min.ceil("us"),
             "max_value": pd.Timestamp.max,
             "pandas_type": "datetime64[ns]",
             "odbc_type": pyodbc.SQL_TYPE_TIMESTAMP,

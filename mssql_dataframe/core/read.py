@@ -133,7 +133,8 @@ class read:
         else:
             order = ""
 
-        # select values
+        # skip security check since table_name, column_names, where_statement, order have been escaped
+        # limit has been enforced to be an integer
         statement = f"""
         SELECT {limit}
             {column_names}
@@ -141,7 +142,7 @@ class read:
             {table_name}
             {where_statement}
             {order}
-        """
+        """  # nosec hardcoded_sql_expressions
 
         # read sql query
         dataframe = conversion.read_values(
