@@ -235,7 +235,7 @@ class insert:
             )
 
         # insert data into source temporary table
-        uid = "".join(random.choices(string.ascii_lowercase, k=4))
+        uid = "".join(random.choices(string.ascii_lowercase, k=4))  # nosec B311
         temp_name = f"##__source_{table_name}_{uid}"
         columns = list(dataframe.columns)
         if any(dataframe.index.names):
