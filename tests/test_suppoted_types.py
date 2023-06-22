@@ -215,3 +215,20 @@ def test_merge(sql, sample, caplog):
     # validate results in SQL against dataframe
     result = sql.read.table(table_name)
     compare_dfs(df, result)
+
+
+def test_dtypes_index(sql, sample, caplog):
+    for pk in sample["columns"].keys():
+        table_name = f"##test_supported_dtypes_index_{pk}"
+
+        sql.create.table(table_name, sample["columns"], primary_key_column=pk)
+
+        data = sample["dataframe"].dropna(subset=pk)
+        data = data.drop_duplicates(subset=pk)
+        data = data.set_index(pk)
+
+        df = sql.insert.insert(table_name, data)
+        caplog = check_expected_warnings(caplog)
+
+        result = sql.read.table(table_name)
+        compare_dfs(df.sort_index(), result.sort_index())
