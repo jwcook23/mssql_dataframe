@@ -1,5 +1,7 @@
 """Methods for inserting data into SQL."""
 from typing import Tuple, List
+import string
+import random
 
 import pandas as pd
 import pyodbc
@@ -233,7 +235,8 @@ class insert:
             )
 
         # insert data into source temporary table
-        temp_name = "##__source_" + table_name
+        uid = "".join(random.choices(string.ascii_lowercase, k=4))
+        temp_name = f"##__source_{table_name}_{uid}"
         columns = list(dataframe.columns)
         if any(dataframe.index.names):
             columns = list(dataframe.index.names) + columns

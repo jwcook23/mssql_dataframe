@@ -552,6 +552,7 @@ def prepare_numeric(schema, prepped, dataframe):
         prepped[col] = dataframe[col].apply(
             lambda x: round(x, decimal_digits) if pd.notna(x) else x
         )
+        prepped[col] = prepped[col].astype(dataframe[col].dtype)
         if not dataframe[col].equals(prepped[col]):
             msg = f"Decimal digits for column [{col}] will be rounded to {decimal_digits} decimal places to fit SQL specification for this column."
             logger.warning(msg)
@@ -585,6 +586,8 @@ def prepare_values(
     if any(index):
         prepped = prepped.reset_index()
         prepped = prepped.set_index(index, drop=False)
+        dataframe = dataframe.reset_index()
+        dataframe = dataframe.set_index(index, drop=False)
 
     # only prepare values currently in dataframe
     schema = schema[schema.index.isin(prepped.columns)]
@@ -595,6 +598,10 @@ def prepare_values(
     prepped, dataframe = prepare_datetime2(schema, prepped, dataframe)
     prepped, dataframe = prepare_datetimeoffset(schema, prepped, dataframe)
     prepped, dataframe = prepare_numeric(schema, prepped, dataframe)
+
+    # reset the index temporarily set as columns for preparing values
+    if any(index):
+        dataframe = dataframe.set_index(index)
 
     # treat pandas NA,NaT,etc as NULL in SQL
     # prepped = prepped.fillna(np.nan).replace([np.nan], [None])
