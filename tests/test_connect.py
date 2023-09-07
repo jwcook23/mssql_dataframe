@@ -7,11 +7,18 @@ from mssql_dataframe.connect import connect
 from mssql_dataframe.core import custom_errors
 
 
-def test_connect():
+def test_trusted():
     # master database, local host, trusted Windows connection
     db = connect(env.database, env.server, env.driver, env.username, env.password)
     assert isinstance(db.connection, pyodbc.Connection)
 
+
+def test_kwargs():
+    pass
+    db = connect()
+
+
+def test_exceptions():
     # username/password without having to hardcode for testing
     with pytest.raises(pyodbc.InterfaceError):
         connect(
