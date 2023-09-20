@@ -27,7 +27,7 @@ class package:
 
 @pytest.fixture(scope="session")
 def sql():
-    db = connect(env.database, env.server, env.driver, env.username, env.password)
+    db = connect(database=env.database, server=env.server, trusted_connection="yes")
     yield package(db)
     db.connection.close()
 

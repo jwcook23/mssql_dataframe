@@ -44,41 +44,44 @@ class connect:
 
     def __init__(
         self,
-        database: str = "master",
-        server: str = "localhost",
-        driver: str = None,
-        username: str = None,
-        password: str = None,
+        **kwargs
     ):
-        driver, drivers_installed = self._get_driver(driver)
-        self.connection_spec = {
-            "database": database,
-            "server": server,
-            "driver": driver,
-            "drivers_installed": drivers_installed,
-        }
-        if username is None:
-            self.connection_spec["trusted_connection"] = True
-        else:
-            self.connection_spec["trusted_connection"] = False
+        
+        kwargs['autocommit'] = False
 
-        if self.connection_spec["trusted_connection"]:
-            self.connection = pyodbc.connect(
-                driver=self.connection_spec["driver"],
-                server=self.connection_spec["server"],
-                database=self.connection_spec["database"],
-                autocommit=False,
-                trusted_connection="yes",
-            )
-        else:
-            self.connection = pyodbc.connect(
-                driver=self.connection_spec["driver"],
-                server=self.connection_spec["server"],
-                database=self.connection_spec["database"],
-                autocommit=False,
-                UID=username,
-                PWD=password,
-            )
+        if 'driver' not in kwargs or kwargs['driver'] is None:
+            driver, _ = self._get_driver(None)
+            kwargs['driver'] = driver
+        
+        self.connection = pyodbc.connect(**kwargs)
+        # self.connection_spec = {
+        #     "database": database,
+        #     "server": server,
+        #     "driver": driver,
+        #     "drivers_installed": drivers_installed,
+        # }
+        # if username is None:
+        #     self.connection_spec["trusted_connection"] = True
+        # else:
+        #     self.connection_spec["trusted_connection"] = False
+
+        # if self.connection_spec["trusted_connection"]:
+        #     self.connection = pyodbc.connect(
+        #         driver=self.connection_spec["driver"],
+        #         server=self.connection_spec["server"],
+        #         database=self.connection_spec["database"],
+        #         autocommit=False,
+        #         trusted_connection="yes",
+        #     )
+        # else:
+        #     self.connection = pyodbc.connect(
+        #         driver=self.connection_spec["driver"],
+        #         server=self.connection_spec["server"],
+        #         database=self.connection_spec["database"],
+        #         autocommit=False,
+        #         UID=username,
+        #         PWD=password,
+        #     )
 
     @staticmethod
     def _get_driver(driver_search):

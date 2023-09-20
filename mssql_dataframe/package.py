@@ -59,14 +59,10 @@ class SQLServer(connect):
 
     def __init__(
         self,
-        database: str = "master",
-        server: str = "localhost",
-        driver: str = None,
-        username: str = None,
-        password: str = None,
         include_metadata_timestamps: bool = False,
+        **kwargs
     ):
-        connect.__init__(self, database, server, driver, username, password)
+        connect.__init__(self, **kwargs)
 
         # log initialization details
         self.log_init()
@@ -99,7 +95,7 @@ class SQLServer(connect):
             self.version_spec[name] = version(name)
 
         # output actual connection info (possibly derived within connection object)
-        logger.debug(f"Connection Info: {self.connection_spec}")
+        # logger.debug(f"Connection Info: {self.connection_spec}")
         # output Python/SQL/package versions
         logger.debug(f"Version Numbers: {self.version_spec}")
 
