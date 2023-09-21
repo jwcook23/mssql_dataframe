@@ -1,3 +1,6 @@
+# coverage reports
+reports/
+
 # pytest markdown files
 tests/test_markdown/
 

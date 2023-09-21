@@ -33,7 +33,7 @@ options = {
         "action": "store",
         "default": None,
         "help": "ODBC driver name. Default of None will cause the package to infer the best driver to use.",
-    }
+    },
 }
 
 
@@ -56,10 +56,10 @@ def add_docstring_namespace(doctest_namespace):
     doctest_namespace["pd"] = pandas
 
     sql = SQLServer(
-        database=env.database, 
-        server=env.server, 
+        database=env.database,
+        server=env.server,
         driver=env.driver,
-        trusted_connection="yes"
+        trusted_connection="yes",
     )
     doctest_namespace["create"] = sql.create
     doctest_namespace["modify"] = sql.modify

@@ -19,14 +19,20 @@ logger = logging.getLogger(__name__)
 class SQLServer(connect):
     """Class containing methods for creating, modifying, reading, and writing between dataframes and SQL Server.
 
+    kwargs are passed directly to pyodbc.connect as keyword arguments
+    - https://github.com/mkleehammer/pyodbc/wiki/The-pyodbc-Module#connect
+    - see pyodbc.connect for more documentation and the full set of parameters
+    - autocommit is set to always be False as the commit is handled by mssql_dataframe
+    - if a driver is not provided, it is inferred using pyodbc
+
     Parameters
     ----------
-    database (str, default='master') : name of database to connect to
-    server (str, default='localhost') : name of server to connect to
-    driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
-    username (str, default=None) : if not given, use Windows account credentials to connect
-    password (str, default=None) : if not given, use Windows account credentials to connect
     include_metadata_timestamps (bool, default=False) : include metadata timestamps _time_insert & _time_update in server time for write operations
+    keyword database (str) : name of database to connect to
+    keyword server (str') : name of server to connect to
+    keyword driver (str) : ODBC driver name to use, if not given is automatically determined
+    keyword UID (str) : if not given, use Windows account credentials to connect
+    keyword PWD (str) : if not given, use Windows account credentials to connect
 
     Properties
     ----------
@@ -57,11 +63,7 @@ class SQLServer(connect):
     connect : Additional options for connecting to a server including remote, Azure, and username/password.
     """
 
-    def __init__(
-        self,
-        include_metadata_timestamps: bool = False,
-        **kwargs
-    ):
+    def __init__(self, include_metadata_timestamps: bool = False, **kwargs):
         connect.__init__(self, **kwargs)
 
         # log initialization details

@@ -8,13 +8,19 @@ from mssql_dataframe.core import custom_errors
 class connect:
     r"""Connect to local, remote, or cloud SQL Server using ODBC connection.
 
+    kwargs are passed directly to pyodbc.connect as keyword arguments
+    - https://github.com/mkleehammer/pyodbc/wiki/The-pyodbc-Module#connect
+    - see pyodbc.connect for more documentation and the full set of parameters
+    - autocommit is set to always be False as the commit is handled by mssql_dataframe
+    - if a driver is not provided, it is inferred using pyodbc
+
     Parameters
     ----------
-    database (str, default='master') : name of database to connect to
-    server (str, default='localhost') : name of server to connect to
-    driver (str, default=None) : ODBC driver name to use, if not given is automatically determined
-    username (str, default=None) : if not given, use Windows account credentials to connect
-    password (str, default=None) : if not given, use Windows account credentials to connect
+    keyword database (str) : name of database to connect to
+    keyword server (str') : name of server to connect to
+    keyword driver (str) : ODBC driver name to use, if not given is automatically determined
+    keyword UID (str) : if not given, use Windows account credentials to connect
+    keyword PWD (str) : if not given, use Windows account credentials to connect
 
     Properties
     ----------
@@ -33,55 +39,29 @@ class connect:
 
     Connect to Azure SQL Server instance using a username and password.
 
-    >>> db = connect(server='<server>.database.windows.net', username='<username>', password='<password>') # doctest: +SKIP
+    >>> db = connect(server='<server>.database.windows.net', UID'<username>', PWD='<password>') # doctest: +SKIP
 
     Connect to SQL Express Local DB
     >>> db = connect(server=r"(localdb)\mssqllocaldb") # doctest: +SKIP
 
     Connect using a specific driver.
     >>> db = connect(driver_name='ODBC Driver 17 for SQL Server') # doctest: +SKIP
+
+    Connect using any ODBC connection parameter.
+
+    >>> db = connect(server='SomeServerName', database='tempdb', TrustServerCertificate='yes') # doctest: +SKIP
     """
 
-    def __init__(
-        self,
-        **kwargs
-    ):
-        
-        kwargs['autocommit'] = False
+    def __init__(self, **kwargs):
+        kwargs["autocommit"] = False
 
-        if 'driver' not in kwargs or kwargs['driver'] is None:
+        if "driver" not in kwargs or kwargs["driver"] is None:
             driver, _ = self._get_driver(None)
-            kwargs['driver'] = driver
-        
-        self.connection = pyodbc.connect(**kwargs)
-        # self.connection_spec = {
-        #     "database": database,
-        #     "server": server,
-        #     "driver": driver,
-        #     "drivers_installed": drivers_installed,
-        # }
-        # if username is None:
-        #     self.connection_spec["trusted_connection"] = True
-        # else:
-        #     self.connection_spec["trusted_connection"] = False
+            kwargs["driver"] = driver
+        else:
+            _ = self._get_driver(kwargs["driver"])
 
-        # if self.connection_spec["trusted_connection"]:
-        #     self.connection = pyodbc.connect(
-        #         driver=self.connection_spec["driver"],
-        #         server=self.connection_spec["server"],
-        #         database=self.connection_spec["database"],
-        #         autocommit=False,
-        #         trusted_connection="yes",
-        #     )
-        # else:
-        #     self.connection = pyodbc.connect(
-        #         driver=self.connection_spec["driver"],
-        #         server=self.connection_spec["server"],
-        #         database=self.connection_spec["database"],
-        #         autocommit=False,
-        #         UID=username,
-        #         PWD=password,
-        #     )
+        self.connection = pyodbc.connect(**kwargs)
 
     @staticmethod
     def _get_driver(driver_search):

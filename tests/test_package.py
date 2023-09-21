@@ -28,7 +28,7 @@ def test_SQLServer_basic(caplog):
         database=env.database,
         server=env.server,
         driver=env.driver,
-        trusted_connection='yes'
+        trusted_connection="yes",
     )
     assert isinstance(sql, SQLServer)
     assert list(vars(sql).keys()) == attributes
@@ -42,7 +42,7 @@ def test_SQLServer_timestamps(caplog):
         database=env.database,
         server=env.server,
         driver=env.driver,
-        trusted_connection='yes',
+        trusted_connection="yes",
         include_metadata_timestamps=True,
     )
 
@@ -65,7 +65,7 @@ def test_SQLServer_log_init(caplog):
             database=env.database,
             server=env.server,
             driver=env.driver,
-            trusted_connection='yes'
+            trusted_connection="yes",
         )
         assert isinstance(sql.version_spec, dict)
 
@@ -82,7 +82,7 @@ def test_SQLServer_schema():
         database=env.database,
         server=env.server,
         driver=env.driver,
-        trusted_connection='yes'
+        trusted_connection="yes",
     )
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 
