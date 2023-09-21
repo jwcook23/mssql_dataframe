@@ -12,7 +12,7 @@ pd.options.mode.chained_assignment = "raise"
 @pytest.fixture(scope="module")
 def cursor():
     # create database cursor
-    db = connect(env.database, env.server, env.driver, env.username, env.password)
+    db = connect(database=env.database, server=env.server, trusted_connection="yes")
 
     # database cursor
     cursor = db.connection.cursor()

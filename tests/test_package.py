@@ -8,7 +8,6 @@ from mssql_dataframe.package import SQLServer
 
 
 attributes = [
-    "connection_spec",
     "connection",
     "version_spec",
     "exceptions",
@@ -26,11 +25,10 @@ def test_version():
 
 def test_SQLServer_basic(caplog):
     sql = SQLServer(
-        env.database,
-        env.server,
-        env.driver,
-        env.username,
-        env.password,
+        database=env.database,
+        server=env.server,
+        driver=env.driver,
+        trusted_connection="yes",
     )
     assert isinstance(sql, SQLServer)
     assert list(vars(sql).keys()) == attributes
@@ -41,11 +39,10 @@ def test_SQLServer_basic(caplog):
 
 def test_SQLServer_timestamps(caplog):
     sql = SQLServer(
-        env.database,
-        env.server,
-        env.driver,
-        env.username,
-        env.password,
+        database=env.database,
+        server=env.server,
+        driver=env.driver,
+        trusted_connection="yes",
         include_metadata_timestamps=True,
     )
 
@@ -65,33 +62,27 @@ def test_SQLServer_timestamps(caplog):
 def test_SQLServer_log_init(caplog):
     with caplog.at_level(logging.DEBUG):
         sql = SQLServer(
-            env.database,
-            env.server,
-            env.driver,
-            env.username,
-            env.password,
+            database=env.database,
+            server=env.server,
+            driver=env.driver,
+            trusted_connection="yes",
         )
-        assert isinstance(sql.connection_spec, dict)
         assert isinstance(sql.version_spec, dict)
 
         # assert warnings raised by logging after all other tasks
-        assert len(caplog.record_tuples) == 2
+        assert len(caplog.record_tuples) == 1
         assert caplog.record_tuples[0][0] == "mssql_dataframe.package"
         assert caplog.record_tuples[0][1] == logging.DEBUG
-        assert caplog.record_tuples[0][2].startswith("Connection Info:")
-        assert caplog.record_tuples[1][0] == "mssql_dataframe.package"
-        assert caplog.record_tuples[1][1] == logging.DEBUG
-        assert caplog.record_tuples[1][2].startswith("Version Numbers:")
+        assert caplog.record_tuples[0][2].startswith("Version Numbers:")
 
 
 def test_SQLServer_schema():
     table_name = "##test_SQLServer_schema"
     sql = SQLServer(
-        env.database,
-        env.server,
-        env.driver,
-        env.username,
-        env.password,
+        database=env.database,
+        server=env.server,
+        driver=env.driver,
+        trusted_connection="yes",
     )
     sql.create.table(table_name, columns={"ColumnA": "bigint"})
 

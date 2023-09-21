@@ -34,16 +34,6 @@ options = {
         "default": None,
         "help": "ODBC driver name. Default of None will cause the package to infer the best driver to use.",
     },
-    "--username": {
-        "action": "store",
-        "default": None,
-        "help": "Username to use to connect to server.",
-    },
-    "--password": {
-        "action": "store",
-        "default": None,
-        "help": "Password to use to connect to server.",
-    },
 }
 
 
@@ -58,8 +48,6 @@ def pytest_configure(config):
     env.database = config.getoption("--database")
     env.server = config.getoption("--server")
     env.driver = config.getoption("--driver")
-    env.username = config.getoption("--username")
-    env.password = config.getoption("--password")
 
 
 # create namespace functions for testing docstrings
@@ -67,7 +55,12 @@ def pytest_configure(config):
 def add_docstring_namespace(doctest_namespace):
     doctest_namespace["pd"] = pandas
 
-    sql = SQLServer(env.database, env.server, env.driver, env.username, env.password)
+    sql = SQLServer(
+        database=env.database,
+        server=env.server,
+        driver=env.driver,
+        trusted_connection="yes",
+    )
     doctest_namespace["create"] = sql.create
     doctest_namespace["modify"] = sql.modify
     doctest_namespace["read"] = sql.read
