@@ -1,8 +1,10 @@
 # Quick Start
 
-## Initialization and Sample SQL Table
+## Initialization and SQL Connection
 
-Create a connection to SQL Server.
+Create a connection to SQL Server. The connection is made using pyodbc. Any keyword arugments are passed directly to pyodbc for the connection.
+
+[pyodc connection documentation](https://github.com/mkleehammer/pyodbc/wiki/The-pyodbc-Module#connect)
 
 <!--phmdoctest-setup-->
 ``` python
@@ -12,6 +14,9 @@ from mssql_dataframe import SQLServer
 
 # connect to database using pyodbc
 sql = SQLServer(database=env.database, server=env.server)
+
+# keyword arugments are the same as used for pyodbc
+# sql = SQLServer(database='database', server='server', UID='username', PWD='password')
 ```
 
 ## Updating SQL Table

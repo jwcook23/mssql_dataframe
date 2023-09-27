@@ -39,7 +39,7 @@ class connect:
 
     Connect to Azure SQL Server instance using a username and password.
 
-    >>> db = connect(server='<server>.database.windows.net', UID'<username>', PWD='<password>') # doctest: +SKIP
+    >>> db = connect(server='<server>.database.windows.net', UID='<username>', PWD='<password>') # doctest: +SKIP
 
     Connect to SQL Express Local DB
     >>> db = connect(server=r"(localdb)\mssqllocaldb") # doctest: +SKIP

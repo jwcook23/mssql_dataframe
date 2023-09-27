@@ -48,6 +48,9 @@ class SQLServer(connect):
     >>> import env
     >>> sql = SQLServer(database=env.database, server=env.server)
 
+    Connect using any keywords. These are in turn passed directly to the pyodbc.connect function.
+    >> sql = SQLServer(database='database', server='server', UID='username', PWD='password') # doctest: +SKIP
+
     Enable logging from mssql_dataframe.
 
     >>> import logging
