@@ -1,4 +1,5 @@
 """Methods for modifying SQL columns or primary keys."""
+
 from typing import Literal, List
 import pyodbc
 

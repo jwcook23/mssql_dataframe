@@ -1,4 +1,5 @@
 """Rules for conversion between SQL, pandas, and odbc data types."""
+
 import pandas as pd
 from numpy import inf
 import pyodbc
@@ -97,7 +98,7 @@ rules = pd.DataFrame.from_records(
             "sql_type": "datetimeoffset",
             "sql_category": "date_time",
             # TODO: inforce SQL TZ offset limit of -14:00 through +14:00
-            "min_value": pd.Timestamp(pd.Timestamp.min, tz="UTC"),
+            "min_value": pd.Timestamp(pd.Timestamp.min.ceil("us"), tz="UTC"),
             "max_value": pd.Timestamp(pd.Timestamp.max, tz="UTC"),
             "pandas_type": "object",
             "odbc_type": -155,
@@ -141,6 +142,22 @@ rules = pd.DataFrame.from_records(
             "max_value": 0,
             "pandas_type": "string",
             "odbc_type": pyodbc.SQL_WVARCHAR,
+        },
+        {
+            "sql_type": "binary",
+            "sql_category": "binary",
+            "min_value": -inf,
+            "max_value": inf,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_BINARY,
+        },
+        {
+            "sql_type": "varbinary",
+            "sql_category": "binary",
+            "min_value": -inf,
+            "max_value": inf,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_BINARY,
         },
     ]
 )

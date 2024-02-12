@@ -1,4 +1,5 @@
 """Methods for merging a dataframe into an SQL table."""
+
 from typing import List, Tuple
 
 import pandas as pd

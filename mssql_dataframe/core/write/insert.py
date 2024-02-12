@@ -1,4 +1,5 @@
 """Methods for inserting data into SQL."""
+
 from typing import Tuple, List
 import string
 import random
@@ -168,6 +169,12 @@ class insert:
             + ","
             + dtypes.loc[idx, "decimal_digits"]
             + ")"
+        )
+
+        # add byte size for binary columns
+        idx = dtypes[dtypes["sql_category"] == "binary"].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"] + "(" + dtypes.loc[idx, "column_size"] + ")"
         )
 
         # avoid creating an int identify data type column for a source table
