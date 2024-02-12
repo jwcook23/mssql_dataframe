@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.321" timestamp="2024-02-12T10:53:53.938500" hostname="DESKTOP-J9CFKLO"><testcase classname="pytest" name="internal" time="0.000"><error message="internal error">Traceback (most recent call last):
+  File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 269, in wrap_session
+    session.exitstatus = doit(config, session) or 0
+  File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 322, in _main
+    config.hook.pytest_collection(session=session)
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\hooks.py", line 286, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\manager.py", line 93, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\manager.py", line 84, in &lt;lambda&gt;
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\callers.py", line 208, in _multicall
+    return outcome.get_result()
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\callers.py", line 80, in get_result
+    raise ex[1].with_traceback(ex[2])
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\callers.py", line 187, in _multicall
+    res = hook_impl.function(*args)
+  File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 333, in pytest_collection
+    session.perform_collect()
+  File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 667, in perform_collect
+    self.config.pluginmanager.check_pending()
+  File "C:\Users\jacoo\AppData\Roaming\Python\Python39\site-packages\pluggy\manager.py", line 274, in check_pending
+    raise PluginValidationError(
+pluggy.manager.PluginValidationError: unknown hook 'pytest_warning_captured' in plugin &lt;module 'pytest_azurepipelines' from 'C:\\Users\\jacoo\\AppData\\Local\\Programs\\Python\\Python39\\lib\\site-packages\\pytest_azurepipelines.py'&gt;</error></testcase></testsuite></testsuites>

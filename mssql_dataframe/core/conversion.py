@@ -241,16 +241,25 @@ def convert_largest_sql_category(dataframe, schema):
 def check_column_size(dataframe, schema):
     """Raise exception if dataframe value is too large for SQL data type specification."""
     check = dataframe.copy()
+
     strings = check.columns[check.dtypes == "string"]
     if any(strings):
         schema.loc[strings, "max_value"] = schema.loc[strings, "column_size"]
         check[strings] = check[strings].apply(lambda x: x.str.len())
+
     datetimeoffset = schema.index[schema["sql_type"] == "datetimeoffset"]
-    standard = check.drop(columns=datetimeoffset)
+
+    binary = schema.index[schema["sql_category"] == "binary"]
+    if any(binary):
+        schema.loc[binary, "max_value"] = schema.loc[binary, "column_size"]
+        check[binary] = check[binary].apply(lambda x: x.str.len()).astype("Int64")
+
+    standard = check.drop(columns=list(datetimeoffset) + list(binary))
     if len(standard.columns) == 0:  # pragma: no cover
         check = pd.DataFrame(columns=["min", "max"])
     else:
         check = standard.agg([min, max]).transpose()
+
     # calculate min/max for object pd.Timestamp seperately
     for col in datetimeoffset:
         check = pd.concat(
@@ -262,6 +271,23 @@ def check_column_size(dataframe, schema):
                 ),
             ]
         )
+
+    # calculate min/max for binary seperately
+    for col in binary:
+        check = pd.concat(
+            [
+                check,
+                pd.DataFrame(
+                    {
+                        "min": min(dataframe[col].str.len()),
+                        "max": max(dataframe[col].str.len()),
+                    },
+                    index=[col],
+                    dtype="Int64",
+                ),
+            ]
+        )
+
     check = check.merge(
         schema[["min_value", "max_value"]], left_index=True, right_index=True
     )
@@ -561,6 +587,18 @@ def prepare_numeric(schema, prepped, dataframe):
     return prepped, dataframe
 
 
+def prepare_binary(schema, dataframe):
+    """Pad binary data will null bit as is done in SQL."""
+    dtype = schema[schema["sql_type"] == "binary"].index
+    for col in dtype:
+        size = schema.at[col, "column_size"]
+        dataframe[col] = dataframe[col].apply(
+            lambda x: x.ljust(size, b"\x00") if isinstance(x, bytes) else x
+        )
+
+    return dataframe
+
+
 def prepare_values(
     schema: pd.DataFrame, dataframe: pd.DataFrame
 ) -> Tuple[pd.DataFrame, list]:
@@ -598,6 +636,7 @@ def prepare_values(
     prepped, dataframe = prepare_datetime2(schema, prepped, dataframe)
     prepped, dataframe = prepare_datetimeoffset(schema, prepped, dataframe)
     prepped, dataframe = prepare_numeric(schema, prepped, dataframe)
+    dataframe = prepare_binary(schema, dataframe)
 
     # reset the index temporarily set as columns for preparing values
     if any(index):
@@ -732,6 +771,23 @@ def convert_datetimeoffset(connection):
     return connection
 
 
+def convert_varbinary(connection):
+    """
+    Convert SQL varbinary to bytes without null trailing bytes.
+
+    Types: pyodbc "pyodbc.SQL_VARBINARY" = T-SQL "VARBINARY" = ODBC SQL type "-3"
+    """
+
+    def SQL_TYPE_VARBINARY(raw_bytes):
+        raw_bytes = raw_bytes.rstrip(b"\x00")
+
+        return raw_bytes
+
+    connection.add_output_converter(pyodbc.SQL_VARBINARY, SQL_TYPE_VARBINARY)
+
+    return connection
+
+
 def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
     """Prepare connection by adding output converters for data types directly to a pandas data type.
 
@@ -755,6 +811,7 @@ def prepare_connection(connection: pyodbc.connect) -> pyodbc.connect:
     connection = convert_time(connection)
     connection = convert_timestamp(connection)
     connection = convert_datetimeoffset(connection)
+    connection = convert_varbinary(connection)
 
     return connection
 

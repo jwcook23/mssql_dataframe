@@ -142,6 +142,22 @@ rules = pd.DataFrame.from_records(
             "pandas_type": "string",
             "odbc_type": pyodbc.SQL_WVARCHAR,
         },
+        {
+            "sql_type": "binary",
+            "sql_category": "binary",
+            "min_value": -inf,
+            "max_value": inf,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_BINARY,
+        },
+        {
+            "sql_type": "varbinary",
+            "sql_category": "binary",
+            "min_value": -inf,
+            "max_value": inf,
+            "pandas_type": "object",
+            "odbc_type": pyodbc.SQL_BINARY,
+        },
     ]
 )
 rules["sql_type"] = rules["sql_type"].astype("string")

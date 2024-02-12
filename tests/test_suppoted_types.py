@@ -1,6 +1,7 @@
 import env
 import logging
 from decimal import Decimal
+import os
 
 import pandas as pd
 from numpy import inf
@@ -37,6 +38,8 @@ def sample():
     # Index=1: truncation test 2 if applicable or another value
     # Index=2: truncation test 2 if applicable or another value
     # Index=3: null value
+    with open(os.path.join("tests", "image.png"), mode="rb") as fh:
+        image = fh.read()
     dataframe = pd.DataFrame(
         {
             "_bit": pd.Series([1, 0, None], dtype="boolean"),
@@ -83,6 +86,8 @@ def sample():
             "_nchar": pd.Series(["い", "え", None], dtype="string"),
             "_varchar": pd.Series(["a", "bbb", None], dtype="string"),
             "_nvarchar": pd.Series(["い", "いえ", None], dtype="string"),
+            "_binary": pd.Series([image, b"A", None], dtype="object"),
+            "_varbinary": pd.Series([image, b"B", None], dtype="object"),
         }
     )
 
@@ -117,6 +122,8 @@ def sample():
         "_nchar": "NCHAR(1)",
         "_varchar": "VARCHAR(3)",
         "_nvarchar": "NVARCHAR(2)",
+        "_binary": f"BINARY({len(image)})",
+        "_varbinary": f"VARBINARY({len(image)})",
     }
 
     return {"dataframe": dataframe, "columns": columns}

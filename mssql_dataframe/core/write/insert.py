@@ -170,6 +170,12 @@ class insert:
             + ")"
         )
 
+        # add byte size for binary columns
+        idx = dtypes[dtypes["sql_category"] == "binary"].index
+        dtypes.loc[idx, "sql_type"] = (
+            dtypes.loc[idx, "sql_type"] + "(" + dtypes.loc[idx, "column_size"] + ")"
+        )
+
         # avoid creating an int identify data type column for a source table
         dtypes["sql_type"] = dtypes["sql_type"].replace("int identity", "int")
 
