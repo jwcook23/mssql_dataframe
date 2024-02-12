@@ -1,4 +1,5 @@
 """Methods for updaing an SQL table using a dataframe."""
+
 from typing import List, Tuple
 
 import pandas as pd

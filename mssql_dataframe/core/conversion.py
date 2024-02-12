@@ -1,4 +1,5 @@
 """Functions for data movement between Python pandas dataframes and SQL."""
+
 import struct
 from typing import Tuple, List
 import logging
@@ -13,6 +14,9 @@ from mssql_dataframe.core import (
     conversion_rules,
     dynamic,
 )
+
+# TODO: remove future opt-in
+pd.set_option("future.no_silent_downcasting", True)
 
 logger = logging.getLogger(__name__)
 
@@ -258,7 +262,7 @@ def check_column_size(dataframe, schema):
     if len(standard.columns) == 0:  # pragma: no cover
         check = pd.DataFrame(columns=["min", "max"])
     else:
-        check = standard.agg([min, max]).transpose()
+        check = standard.agg(["min", "max"]).transpose()
 
     # calculate min/max for object pd.Timestamp seperately
     for col in datetimeoffset:
@@ -406,16 +410,18 @@ def prepare_time(schema, prepped, dataframe):
     # round nanosecond to the 7th decimal place ...123456789 -> ...123456800 for SQL
     for col in truncation:
         rounded = dataframe[col].apply(
-            lambda x: pd.Timedelta(
-                days=x.components.days,
-                hours=x.components.hours,
-                minutes=x.components.minutes,
-                seconds=x.components.seconds,
-                microseconds=x.components.microseconds,
-                nanoseconds=round(x.components.nanoseconds / 100) * 100,
+            lambda x: (
+                pd.Timedelta(
+                    days=x.components.days,
+                    hours=x.components.hours,
+                    minutes=x.components.minutes,
+                    seconds=x.components.seconds,
+                    microseconds=x.components.microseconds,
+                    nanoseconds=round(x.components.nanoseconds / 100) * 100,
+                )
+                if pd.notnull(x)
+                else x
             )
-            if pd.notnull(x)
-            else x
         )
         dataframe[col] = rounded
         prepped[col] = rounded
@@ -481,18 +487,20 @@ def prepare_datetime2(schema, prepped, dataframe):
         # round nanosecond to the 7th decimal place ...145224193 -> ...145224200 for SQL
         for col in truncation:
             rounded = dataframe[col].apply(
-                lambda x: pd.Timestamp(
-                    x.year,
-                    x.month,
-                    x.day,
-                    x.hour,
-                    x.minute,
-                    x.second,
-                    x.microsecond,
-                    round(x.nanosecond / 100) * 100,
+                lambda x: (
+                    pd.Timestamp(
+                        x.year,
+                        x.month,
+                        x.day,
+                        x.hour,
+                        x.minute,
+                        x.second,
+                        x.microsecond,
+                        round(x.nanosecond / 100) * 100,
+                    )
+                    if pd.notnull(x)
+                    else x
                 )
-                if pd.notnull(x)
-                else x
             )
             rounded = rounded.astype("datetime64[ns]")
             dataframe[col] = rounded
@@ -509,7 +517,7 @@ def prepare_datetime2(schema, prepped, dataframe):
 def prepare_datetimeoffset(schema, prepped, dataframe):
     """Prepare datetimeoffset for writing to SQL."""
     dtype = schema[schema["sql_type"] == "datetimeoffset"].index
-    truncation = pd.Series(dtype="object")
+    truncation = []
     for col in dtype:
         # replace None with pd.NaT
         dataframe[col] = dataframe[col].fillna(pd.NaT)
@@ -521,11 +529,11 @@ def prepare_datetimeoffset(schema, prepped, dataframe):
         prepped[col] = dataframe[col]
         # check if pandas datatype has greater precision than SQL data type
         # TODO: check need to round/truncate timezoneoffset?
-        extra = prepped[col].apply(lambda x: x.nanosecond % 100 > 0).any()
-        truncation = pd.concat([truncation, pd.Series(extra, index=[col])])
+        extra = prepped[col].apply(lambda x: x.nanosecond % 100 > 0)
+        if extra.any():  # pragma: no branch
+            truncation += [col]
 
     if any(truncation):
-        truncation = list(truncation[truncation].index)
         msg = f"Nanosecond precision for dataframe columns {truncation} will be rounded as SQL data type 'datetimeoffset' allows 7 max decimal places."
         logger.warning(msg)
         # round nanosecond to the 7th decimal place ...145224193 -> ...145224200 for SQL
@@ -533,19 +541,21 @@ def prepare_datetimeoffset(schema, prepped, dataframe):
             rounded = (
                 dataframe[col]
                 .apply(
-                    lambda x: pd.Timestamp(
-                        year=x.year,
-                        month=x.month,
-                        day=x.day,
-                        hour=x.hour,
-                        minute=x.minute,
-                        second=x.second,
-                        microsecond=x.microsecond,
-                        nanosecond=round(x.nanosecond / 100) * 100,
-                        tzinfo=x.tzinfo,
+                    lambda x: (
+                        pd.Timestamp(
+                            year=x.year,
+                            month=x.month,
+                            day=x.day,
+                            hour=x.hour,
+                            minute=x.minute,
+                            second=x.second,
+                            microsecond=x.microsecond,
+                            nanosecond=round(x.nanosecond / 100) * 100,
+                            tzinfo=x.tzinfo,
+                        )
+                        if pd.notnull(x)
+                        else x
                     )
-                    if pd.notnull(x)
-                    else x
                 )
                 .fillna(pd.NaT)
             )

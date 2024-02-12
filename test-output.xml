@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.321" timestamp="2024-02-12T10:53:53.938500" hostname="DESKTOP-J9CFKLO"><testcase classname="pytest" name="internal" time="0.000"><error message="internal error">Traceback (most recent call last):
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.160" timestamp="2024-02-12T11:46:14.744760" hostname="DESKTOP-J9CFKLO"><testcase classname="pytest" name="internal" time="0.000"><error message="internal error">Traceback (most recent call last):
   File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 269, in wrap_session
     session.exitstatus = doit(config, session) or 0
   File "C:\Users\jacoo\AppData\Local\Programs\Python\Python39\lib\site-packages\_pytest\main.py", line 322, in _main

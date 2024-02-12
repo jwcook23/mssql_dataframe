@@ -1,4 +1,5 @@
 """Methods to insert, update, and merge dataframes."""
+
 import pyodbc
 
 from mssql_dataframe.core import modify, create

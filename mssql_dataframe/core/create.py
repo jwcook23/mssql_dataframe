@@ -1,4 +1,5 @@
 """Methods for creating SQL tables both explicitly and implicitly."""
+
 from typing import List, Dict
 import logging
 
@@ -108,9 +109,11 @@ class create:
                 ["DECLARE @ColumnName_" + x + " SYSNAME = ?;" for x in alias_names],
                 ["DECLARE @ColumnType_" + x + " SYSNAME = ?;" for x in alias_names],
                 [
-                    "DECLARE @ColumnSize_" + x + " SYSNAME = ?;"
-                    if x is not None
-                    else ""
+                    (
+                        "DECLARE @ColumnSize_" + x + " SYSNAME = ?;"
+                        if x is not None
+                        else ""
+                    )
                     for x in size_vars
                 ],
             )
@@ -173,9 +176,11 @@ class create:
                     for x in alias_names
                 ],
                 [
-                    "@ColumnSize_" + x + "" + "=@ColumnSize_" + x + ""
-                    if x is not None
-                    else ""
+                    (
+                        "@ColumnSize_" + x + "" + "=@ColumnSize_" + x + ""
+                        if x is not None
+                        else ""
+                    )
                     for x in size_vars
                 ],
             )

@@ -1,4 +1,5 @@
 """Functions for handling exceptions when attempting to write to SQL."""
+
 import logging
 
 import pandas as pd

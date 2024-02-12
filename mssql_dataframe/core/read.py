@@ -1,4 +1,5 @@
 """Methods for reading from SQL into a dataframe."""
+
 from typing import Literal
 
 import pandas as pd

@@ -1,4 +1,5 @@
 """Methods for inserting data into SQL."""
+
 from typing import Tuple, List
 import string
 import random

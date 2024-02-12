@@ -17,6 +17,7 @@ setup.cfg for tests, coverage, and build settings
 continuous_integration.yml for Azure DevOps Pipeline CI definition
 continuous_deployment.yml for Azure DevOps Pipeline CD definition
 """
+
 import os
 import shutil
 import subprocess
