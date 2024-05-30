@@ -243,6 +243,9 @@ class insert:
 
         # insert data into source temporary table
         uid = "".join(random.choices(string.ascii_lowercase, k=4))  # nosec B311
+
+        schema_name, table_name = conversion._get_schema_name(table_name)
+
         temp_name = f"##__source_{table_name}_{uid}"
         columns = list(dataframe.columns)
         if any(dataframe.index.names):
@@ -265,4 +268,4 @@ class insert:
         if any(extra):
             dataframe = dataframe.reset_index(level=extra)
 
-        return schema, dataframe, match_columns, temp_name
+        return schema, dataframe, match_columns, temp_name, schema_name, table_name

@@ -100,20 +100,23 @@ class merge(insert):
             additional_columns = ["_time_update", "_time_insert"]
         else:
             additional_columns = None
-        schema, dataframe, match_columns, temp_name = self._source_table(
-            table_name, dataframe, cursor, match_columns, additional_columns
+        schema, dataframe, match_columns, temp_name, schema_name, table_name = (
+            self._source_table(
+                table_name, dataframe, cursor, match_columns, additional_columns
+            )
         )
 
         # develop basic merge syntax
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
+            DECLARE @SchemaName SYSNAME = ?;
             DECLARE @TableName SYSNAME = ?;
             DECLARE @TableTemp SYSNAME = ?;
             {declare}
 
             SET @SQLStatement =
-            N' MERGE '+QUOTENAME(@TableName)+' AS _target '
-            +' USING '+QUOTENAME(@TableTemp)+' AS _source '
+            N' MERGE '+QUOTENAME(@SchemaName)+'.'+QUOTENAME(@TableName)+' AS _target '
+            +' USING '+QUOTENAME(@SchemaName)+'.'+QUOTENAME(@TableTemp)+' AS _source '
             +' ON ('+{match_syntax}+') '
             +' WHEN MATCHED THEN UPDATE SET '+{update_syntax}
             +' WHEN NOT MATCHED THEN INSERT ('+{insert_syntax}+')'
@@ -122,8 +125,8 @@ class merge(insert):
 
             EXEC sp_executesql
                 @SQLStatement,
-                N'@TableName SYSNAME, @TableTemp SYSNAME, {parameters}',
-                @TableName=@TableName, @TableTemp=@TableTemp, {values};
+                N'@SchemaName SYSNAME, @TableName SYSNAME, @TableTemp SYSNAME, {parameters}',
+                @SchemaName=@SchemaName, @TableName=@TableName, @TableTemp=@TableTemp, {values};
         """
 
         # if matched, update all columns in dataframe besides match_columns
@@ -222,14 +225,14 @@ class merge(insert):
         # perform merge
         if delete_requires is None:
             args = (
-                [table_name, temp_name]
+                [schema_name, table_name, temp_name]
                 + match_columns
                 + update_columns
                 + insert_columns
             )
         else:
             args = (
-                [table_name, temp_name]
+                [schema_name, table_name, temp_name]
                 + match_columns
                 + update_columns
                 + insert_columns

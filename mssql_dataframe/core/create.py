@@ -5,7 +5,7 @@ import logging
 
 import pyodbc
 
-from mssql_dataframe.core import dynamic
+from mssql_dataframe.core import dynamic, conversion
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class create:
         statement = """
         DECLARE @SQLStatement AS NVARCHAR(MAX);
         {declare}
-        SET @SQLStatement = N'CREATE TABLE {table} ('+
+        SET @SQLStatement = N'CREATE TABLE {schema}.{table} ('+
         {syntax}
         {pk}
         +');'
@@ -85,6 +85,8 @@ class create:
             primary_key_column = [primary_key_column]
 
         # parse inputs
+        schema_name, table_name = conversion._get_schema_name(table_name)
+        schema_name = dynamic.escape(self._connection.cursor(), schema_name)
         table_name = dynamic.escape(self._connection.cursor(), table_name)
         column_names = list(columns.keys())
         alias_names = [str(x) for x in list(range(0, len(column_names)))]
@@ -196,6 +198,7 @@ class create:
 
         # join components into final synax
         statement = statement.format(
+            schema=schema_name,
             table=table_name,
             declare=declare,
             syntax=syntax,
