@@ -3,7 +3,7 @@
 from typing import Literal, List
 import pyodbc
 
-from mssql_dataframe.core import dynamic
+from mssql_dataframe.core import dynamic, conversion
 
 
 class modify:
@@ -60,22 +60,25 @@ class modify:
         """
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
+            DECLARE @SchemaName SYSNAME = ?;
             DECLARE @TableName SYSNAME = ?;
             DECLARE @ColumnName SYSNAME = ?;
             {declare_type}
             {declare_size}
 
             SET @SQLStatement =
-                N'ALTER TABLE '+QUOTENAME(@TableName)+
+                N'ALTER TABLE '+QUOTENAME(@SchemaName)+'.'+QUOTENAME(@TableName)+
                 {syntax} +QUOTENAME(@ColumnName) {type_column} {size_column} {null_column}+';'
 
             EXEC sp_executesql
                 @SQLStatement,
-                N'@TableName SYSNAME, @ColumnName SYSNAME {parameter_type} {parameter_size}',
-                @TableName=@TableName, @ColumnName=@ColumnName {value_type} {value_size};
+                N'@SchemaName SYSNAME, @TableName SYSNAME, @ColumnName SYSNAME {parameter_type} {parameter_size}',
+                @SchemaName=@SchemaName, @TableName=@TableName, @ColumnName=@ColumnName {value_type} {value_size};
         """
 
-        args = [table_name, column_name]
+        schema_name, table_name = conversion._get_schema_name(table_name)
+
+        args = [schema_name, table_name, column_name]
         if modify == "drop":
             syntax = "'DROP COLUMN'"
             declare_type = ""

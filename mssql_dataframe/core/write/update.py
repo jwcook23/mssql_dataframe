@@ -76,36 +76,39 @@ class update(insert):
             additional_columns = ["_time_update"]
         else:
             additional_columns = None
-        schema, dataframe, match_columns, temp_name = self._source_table(
-            table_name,
-            dataframe,
-            cursor,
-            match_columns,
-            additional_columns,
-            updating_table=True,
+        schema, dataframe, match_columns, temp_name, schema_name, table_name = (
+            self._source_table(
+                table_name,
+                dataframe,
+                cursor,
+                match_columns,
+                additional_columns,
+                updating_table=True,
+            )
         )
 
         # develop basic update syntax
         statement = """
             DECLARE @SQLStatement AS NVARCHAR(MAX);
+            DECLARE @SchemaName SYSNAME = ?;
             DECLARE @TableName SYSNAME = ?;
             DECLARE @TableTemp SYSNAME = ?;
             {declare}
 
             SET @SQLStatement =
                 N'UPDATE '+
-                    QUOTENAME(@TableName)+
+                    QUOTENAME(@SchemaName)+'.'+QUOTENAME(@TableName)+
                 ' SET '+
                     {update_syntax}+
                 ' FROM '+
-                    QUOTENAME(@TableName)+' AS _target '+
+                    QUOTENAME(@SchemaName)+'.'+QUOTENAME(@TableName)+' AS _target '+
                 ' INNER JOIN '+
                     QUOTENAME(@TableTemp)+' AS _source '+
                     'ON '+{match_syntax}+';'
             EXEC sp_executesql
                 @SQLStatement,
-                N'@TableName SYSNAME, @TableTemp SYSNAME, {parameters}',
-                @TableName=@TableName, @TableTemp=@TableTemp, {values};
+                N'@SchemaName SYSNAME, @TableName SYSNAME, @TableTemp SYSNAME, {parameters}',
+                @SchemaName=@SchemaName, @TableName=@TableName, @TableTemp=@TableTemp, {values};
         """
 
         # update all columns in dataframe besides match columns
@@ -152,7 +155,7 @@ class update(insert):
         )
 
         # perform update
-        args = [table_name, temp_name] + match_columns + update_columns
+        args = [schema_name, table_name, temp_name] + match_columns + update_columns
 
         # execute statement to perform update in target table using source
         cursor.execute(statement, args)

@@ -21,6 +21,20 @@ pd.set_option("future.no_silent_downcasting", True)
 logger = logging.getLogger(__name__)
 
 
+def _get_schema_name(table_name):
+
+    # add cataglog for temporary tables
+    try:
+        schema_name, table_name = table_name.split(".")
+    except ValueError as err:
+        if err.args[0].startswith("not enough values to unpack"):
+            schema_name = "dbo"
+        else:  # pragma: no cover
+            raise
+
+    return schema_name, table_name
+
+
 def get_schema(
     connection: pyodbc.connect,
     table_name: str,
@@ -47,14 +61,9 @@ def get_schema(
     """
     cursor = connection.cursor()
 
+    schema_name, table_name = _get_schema_name(table_name)
+
     # add cataglog for temporary tables
-    try:
-        schema_name, table_name = table_name.split(".")
-    except ValueError as err:
-        if err.args[0].startswith("not enough values to unpack"):
-            schema_name = None
-        else:  # pragma: no cover
-            raise
     if table_name.startswith("#"):
         catalog = "tempdb"
     else:
@@ -114,7 +123,9 @@ def get_schema(
     schema["ss_is_identity"] = schema["ss_is_identity"] == 1
 
     # add primary key info
-    pk = cursor.primaryKeys(table=table_name, catalog=catalog).fetchall()
+    pk = cursor.primaryKeys(
+        table=table_name, catalog=catalog, schema=schema_name
+    ).fetchall()
     pk = pd.DataFrame([list(x) for x in pk], columns=[x[0] for x in cursor.description])
     pk = pk.rename(columns={"key_seq": "pk_seq"})
     schema = schema.merge(
